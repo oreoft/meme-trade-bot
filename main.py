@@ -17,7 +17,7 @@ from price_monitor import PriceMonitor
 # 创建FastAPI应用
 app = FastAPI(title="币价监控系统", description="实时监控代币价格，智能触发交易策略")
 
-# 全局监控器实例
+# 全局监控器实例（单例模式，多次调用返回同一实例）
 monitor = PriceMonitor()
 
 # 初始化配置
@@ -49,6 +49,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,
+        # reload=True,
         log_level="info"
     )

@@ -10,22 +10,53 @@ from trader import SolanaTrader
 
 
 class PriceMonitor:
-    """价格监控器"""
+    """价格监控器 - 单例模式"""
+
+    _instance = None
+    _lock = threading.Lock()
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self):
-        self.running_monitors: Dict[int, threading.Thread] = {}
-        self.monitor_states: Dict[int, bool] = {}
-        self.market_fetcher = MarketDataFetcher()
-        # 为每个token地址维护上一次的市值（而不是按record_id）
-        self.last_market_caps: Dict[str, float] = {}
-        # 市值变化阈值（百分比）
-        self.market_cap_change_threshold = 0.05  # 5%变化时推送
+        # 防止重复初始化
+        if self._initialized:
+            print("PriceMonitor 已经初始化，跳过重复初始化")
+            return
 
-        # 启动时自动恢复监控任务
-        self._auto_recover_monitors()
+        with self._lock:
+            if self._initialized:
+                print("PriceMonitor 已经初始化，跳过重复初始化")
+                return
+
+            self.running_monitors: Dict[int, threading.Thread] = {}
+            self.monitor_states: Dict[int, bool] = {}
+            self.market_fetcher = MarketDataFetcher()
+            # 为每个token地址维护上一次的市值（而不是按record_id）
+            self.last_market_caps: Dict[str, float] = {}
+            # 市值变化阈值（百分比）
+            self.market_cap_change_threshold = 0.05  # 5%变化时推送
+
+            # 防重复执行标志
+            self._auto_recovery_done = False
+
+            # 启动时自动恢复监控任务
+            self._auto_recover_monitors()
+
+            self._initialized = True
 
     def _auto_recover_monitors(self):
         """启动时自动恢复所有状态为monitoring的监控任务"""
+        # 防重复执行
+        if self._auto_recovery_done:
+            print("自动恢复已完成，跳过重复执行")
+            return
+
         print("正在自动恢复监控任务...")
         db = SessionLocal()
         try:
@@ -62,6 +93,9 @@ class PriceMonitor:
                 print(f"成功恢复 {recovered_count} 个监控任务")
             else:
                 print("没有需要恢复的监控任务")
+
+            # 标记为已完成
+            self._auto_recovery_done = True
 
         except Exception as e:
             print(f"自动恢复监控任务时出错: {e}")
@@ -127,16 +161,16 @@ class PriceMonitor:
             # 第一次检查，记录市值但不发送通知
             self.last_market_caps[token_address] = current_mc
             return False
-        
+
         last_mc = self.last_market_caps[token_address]
-        
+
         # 计算变化百分比
         if last_mc > 0:
             change_percent = abs((current_mc - last_mc) / last_mc)
             if change_percent >= self.market_cap_change_threshold:
                 self.last_market_caps[token_address] = current_mc
                 return True
-        
+
         return False
 
     def _monitor_loop(self, record_id: int):
@@ -322,15 +356,15 @@ class PriceMonitor:
                     record = db.query(MonitorRecord).filter(MonitorRecord.id == record_id).first()
                     if record:
                         active_tokens.add(record.token_address)
-            
+
             # 清理不在活跃列表中的token缓存
             tokens_to_remove = []
             for token_address in self.last_market_caps.keys():
                 if token_address not in active_tokens:
                     tokens_to_remove.append(token_address)
-            
+
             for token_address in tokens_to_remove:
                 del self.last_market_caps[token_address]
-                
+
         finally:
             db.close()
