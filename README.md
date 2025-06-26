@@ -30,7 +30,7 @@ pip install -r requirements.txt
 ## 🚀 启动系统
 
 ```bash
-python main.py
+python main.py 
 ```
 
 启动后访问：
