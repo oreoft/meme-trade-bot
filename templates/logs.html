@@ -49,10 +49,16 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <button class="btn btn-primary w-100" @click="refreshLogs">
-                                <i class="fas fa-sync-alt" :class="{ 'fa-spin': loading }"></i>
-                                刷新日志
-                            </button>
+                            <div class="btn-group w-100" role="group">
+                                <button class="btn btn-primary" @click="refreshLogs">
+                                    <i class="fas fa-sync-alt" :class="{ 'fa-spin': loading }"></i>
+                                    刷新日志
+                                </button>
+                                <button class="btn btn-danger" @click="clearLogs" :disabled="loading">
+                                    <i class="fas fa-trash"></i>
+                                    清空日志
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -325,6 +331,49 @@ createApp({
         async refreshLogs() {
             this.currentPage = 1;
             await this.loadLogs();
+        },
+        async clearLogs() {
+            // 显示确认对话框
+            let confirmMessage = '确定要清空所有日志吗？此操作不可恢复！';
+            if (this.selectedMonitorId) {
+                const monitorName = this.selectedMonitorName || `ID: ${this.selectedMonitorId}`;
+                confirmMessage = `确定要清空监控记录 "${monitorName}" 的所有日志吗？此操作不可恢复！`;
+            }
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            this.loading = true;
+            try {
+                let url = '/api/logs';
+                if (this.selectedMonitorId) {
+                    url += `?monitor_record_id=${this.selectedMonitorId}`;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`${data.message}`);
+                    // 重新加载日志
+                    this.currentPage = 1;
+                    await this.loadLogs();
+                } else {
+                    alert(`清空日志失败: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('清空日志失败:', error);
+                alert('清空日志失败，请检查网络连接');
+            } finally {
+                this.loading = false;
+            }
         },
         goToPage(page) {
             if (page >= 1 && page <= this.totalPages) {

@@ -15,4 +15,17 @@ async def get_logs(page: int = 1, per_page: int = 20, monitor_record_id: int = N
             "data": data
         }
     except Exception as e:
-        return {"success": False, "error": str(e)} 
+        return {"success": False, "error": str(e)}
+
+@router.delete("/logs")
+async def clear_logs(monitor_record_id: int = None):
+    """清空日志"""
+    try:
+        success, message, count = MonitorService.clear_logs(monitor_record_id)
+        return {
+            "success": success,
+            "message": message,
+            "count": count
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e), "count": 0} 

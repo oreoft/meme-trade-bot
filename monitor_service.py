@@ -208,3 +208,36 @@ class MonitorService:
             return False
         finally:
             db.close()
+
+    @staticmethod
+    def clear_logs(monitor_record_id: Optional[int] = None) -> tuple[bool, str, int]:
+        """清空日志
+        
+        Args:
+            monitor_record_id: 监控记录ID，如果为None则清空所有日志
+            
+        Returns:
+            tuple[bool, str, int]: (是否成功, 消息, 清空的日志数量)
+        """
+        db = SessionLocal()
+        try:
+            query = db.query(MonitorLog)
+            
+            if monitor_record_id:
+                query = query.filter(MonitorLog.monitor_record_id == monitor_record_id)
+            
+            # 获取要删除的日志数量
+            count = query.count()
+            
+            # 删除日志
+            query.delete()
+            db.commit()
+            
+            if monitor_record_id:
+                return True, f"成功清空监控记录 {monitor_record_id} 的 {count} 条日志", count
+            else:
+                return True, f"成功清空所有 {count} 条日志", count
+        except Exception as e:
+            return False, f"清空日志失败: {str(e)}", 0
+        finally:
+            db.close()
