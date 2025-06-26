@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+
+{% block title %}运行日志 - 币价监控系统{% endblock %}
+
+{% block content %}
+<div id="app">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-6 mb-0">
+                <i class="fas fa-list me-2 text-primary"></i>
+                运行日志
+            </h1>
+            <p class="text-muted mb-0">查看所有监控记录的详细运行日志</p>
+        </div>
+    </div>
+
+    <!-- 筛选器 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label">选择监控记录</label>
+                            <select class="form-select" v-model="selectedMonitorId" @change="loadLogs">
+                                <option value="">所有监控记录</option>
+                                <option v-for="monitor in monitors" :key="monitor.id" :value="monitor.id">
+                                    <span v-text="monitor.name + ' (' + monitor.token_address.substring(0, 8) + '...)'"></span>
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">每页显示</label>
+                            <select class="form-select" v-model="perPage" @change="loadLogs">
+                                <option value="10">10条</option>
+                                <option value="20">20条</option>
+                                <option value="50">50条</option>
+                                <option value="100">100条</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">筛选类型</label>
+                            <select class="form-select" v-model="filterType" @change="loadLogs">
+                                <option value="">所有记录</option>
+                                <option value="threshold_reached">已达阈值</option>
+                                <option value="trade_executed">已执行交易</option>
+                                <option value="monitoring">监控中</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-primary w-100" @click="refreshLogs">
+                                <i class="fas fa-sync-alt" :class="{ 'fa-spin': loading }"></i>
+                                刷新日志
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日志统计 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" v-text="totalLogs">0</h3>
+                            <small>总日志数</small>
+                        </div>
+                        <i class="fas fa-file-alt fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" v-text="thresholdReachedCount">0</h3>
+                            <small>达到阈值</small>
+                        </div>
+                        <i class="fas fa-bullseye fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" v-text="tradeExecutedCount">0</h3>
+                            <small>执行交易</small>
+                        </div>
+                        <i class="fas fa-exchange-alt fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" v-text="currentPage">1</h3>
+                            <small v-text="'第 ' + currentPage + ' 页'"></small>
+                        </div>
+                        <i class="fas fa-file-alt fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日志列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>详细日志
+                        <span v-if="selectedMonitorName" class="badge bg-secondary ms-2" v-text="selectedMonitorName"></span>
+                    </h5>
+                    <span class="badge bg-secondary">
+                        <i class="fas fa-clock me-1"></i>
+                        自动刷新: 30秒
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div v-if="loading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted">加载日志中...</p>
+                    </div>
+                    
+                    <div v-else-if="logs.length === 0" class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无日志记录</h5>
+                        <p class="text-muted">当监控开始运行时，日志将显示在这里</p>
+                    </div>
+
+                    <div v-else class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="15%">时间</th>
+                                    <th width="15%">监控记录</th>
+                                    <th width="12%">价格</th>
+                                    <th width="12%">市值</th>
+                                    <th width="10%">达到阈值</th>
+                                    <th width="15%">操作</th>
+                                    <th width="21%">交易哈希</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="log in logs" :key="log.id" :class="getLogRowClass(log)">
+                                    <td>
+                                        <small v-text="formatTime(log.timestamp)"></small>
+                                    </td>
+                                    <td>
+                                        <span v-if="getMonitorName(log.monitor_record_id)" class="badge bg-light text-dark" v-text="getMonitorName(log.monitor_record_id)"></span>
+                                        <span v-else class="text-muted">ID: <span v-text="log.monitor_record_id"></span></span>
+                                    </td>
+                                    <td>
+                                        <span v-if="log.price" class="font-monospace" v-text="'$' + log.price.toFixed(8)"></span>
+                                        <span v-else class="text-muted">--</span>
+                                    </td>
+                                    <td>
+                                        <span v-if="log.market_cap" class="font-monospace" v-text="'$' + log.market_cap.toLocaleString()"></span>
+                                        <span v-else class="text-muted">--</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge" :class="log.threshold_reached ? 'bg-danger' : 'bg-success'">
+                                            <i class="fas" :class="log.threshold_reached ? 'fa-exclamation-triangle' : 'fa-check'"></i>
+                                            <span v-text="log.threshold_reached ? '是' : '否'"></span>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge" :class="getActionBadgeClass(log.action_taken)" v-text="log.action_taken"></span>
+                                    </td>
+                                    <td>
+                                        <span v-if="log.tx_hash">
+                                            <a :href="'https://solscan.io/tx/' + log.tx_hash" target="_blank" class="text-decoration-none">
+                                                <code class="small" v-text="log.tx_hash.substring(0, 12) + '...' + log.tx_hash.substring(log.tx_hash.length - 8)"></code>
+                                                <i class="fas fa-external-link-alt ms-1"></i>
+                                            </a>
+                                        </span>
+                                        <span v-else class="text-muted">--</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 分页 -->
+                    <div v-if="totalPages > 1" class="card-footer">
+                        <nav>
+                            <ul class="pagination pagination-sm justify-content-center mb-0">
+                                <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                                    <button class="page-link" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </button>
+                                </li>
+                                <li v-for="page in visiblePages" :key="page" class="page-item" :class="{ active: page === currentPage }">
+                                    <button class="page-link" @click="goToPage(page)" v-text="page"></button>
+                                </li>
+                                <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                                    <button class="page-link" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            monitors: [],
+            logs: [],
+            loading: true,
+            selectedMonitorId: '',
+            perPage: 20,
+            currentPage: 1,
+            totalLogs: 0,
+            totalPages: 0,
+            filterType: '',
+            autoRefreshInterval: null
+        }
+    },
+    computed: {
+        selectedMonitorName() {
+            if (!this.selectedMonitorId) return '';
+            const monitor = this.monitors.find(m => m.id == this.selectedMonitorId);
+            return monitor ? monitor.name : '';
+        },
+        thresholdReachedCount() {
+            return this.logs.filter(log => log.threshold_reached).length;
+        },
+        tradeExecutedCount() {
+            return this.logs.filter(log => log.tx_hash).length;
+        },
+        visiblePages() {
+            const pages = [];
+            const start = Math.max(1, this.currentPage - 2);
+            const end = Math.min(this.totalPages, this.currentPage + 2);
+            
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            return pages;
+        }
+    },
+    mounted() {
+        this.loadMonitors();
+        this.loadLogs();
+        
+        // 检查URL参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const monitorId = urlParams.get('monitor_id');
+        if (monitorId) {
+            this.selectedMonitorId = monitorId;
+        }
+        
+        // 每30秒自动刷新
+        this.autoRefreshInterval = setInterval(() => {
+            this.loadLogs();
+        }, 30000);
+    },
+    beforeUnmount() {
+        if (this.autoRefreshInterval) {
+            clearInterval(this.autoRefreshInterval);
+        }
+    },
+    methods: {
+        async loadMonitors() {
+            try {
+                const response = await fetch('/api/monitor/records');
+                const data = await response.json();
+                if (data.success) {
+                    this.monitors = data.data;
+                }
+            } catch (error) {
+                console.error('加载监控记录失败:', error);
+            }
+        },
+        async loadLogs() {
+            this.loading = true;
+            try {
+                let url = `/api/logs?page=${this.currentPage}&per_page=${this.perPage}`;
+                
+                if (this.selectedMonitorId) {
+                    url += `&monitor_record_id=${this.selectedMonitorId}`;
+                }
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.logs = data.data.logs;
+                    this.totalLogs = data.data.total;
+                    this.totalPages = Math.ceil(this.totalLogs / this.perPage);
+                } else {
+                    console.error('加载日志失败:', data.error);
+                }
+            } catch (error) {
+                console.error('网络错误:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+        async refreshLogs() {
+            this.currentPage = 1;
+            await this.loadLogs();
+        },
+        goToPage(page) {
+            if (page >= 1 && page <= this.totalPages) {
+                this.currentPage = page;
+                this.loadLogs();
+            }
+        },
+        getMonitorName(recordId) {
+            const monitor = this.monitors.find(m => m.id === recordId);
+            return monitor ? monitor.name : '';
+        },
+        getLogRowClass(log) {
+            if (log.tx_hash) {
+                return 'table-success';
+            } else if (log.threshold_reached) {
+                return 'table-warning';
+            }
+            return '';
+        },
+        getActionBadgeClass(action) {
+            if (!action) return 'bg-secondary';
+            
+            if (action.includes('自动出售') || action.includes('交易')) {
+                return 'bg-success';
+            } else if (action.includes('阈值达到')) {
+                return 'bg-warning';
+            } else if (action.includes('监控中')) {
+                return 'bg-info';
+            } else if (action.includes('错误')) {
+                return 'bg-danger';
+            }
+            return 'bg-secondary';
+        },
+        formatTime(timestamp) {
+            if (!timestamp) return '--';
+            return new Date(timestamp).toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %} 

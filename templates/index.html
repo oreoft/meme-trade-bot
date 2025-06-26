@@ -1,0 +1,609 @@
+{% extends "base.html" %}
+
+{% block title %}监控管理 - 币价监控系统{% endblock %}
+
+{% block content %}
+<div id="app">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6 mb-0">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>
+                        币价监控系统
+                    </h1>
+                    <p class="text-muted mb-0">管理和监控您的代币价格阈值</p>
+                </div>
+                <button class="btn btn-primary" @click="showAddModal = true">
+                    <i class="fas fa-plus me-2"></i>添加监控
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" v-text="monitorRecords.length">0</h3>
+                            <small>总监控数</small>
+                        </div>
+                        <i class="fas fa-list fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" v-text="runningCount">0</h3>
+                            <small>运行中</small>
+                        </div>
+                        <i class="fas fa-play fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" v-text="stoppedCount">0</h3>
+                            <small>已停止</small>
+                        </div>
+                        <i class="fas fa-stop fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" v-text="errorCount">0</h3>
+                            <small>错误状态</small>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 监控列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>监控列表
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div v-if="loading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted">加载中...</p>
+                    </div>
+                    
+                    <div v-else-if="monitorRecords.length === 0" class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无监控记录</h5>
+                        <p class="text-muted">点击"添加监控"按钮创建第一个监控记录</p>
+                    </div>
+
+                    <div v-else class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>名称</th>
+                                    <th>代币地址</th>
+                                    <th>阈值</th>
+                                    <th>出售比例</th>
+                                    <th>检查间隔</th>
+                                    <th>状态</th>
+                                    <th>最后价格</th>
+                                    <th>最后检查</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="record in monitorRecords" :key="record.id">
+                                    <td>
+                                        <strong v-text="record.name"></strong>
+                                    </td>
+                                    <td>
+                                        <code class="small" v-text="record.token_address.substring(0, 8) + '...' + record.token_address.substring(record.token_address.length - 8)"></code>
+                                    </td>
+                                    <td>
+                                        <strong v-text="'$' + record.threshold.toLocaleString()"></strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info" v-text="(record.sell_percentage * 100).toFixed(1) + '%'"></span>
+                                    </td>
+                                    <td>
+                                        <span v-text="record.check_interval + '秒'"></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge" :class="getStatusClass(record.status)">
+                                            <i class="fas" :class="getStatusIcon(record.status)"></i>
+                                            <span v-text="getStatusText(record.status)"></span>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span v-if="record.last_price" v-text="'$' + record.last_price.toFixed(8)"></span>
+                                        <span v-else class="text-muted">--</span>
+                                    </td>
+                                    <td>
+                                        <small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small>
+                                        <span v-else class="text-muted">--</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button 
+                                                v-if="record.status === 'stopped'" 
+                                                class="btn btn-outline-success"
+                                                @click="startMonitor(record.id)"
+                                                :disabled="operationLoading[record.id]"
+                                                title="启动监控">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            <button 
+                                                v-if="record.status === 'monitoring'" 
+                                                class="btn btn-outline-danger"
+                                                @click="stopMonitor(record.id)"
+                                                :disabled="operationLoading[record.id]"
+                                                title="停止监控">
+                                                <i class="fas fa-stop"></i>
+                                            </button>
+                                            <button 
+                                                class="btn btn-outline-primary"
+                                                @click="editRecord(record)"
+                                                :disabled="record.status === 'monitoring'"
+                                                title="编辑">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button 
+                                                class="btn btn-outline-info"
+                                                @click="viewLogs(record.id)"
+                                                title="查看日志">
+                                                                                                <i class="fas fa-history"></i>
+                                            </button>
+                                            <button 
+                                                class="btn btn-outline-danger"
+                                                @click="deleteRecord(record.id)"
+                                                :disabled="record.status === 'monitoring'"
+                                                title="删除">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑监控记录模态框 -->
+    <div class="modal fade" :class="{ show: showAddModal || showEditModal }" 
+         :style="{ display: showAddModal || showEditModal ? 'block' : 'none' }"
+         @click="closeModal">
+        <div class="modal-dialog modal-lg" @click.stop>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus me-2"></i>
+                        <span v-if="showEditModal">编辑监控记录</span>
+                        <span v-else>添加监控记录</span>
+                    </h5>
+                    <button type="button" class="btn-close" @click="closeModal"></button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="saveRecord">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">监控名称 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" v-model="recordForm.name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">检查间隔(秒) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" v-model="recordForm.check_interval" min="1" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">代币地址 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" v-model="recordForm.token_address" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">市值阈值(USD) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" v-model="recordForm.threshold" step="0.01" min="0" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">出售比例 <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" v-model="recordForm.sell_percentage" step="0.01" min="0" max="1" required>
+                                    <div class="form-text">0.1 = 10%, 1 = 100%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">通知Webhook地址 <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" v-model="recordForm.webhook_url" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">钱包私钥 <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" v-model="recordForm.private_key" required>
+                            <div class="form-text text-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                私钥将被加密存储，请确保私钥安全
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @click="closeModal">取消</button>
+                            <button type="submit" class="btn btn-primary" :disabled="saveLoading">
+                                <span v-if="saveLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                <span v-if="saveLoading">保存中...</span>
+                                <span v-else>保存</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日志查看模态框 -->
+    <div class="modal fade" :class="{ show: showLogsModal }" 
+         :style="{ display: showLogsModal ? 'block' : 'none' }"
+         @click="closeLogsModal">
+        <div class="modal-dialog modal-xl" @click.stop>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-history me-2"></i>
+                        监控日志
+                    </h5>
+                    <button type="button" class="btn-close" @click="closeLogsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="logsLoading" class="text-center py-3">
+                        <div class="spinner-border text-primary"></div>
+                        <p class="mt-2">加载日志中...</p>
+                    </div>
+                    <div v-else-if="logs.length === 0" class="text-center py-3">
+                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">暂无日志记录</p>
+                    </div>
+                    <div v-else class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>价格</th>
+                                    <th>市值</th>
+                                    <th>达到阈值</th>
+                                    <th>操作</th>
+                                    <th>交易哈希</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="log in logs" :key="log.id">
+                                    <td>
+                                        <small v-text="formatTime(log.timestamp)"></small>
+                                    </td>
+                                    <td>
+                                        <span v-if="log.price" v-text="'$' + log.price.toFixed(8)"></span>
+                                        <span v-else>--</span>
+                                    </td>
+                                    <td>
+                                        <span v-if="log.market_cap" v-text="'$' + log.market_cap.toLocaleString()"></span>
+                                        <span v-else>--</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge" :class="log.threshold_reached ? 'bg-danger' : 'bg-success'">
+                                            <span v-if="log.threshold_reached">是</span>
+                                            <span v-else>否</span>
+                                        </span>
+                                    </td>
+                                    <td v-text="log.action_taken"></td>
+                                    <td>
+                                        <span v-if="log.tx_hash">
+                                            <a :href="'https://solscan.io/tx/' + log.tx_hash" target="_blank" class="text-decoration-none">
+                                                <code class="small" v-text="log.tx_hash.substring(0, 8) + '...'"></code>
+                                                <i class="fas fa-external-link-alt ms-1"></i>
+                                            </a>
+                                        </span>
+                                        <span v-else>--</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框背景 -->
+    <div v-if="showAddModal || showEditModal || showLogsModal" class="modal-backdrop fade show"></div>
+
+    <!-- 消息提示 -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+        <div v-for="message in messages" :key="message.id" 
+             class="toast align-items-center border-0 show mb-2" 
+             :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
+            <div class="d-flex">
+                <div class="toast-body" v-text="message.text">
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" 
+                        @click="removeMessage(message.id)"></button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            monitorRecords: [],
+            logs: [],
+            loading: true,
+            logsLoading: false,
+            saveLoading: false,
+            showAddModal: false,
+            showEditModal: false,
+            showLogsModal: false,
+            editingRecordId: null,
+            operationLoading: {},
+            recordForm: {
+                name: '',
+                private_key: '',
+                token_address: '',
+                threshold: 200000,
+                sell_percentage: 0.1,
+                webhook_url: '',
+                check_interval: 5
+            },
+            messages: []
+        }
+    },
+    computed: {
+        runningCount() {
+            return this.monitorRecords.filter(r => r.status === 'monitoring').length;
+        },
+        stoppedCount() {
+            return this.monitorRecords.filter(r => r.status === 'stopped').length;
+        },
+        errorCount() {
+            return this.monitorRecords.filter(r => r.status === 'error').length;
+        }
+    },
+    mounted() {
+        this.loadMonitorRecords();
+        // 每30秒自动刷新
+        setInterval(() => {
+            this.loadMonitorRecords();
+        }, 30000);
+    },
+    methods: {
+        async loadMonitorRecords() {
+            try {
+                const response = await fetch('/api/monitor/records');
+                const data = await response.json();
+                if (data.success) {
+                    this.monitorRecords = data.data;
+                } else {
+                    this.showMessage('error', data.error || '加载监控记录失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.loading = false;
+            }
+        },
+        async saveRecord() {
+            this.saveLoading = true;
+            try {
+                const formData = new FormData();
+                Object.keys(this.recordForm).forEach(key => {
+                    formData.append(key, this.recordForm[key]);
+                });
+
+                const url = this.showEditModal 
+                    ? `/api/monitor/records/${this.editingRecordId}`
+                    : '/api/monitor/records';
+                
+                const method = this.showEditModal ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    this.showMessage('success', data.message);
+                    this.closeModal();
+                    this.loadMonitorRecords();
+                } else {
+                    this.showMessage('error', data.error || '保存失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.saveLoading = false;
+            }
+        },
+        async startMonitor(recordId) {
+            this.operationLoading[recordId] = true;
+            try {
+                const response = await fetch(`/api/monitor/start?record_id=${recordId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showMessage('success', data.message);
+                    this.loadMonitorRecords();
+                } else {
+                    this.showMessage('error', data.message || '启动失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.operationLoading[recordId] = false;
+            }
+        },
+        async stopMonitor(recordId) {
+            this.operationLoading[recordId] = true;
+            try {
+                const response = await fetch(`/api/monitor/stop?record_id=${recordId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showMessage('success', data.message);
+                    this.loadMonitorRecords();
+                } else {
+                    this.showMessage('error', data.message || '停止失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.operationLoading[recordId] = false;
+            }
+        },
+        async deleteRecord(recordId) {
+            if (!confirm('确定要删除这个监控记录吗？此操作不可恢复。')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/monitor/records/${recordId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showMessage('success', data.message);
+                    this.loadMonitorRecords();
+                } else {
+                    this.showMessage('error', data.error || '删除失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+                        }
+        },
+        editRecord(record) {
+            this.editingRecordId = record.id;
+            this.recordForm = {
+                name: record.name,
+                private_key: '',  // 安全起见，不回填私钥
+                token_address: record.token_address,
+                threshold: record.threshold,
+                sell_percentage: record.sell_percentage,
+                webhook_url: record.webhook_url,
+                check_interval: record.check_interval
+            };
+            this.showEditModal = true;
+        },
+        async viewLogs(recordId) {
+            this.showLogsModal = true;
+            this.logsLoading = true;
+            try {
+                const response = await fetch(`/api/logs?monitor_record_id=${recordId}&per_page=50`);
+                const data = await response.json();
+                if (data.success) {
+                    this.logs = data.data.logs;
+                } else {
+                    this.showMessage('error', '加载日志失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.logsLoading = false;
+            }
+        },
+        closeModal() {
+            this.showAddModal = false;
+            this.showEditModal = false;
+            this.editingRecordId = null;
+            this.recordForm = {
+                name: '',
+                private_key: '',
+                token_address: '',
+                threshold: 200000,
+                sell_percentage: 0.1,
+                webhook_url: '',
+                check_interval: 5
+            };
+        },
+        closeLogsModal() {
+            this.showLogsModal = false;
+            this.logs = [];
+        },
+        getStatusClass(status) {
+            const statusClasses = {
+                'monitoring': 'bg-success',
+                'stopped': 'bg-secondary',
+                'error': 'bg-danger',
+                'completed': 'bg-info'
+            };
+            return statusClasses[status] || 'bg-secondary';
+        },
+        getStatusIcon(status) {
+            const statusIcons = {
+                'monitoring': 'fa-play',
+                'stopped': 'fa-stop',
+                'error': 'fa-exclamation-triangle',
+                'completed': 'fa-check-circle'
+            };
+            return statusIcons[status] || 'fa-question';
+        },
+        getStatusText(status) {
+            const statusTexts = {
+                'monitoring': '监控中',
+                'stopped': '已停止',
+                'error': '错误',
+                'completed': '已完成'
+            };
+            return statusTexts[status] || '?未知';
+        },
+        formatTime(timestamp) {
+            if (!timestamp) return '--';
+            return new Date(timestamp).toLocaleString('zh-CN');
+        },
+        showMessage(type, text) {
+            const id = Date.now() + Math.random();
+            this.messages.push({ id, type, text });
+            setTimeout(() => {
+                this.removeMessage(id);
+            }, 5000);
+        },
+        removeMessage(id) {
+            this.messages = this.messages.filter(m => m.id !== id);
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %} 

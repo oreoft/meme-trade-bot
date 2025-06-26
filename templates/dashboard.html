@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>币价监控系统</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Vue.js -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Axios -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 1rem;
+        }
+        .status-running {
+            color: #198754;
+        }
+        .status-stopped {
+            color: #dc3545;
+        }
+        .price-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .threshold-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .toast-container {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 1055;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-chart-line me-2"></i>
+                    币价监控系统
+                </a>
+                <div class="d-flex align-items-center">
+                    <span class="badge me-3" :class="status.running ? 'bg-success' : 'bg-danger'">
+                        <i class="fas fa-circle me-1"></i>
+                        <span v-if="status.running">运行中</span>
+                        <span v-else>已停止</span>
+                    </span>
+                    <button class="btn btn-sm" 
+                            :class="status.running ? 'btn-outline-light' : 'btn-success'"
+                            @click="toggleMonitor"
+                            :disabled="toggleLoading">
+                        <span v-if="toggleLoading" class="spinner-border spinner-border-sm me-2"></span>
+                        <i v-else class="fas" :class="status.running ? 'fa-stop' : 'fa-play'"></i>
+                        <span v-if="status.running">停止</span>
+                        <span v-else>启动</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mt-4">
+            <!-- 状态卡片 -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card price-card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title mb-1">
+                                <i class="fas fa-dollar-sign"></i> 当前价格
+                            </h5>
+                            <h3 class="mb-0">
+                                <span v-if="status.price_info" v-html="'$' + status.price_info.price.toFixed(8)"></span>
+                                <span v-else>--</span>
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card threshold-card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title mb-1">
+                                <i class="fas fa-target"></i> 市值阈值
+                            </h5>
+                            <h3 class="mb-0">
+                                <span v-if="status.threshold" v-html="'$' + status.threshold.toLocaleString()"></span>
+                                <span v-else>$--</span>
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white text-center">
+                        <div class="card-body">
+                            <h5 class="card-title mb-1">
+                                <i class="fas fa-coins"></i> 当前市值
+                            </h5>
+                            <h3 class="mb-0">
+                                <span v-if="status.price_info" v-html="'$' + status.price_info.market_cap.toLocaleString()"></span>
+                                <span v-else>--</span>
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-dark text-center">
+                        <div class="card-body">
+                            <h5 class="card-title mb-1">
+                                <i class="fas fa-percentage"></i> 距离阈值
+                            </h5>
+                            <h3 class="mb-0" v-text="getThresholdProgress() + '%'">
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- 快速配置 -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-cog me-2"></i>快速配置
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form @submit.prevent="saveQuickConfig">
+                                <div class="mb-3">
+                                    <label class="form-label">代币地址</label>
+                                    <input type="text" class="form-control" v-model="quickConfig.TOKEN_ADDRESS">
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">市值阈值($)</label>
+                                            <input type="number" class="form-control" v-model="quickConfig.MARKET_CAP_THRESHOLD">
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">出售比例</label>
+                                            <input type="number" class="form-control" v-model="quickConfig.SELL_PERCENTAGE" step="0.01" min="0" max="1">
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100" :disabled="saveLoading">
+                                    <span v-if="saveLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                    <span v-if="saveLoading">保存中...</span>
+                                    <span v-else>保存配置</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 完整配置 -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-list me-2"></i>所有配置
+                            </h5>
+                            <button class="btn btn-sm btn-outline-primary" @click="showAllConfigs = !showAllConfigs">
+                                <i class="fas" :class="showAllConfigs ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                            </button>
+                        </div>
+                        <div class="card-body" v-show="showAllConfigs">
+                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>配置项</th>
+                                            <th>值</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="config in configs" :key="config.id">
+                                            <td><small><code v-text="config.key"></code></small></td>
+                                            <td>
+                                                <small v-if="config.key === 'PRIVATE_KEY'">
+                                                    ******** 
+                                                </small>
+                                                <small v-else v-text="config.value"></small>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-xs btn-outline-primary" @click="editConfig(config)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 监控日志 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-history me-2"></i>监控日志
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div v-if="logs.length === 0" class="text-center text-muted py-4">
+                                暂无监控日志
+                            </div>
+                            <div v-else class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>时间</th>
+                                            <th>价格</th>
+                                            <th>市值</th>
+                                            <th>状态</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="log in logs" :key="log.id">
+                                            <td v-text="formatDate(log.timestamp)"></td>
+                                            <td>
+                                                <span v-if="log.price" v-html="'$' + log.price.toFixed(8)"></span>
+                                                <span v-else>$--</span>
+                                            </td>
+                                            <td>
+                                                <span v-if="log.market_cap" v-html="'$' + log.market_cap.toLocaleString()"></span>
+                                                <span v-else>$--</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge" :class="log.threshold_reached ? 'bg-danger' : 'bg-success'">
+                                                    <span v-if="log.threshold_reached">达到阈值</span>
+                                                    <span v-else>正常</span>
+                                                </span>
+                                            </td>
+                                            <td v-text="log.action_taken || '--'"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 编辑配置模态框 -->
+        <div class="modal fade" :class="{ show: showEditModal }" 
+             :style="{ display: showEditModal ? 'block' : 'none' }">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">编辑配置</h5>
+                        <button type="button" class="btn-close" @click="closeEditModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">配置键</label>
+                            <input type="text" class="form-control" v-model="editForm.key" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">配置值</label>
+                            <textarea class="form-control" v-model="editForm.value" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">描述</label>
+                            <input type="text" class="form-control" v-model="editForm.description">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="closeEditModal">取消</button>
+                        <button type="button" class="btn btn-primary" @click="saveEditConfig">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模态框背景 -->
+        <div class="modal-backdrop fade show" v-if="showEditModal" @click="closeEditModal"></div>
+
+        <!-- 消息提示 -->
+        <div class="toast-container">
+            <div v-for="message in messages" :key="message.id" 
+                 class="toast align-items-center border-0 show"
+                 :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
+                <div class="d-flex">
+                    <div class="toast-body" v-text="message.text"></div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" 
+                            @click="removeMessage(message.id)"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    status: {
+                        running: false,
+                        price_info: null,
+                        threshold: 0
+                    },
+                    configs: [],
+                    logs: [],
+                    quickConfig: {
+                        TOKEN_ADDRESS: '',
+                        MARKET_CAP_THRESHOLD: 200000,
+                        SELL_PERCENTAGE: 0.1
+                    },
+                    editForm: {
+                        key: '',
+                        value: '',
+                        description: ''
+                    },
+                    showAllConfigs: false,
+                    showEditModal: false,
+                    toggleLoading: false,
+                    saveLoading: false,
+                    messages: []
+                }
+            },
+            mounted() {
+                this.loadData();
+                // 每30秒刷新一次数据
+                setInterval(() => {
+                    this.loadStatus();
+                    this.loadLogs();
+                }, 30000);
+            },
+            methods: {
+                async loadData() {
+                    await Promise.all([
+                        this.loadStatus(),
+                        this.loadConfigs(),
+                        this.loadLogs()
+                    ]);
+                    this.loadQuickConfig();
+                },
+
+                async loadStatus() {
+                    try {
+                        const response = await axios.get('/api/monitor/status');
+                        if (response.data.success) {
+                            this.status = response.data.data;
+                        }
+                    } catch (error) {
+                        console.error('获取状态失败:', error);
+                    }
+                },
+
+                async loadConfigs() {
+                    try {
+                        const response = await axios.get('/api/configs');
+                        if (response.data.success) {
+                            this.configs = response.data.data;
+                        }
+                    } catch (error) {
+                        console.error('加载配置失败:', error);
+                    }
+                },
+
+                async loadLogs() {
+                    try {
+                        const response = await axios.get('/api/logs?per_page=10');
+                        if (response.data.success) {
+                            this.logs = response.data.data.logs;
+                        }
+                    } catch (error) {
+                        console.error('加载日志失败:', error);
+                    }
+                },
+
+                loadQuickConfig() {
+                    this.configs.forEach(config => {
+                        if (config.key === 'TOKEN_ADDRESS') {
+                            this.quickConfig.TOKEN_ADDRESS = config.value;
+                        } else if (config.key === 'MARKET_CAP_THRESHOLD') {
+                            this.quickConfig.MARKET_CAP_THRESHOLD = parseFloat(config.value);
+                        } else if (config.key === 'SELL_PERCENTAGE') {
+                            this.quickConfig.SELL_PERCENTAGE = parseFloat(config.value);
+                        }
+                    });
+                },
+
+                async toggleMonitor() {
+                    this.toggleLoading = true;
+                    try {
+                        const endpoint = this.status.running ? '/api/monitor/stop' : '/api/monitor/start';
+                        const response = await axios.post(endpoint);
+                        
+                        if (response.data.success) {
+                            this.showMessage(response.data.message, 'success');
+                            await this.loadStatus();
+                        } else {
+                            this.showMessage(response.data.error, 'error');
+                        }
+                    } catch (error) {
+                        this.showMessage('操作失败: ' + error.message, 'error');
+                    } finally {
+                        this.toggleLoading = false;
+                    }
+                },
+
+                async saveQuickConfig() {
+                    this.saveLoading = true;
+                    try {
+                        const formData = new FormData();
+                        
+                        // 保存TOKEN_ADDRESS
+                        formData.append('key', 'TOKEN_ADDRESS');
+                        formData.append('value', this.quickConfig.TOKEN_ADDRESS);
+                        formData.append('config_type', 'string');
+                        await axios.post('/api/configs', formData);
+                        
+                        // 保存MARKET_CAP_THRESHOLD
+                        const formData2 = new FormData();
+                        formData2.append('key', 'MARKET_CAP_THRESHOLD');
+                        formData2.append('value', this.quickConfig.MARKET_CAP_THRESHOLD);
+                        formData2.append('config_type', 'number');
+                        await axios.post('/api/configs', formData2);
+                        
+                        // 保存SELL_PERCENTAGE
+                        const formData3 = new FormData();
+                        formData3.append('key', 'SELL_PERCENTAGE');
+                        formData3.append('value', this.quickConfig.SELL_PERCENTAGE);
+                        formData3.append('config_type', 'number');
+                        await axios.post('/api/configs', formData3);
+                        
+                        this.showMessage('配置保存成功', 'success');
+                        await this.loadConfigs();
+                    } catch (error) {
+                        this.showMessage('保存失败: ' + error.message, 'error');
+                    } finally {
+                        this.saveLoading = false;
+                    }
+                },
+
+                editConfig(config) {
+                    this.editForm = {
+                        key: config.key,
+                        value: config.value,
+                        description: config.description || ''
+                    };
+                    this.showEditModal = true;
+                },
+
+                async saveEditConfig() {
+                    try {
+                        const formData = new FormData();
+                        formData.append('key', this.editForm.key);
+                        formData.append('value', this.editForm.value);
+                        formData.append('description', this.editForm.description);
+                        
+                        const response = await axios.post('/api/configs', formData);
+                        if (response.data.success) {
+                            this.showMessage('配置更新成功', 'success');
+                            this.closeEditModal();
+                            await this.loadConfigs();
+                        }
+                    } catch (error) {
+                        this.showMessage('更新失败: ' + error.message, 'error');
+                    }
+                },
+
+                closeEditModal() {
+                    this.showEditModal = false;
+                    this.editForm = {
+                        key: '',
+                        value: '',
+                        description: ''
+                    };
+                },
+
+                getThresholdProgress() {
+                    if (!this.status.price_info || !this.status.threshold) return 0;
+                    const progress = (this.status.price_info.market_cap / this.status.threshold) * 100;
+                    return Math.min(100, Math.max(0, progress)).toFixed(1);
+                },
+
+                formatDate(dateString) {
+                    if (!dateString) return '--';
+                    return new Date(dateString).toLocaleString('zh-CN');
+                },
+
+                showMessage(text, type = 'success') {
+                    const id = Date.now();
+                    this.messages.push({ id, text, type });
+                    setTimeout(() => {
+                        this.removeMessage(id);
+                    }, 5000);
+                },
+
+                removeMessage(id) {
+                    const index = this.messages.findIndex(m => m.id === id);
+                    if (index > -1) {
+                        this.messages.splice(index, 1);
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html> 

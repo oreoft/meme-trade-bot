@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}配置管理 - 币价监控系统{% endblock %}
+
+{% block content %}
+<div id="app">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-cog me-2"></i>配置管理</h2>
+                <button class="btn btn-success" @click="showAddModal = true">
+                    <i class="fas fa-plus me-1"></i>添加配置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配置列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">系统配置项</h5>
+                </div>
+                <div class="card-body">
+                    <div v-if="loading" class="text-center py-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                    </div>
+
+                    <div v-else-if="configs.length === 0" class="text-center py-4 text-muted">
+                        暂无配置项
+                    </div>
+
+                    <div v-else class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>配置键</th>
+                                    <th>配置值</th>
+                                    <th>描述</th>
+                                    <th>类型</th>
+                                    <th>更新时间</th>
+                                    <th width="150">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="config in configs" :key="config.id">
+                                    <td>
+                                        <code v-text="config.key"></code>
+                                    </td>
+                                    <td>
+                                        <span v-if="config.key === 'PRIVATE_KEY'" class="text-muted">
+                                            ******** (隐私保护)
+                                        </span>
+                                        <span v-else v-text="config.value"></span>
+                                    </td>
+                                    <td v-text="config.description || '-'"></td>
+                                    <td>
+                                        <span class="badge" :class="getTypeBadgeClass(config.config_type)" v-text="config.config_type">
+                                        </span>
+                                    </td>
+                                    <td v-text="formatDate(config.updated_at)"></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1" 
+                                                @click="editConfig(config)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                                @click="deleteConfig(config)"
+                                                :disabled="isDefaultConfig(config.key)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑配置模态框 -->
+    <div class="modal fade" :class="{ show: showAddModal || showEditModal }" 
+         :style="{ display: (showAddModal || showEditModal) ? 'block' : 'none' }">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <span v-if="showEditModal">编辑配置</span>
+                        <span v-else>添加配置</span>
+                    </h5>
+                    <button type="button" class="btn-close" @click="closeModal"></button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="saveConfig">
+                        <div class="mb-3">
+                            <label class="form-label">配置键 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" v-model="form.key" 
+                                   :disabled="showEditModal" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">配置值 <span class="text-danger">*</span></label>
+                            <textarea class="form-control" v-model="form.value" 
+                                      rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">描述</label>
+                            <input type="text" class="form-control" v-model="form.description">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">数据类型</label>
+                            <select class="form-select" v-model="form.config_type">
+                                <option value="string">字符串</option>
+                                <option value="number">数字</option>
+                                <option value="boolean">布尔值</option>
+                                <option value="json">JSON</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="closeModal">取消</button>
+                    <button type="button" class="btn btn-primary" @click="saveConfig" 
+                            :disabled="saving">
+                        <span v-if="saving" class="spinner-border spinner-border-sm me-2"></span>
+                        <span v-if="saving">保存中...</span>
+                        <span v-else>保存</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框背景 -->
+    <div class="modal-backdrop fade" 
+         :class="{ show: showAddModal || showEditModal }" 
+         v-if="showAddModal || showEditModal"
+         @click="closeModal"></div>
+
+    <!-- 消息提示 -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+        <div v-for="message in messages" :key="message.id" 
+             class="toast align-items-center border-0 show" 
+             :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
+            <div class="d-flex">
+                <div class="toast-body" v-text="message.text">
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" 
+                        @click="removeMessage(message.id)"></button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            configs: [],
+            loading: true,
+            saving: false,
+            showAddModal: false,
+            showEditModal: false,
+            form: {
+                key: '',
+                value: '',
+                description: '',
+                config_type: 'string'
+            },
+            editingConfig: null,
+            messages: []
+        }
+    },
+    mounted() {
+        this.loadConfigs();
+    },
+    methods: {
+        async loadConfigs() {
+            this.loading = true;
+            try {
+                const response = await axios.get('/api/configs');
+                if (response.data.success) {
+                    this.configs = response.data.data;
+                } else {
+                    this.showMessage('加载配置失败: ' + response.data.error, 'error');
+                }
+            } catch (error) {
+                this.showMessage('网络错误: ' + error.message, 'error');
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        editConfig(config) {
+            this.editingConfig = config;
+            this.form = {
+                key: config.key,
+                value: config.value,
+                description: config.description || '',
+                config_type: config.config_type
+            };
+            this.showEditModal = true;
+        },
+        
+        async saveConfig() {
+            if (!this.form.key || !this.form.value) {
+                this.showMessage('请填写必填字段', 'error');
+                return;
+            }
+            
+            this.saving = true;
+            try {
+                const response = await axios.post('/api/configs', this.form);
+                if (response.data.success) {
+                    this.showMessage(response.data.message, 'success');
+                    this.closeModal();
+                    this.loadConfigs();
+                } else {
+                    this.showMessage('保存失败: ' + response.data.error, 'error');
+                }
+            } catch (error) {
+                this.showMessage('网络错误: ' + error.message, 'error');
+            } finally {
+                this.saving = false;
+            }
+        },
+        
+        async deleteConfig(config) {
+            if (!confirm(`确定要删除配置 "${config.key}" 吗？`)) {
+                return;
+            }
+            
+            try {
+                const response = await axios.delete(`/api/configs/${config.key}`);
+                if (response.data.success) {
+                    this.showMessage('删除成功', 'success');
+                    this.loadConfigs();
+                } else {
+                    this.showMessage('删除失败: ' + response.data.error, 'error');
+                }
+            } catch (error) {
+                this.showMessage('网络错误: ' + error.message, 'error');
+            }
+        },
+        
+        closeModal() {
+            this.showAddModal = false;
+            this.showEditModal = false;
+            this.editingConfig = null;
+            this.form = {
+                key: '',
+                value: '',
+                description: '',
+                config_type: 'string'
+            };
+        },
+        
+        getTypeBadgeClass(type) {
+            const classes = {
+                'string': 'bg-primary',
+                'number': 'bg-success',
+                'boolean': 'bg-warning',
+                'json': 'bg-info'
+            };
+            return classes[type] || 'bg-secondary';
+        },
+        
+        isDefaultConfig(key) {
+            const defaultKeys = [
+                'API_KEY', 'CHAIN_HEADER', 'TOKEN_ADDRESS', 'MARKET_CAP_THRESHOLD',
+                'SELL_PERCENTAGE', 'CHECK_INTERVAL', 'WEBHOOK_URL', 'PRIVATE_KEY',
+                'RPC_URL', 'JUPITER_API_URL', 'SLIPPAGE_BPS'
+            ];
+            return defaultKeys.includes(key);
+        },
+        
+        formatDate(dateString) {
+            if (!dateString) return '-';
+            return new Date(dateString).toLocaleString('zh-CN');
+        },
+        
+        showMessage(text, type = 'success') {
+            const id = Date.now();
+            this.messages.push({ id, text, type });
+            setTimeout(() => {
+                this.removeMessage(id);
+            }, 5000);
+        },
+        
+        removeMessage(id) {
+            const index = this.messages.findIndex(m => m.id === id);
+            if (index > -1) {
+                this.messages.splice(index, 1);
+            }
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %} 
