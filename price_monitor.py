@@ -20,6 +20,49 @@ class PriceMonitor:
         self.last_notification_times: Dict[int, float] = {}
         self.notification_cooldown = 300  # 5分钟通知冷却时间（300秒）
 
+        # 启动时自动恢复监控任务
+        self._auto_recover_monitors()
+
+    def _auto_recover_monitors(self):
+        """启动时自动恢复所有状态为monitoring的监控任务"""
+        print("正在自动恢复监控任务...")
+        db = SessionLocal()
+        try:
+            # 查找所有状态为monitoring的记录
+            monitoring_records = db.query(MonitorRecord).filter(
+                MonitorRecord.status == "monitoring"
+            ).all()
+
+            recovered_count = 0
+            for record in monitoring_records:
+                try:
+                    # 启动监控线程
+                    self.monitor_states[record.id] = True
+                    thread = threading.Thread(
+                        target=self._monitor_loop,
+                        args=(record.id,),
+                        daemon=True
+                    )
+                    thread.start()
+                    self.running_monitors[record.id] = thread
+                    recovered_count += 1
+                    print(f"已恢复监控任务: {record.name} (ID: {record.id})")
+                except Exception as e:
+                    print(f"恢复监控任务失败 {record.name} (ID: {record.id}): {e}")
+                    # 将失败的任务状态设为stopped
+                    record.status = "stopped"
+                    db.commit()
+
+            if recovered_count > 0:
+                print(f"成功恢复 {recovered_count} 个监控任务")
+            else:
+                print("没有需要恢复的监控任务")
+
+        except Exception as e:
+            print(f"自动恢复监控任务时出错: {e}")
+        finally:
+            db.close()
+
     def start_monitor(self, record_id: int):
         """启动单个监控任务"""
         if record_id in self.running_monitors and self.monitor_states.get(record_id, False):
@@ -112,7 +155,8 @@ class PriceMonitor:
 
                     # 检查是否达到阈值
                     if price_info['market_cap'] >= record.threshold:
-                        print(f"监控 {record.name} 市值达到阈值！当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
+                        print(
+                            f"监控 {record.name} 市值达到阈值！当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
 
                         # 发送阈值达到通知
                         if self._should_send_notification(record_id):
@@ -152,7 +196,8 @@ class PriceMonitor:
                             notifier.send_error_notification(f"交易执行失败: {e}")
                     else:
                         # 市值未达到阈值时，定期发送价格报告
-                        print(f"监控 {record.name} 市值未达到阈值。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
+                        print(
+                            f"监控 {record.name} 市值未达到阈值。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
 
                         # 定期发送价格报告（每5分钟一次）
                         if self._should_send_notification(record_id):

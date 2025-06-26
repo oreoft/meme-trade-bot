@@ -34,9 +34,9 @@ class MonitorService:
             db.close()
 
     @staticmethod
-    def create_record(name: str, private_key: str, token_address: str, 
-                     threshold: float, sell_percentage: float, webhook_url: str, 
-                     check_interval: int = 5) -> tuple[bool, str, Optional[int]]:
+    def create_record(name: str, private_key: str, token_address: str,
+                      threshold: float, sell_percentage: float, webhook_url: str,
+                      check_interval: int = 5) -> tuple[bool, str, Optional[int]]:
         """创建监控记录"""
         # 验证输入
         if sell_percentage <= 0 or sell_percentage > 1:
@@ -72,9 +72,9 @@ class MonitorService:
             db.close()
 
     @staticmethod
-    def update_record(record_id: int, name: str, private_key: str, 
-                     token_address: str, threshold: float, sell_percentage: float, 
-                     webhook_url: str, check_interval: int = 5) -> tuple[bool, str]:
+    def update_record(record_id: int, name: str, private_key: str,
+                      token_address: str, threshold: float, sell_percentage: float,
+                      webhook_url: str, check_interval: int = 5) -> tuple[bool, str]:
         """更新监控记录"""
         # 验证输入
         if sell_percentage <= 0 or sell_percentage > 1:
@@ -207,4 +207,4 @@ class MonitorService:
         except Exception:
             return False
         finally:
-            db.close() 
+            db.close()
