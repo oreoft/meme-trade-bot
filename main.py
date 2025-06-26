@@ -1,5 +1,6 @@
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 # 导入API路由模块
@@ -16,6 +17,15 @@ from price_monitor import PriceMonitor
 
 # 创建FastAPI应用
 app = FastAPI(title="币价监控系统", description="实时监控代币价格，智能触发交易策略")
+
+# 添加CORS中间件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 在生产环境中应该设置具体的域名
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有HTTP方法，包括DELETE
+    allow_headers=["*"],
+)
 
 # 全局监控器实例（单例模式，多次调用返回同一实例）
 monitor = PriceMonitor()
