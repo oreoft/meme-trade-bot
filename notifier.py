@@ -53,19 +53,20 @@ class Notifier:
             logging.error(f"发送通知时出错: {e}")
             return False
 
-    def send_price_alert(self, price_info: Dict, threshold_reached: bool = False) -> bool:
+    def send_price_alert(self, price_info: Dict, meme_name: str, threshold_reached: bool = False) -> bool:
         """发送价格预警"""
         try:
             if threshold_reached:
-                title = "🚨 市值阈值达到警告"
-                content = f"""市值阈值已达到！
+                title = f"🚨 【{meme_name}】市值阈值达到警告"
+                content = f"""【{meme_name}】市值阈值已达到！
 当前价格: ${price_info['price']:.8f}
 当前市值: ${price_info['market_cap']:,.2f}
 
 系统准备执行自动出售操作..."""
             else:
-                title = "📊 价格监控报告"
-                content = f"""当前价格: ${price_info['price']:.8f}
+                title = f"📊 【{meme_name}】价格监控报告"
+                content = f"""【{meme_name}】价格更新:
+当前价格: ${price_info['price']:.8f}
 当前市值: ${price_info['market_cap']:,.2f}"""
 
             return self.send_message(title, content)
@@ -74,11 +75,12 @@ class Notifier:
             logging.error(f"发送价格预警失败: {e}")
             return False
 
-    def send_trade_notification(self, tx_hash: str, sell_amount: float, estimated_usd_value: float) -> bool:
+    def send_trade_notification(self, tx_hash: str, sell_amount: float, estimated_usd_value: float,
+                                meme_name: str) -> bool:
         """发送交易通知"""
         try:
-            title = "✅ 交易执行完成"
-            content = f"""自动出售交易已完成！
+            title = f"✅ 【{meme_name}】交易执行完成"
+            content = f"""【{meme_name}】自动出售交易已完成！
 出售数量: {sell_amount:.4f} 代币
 估算价值: ${estimated_usd_value:.2f} USD
 交易哈希: {tx_hash}
@@ -90,11 +92,15 @@ class Notifier:
             logging.error(f"发送交易通知失败: {e}")
             return False
 
-    def send_error_notification(self, error_msg: str) -> bool:
+    def send_error_notification(self, error_msg: str, meme_name: str = None) -> bool:
         """发送错误通知"""
         try:
-            title = "❌ 系统错误"
-            content = f"监控系统遇到错误: {error_msg}"
+            if meme_name:
+                title = f"❌ 【{meme_name}】系统错误"
+                content = f"【{meme_name}】监控系统遇到错误: {error_msg}"
+            else:
+                title = "❌ 系统错误"
+                content = f"监控系统遇到错误: {error_msg}"
 
             return self.send_message(title, content)
 
@@ -102,11 +108,15 @@ class Notifier:
             logging.error(f"发送错误通知失败: {e}")
             return False
 
-    def send_startup_notification(self) -> bool:
+    def send_startup_notification(self, meme_name: str = None) -> bool:
         """发送启动通知"""
         try:
-            title = "🚀 监控系统启动"
-            content = "币价监控系统已启动，开始监控市值变化..."
+            if meme_name:
+                title = f"🚀 【{meme_name}】监控系统启动"
+                content = f"【{meme_name}】币价监控系统已启动，开始监控市值变化..."
+            else:
+                title = "🚀 监控系统启动"
+                content = "币价监控系统已启动，开始监控市值变化..."
 
             return self.send_message(title, content)
 

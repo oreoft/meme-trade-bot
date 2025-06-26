@@ -16,9 +16,10 @@ class PriceMonitor:
         self.running_monitors: Dict[int, threading.Thread] = {}
         self.monitor_states: Dict[int, bool] = {}
         self.market_fetcher = MarketDataFetcher()
-        # 为每个监控记录维护通知时间戳
-        self.last_notification_times: Dict[int, float] = {}
-        self.notification_cooldown = 300  # 5分钟通知冷却时间（300秒）
+        # 为每个token地址维护上一次的市值（而不是按record_id）
+        self.last_market_caps: Dict[str, float] = {}
+        # 市值变化阈值（百分比）
+        self.market_cap_change_threshold = 0.05  # 5%变化时推送
 
         # 启动时自动恢复监控任务
         self._auto_recover_monitors()
@@ -36,6 +37,10 @@ class PriceMonitor:
             recovered_count = 0
             for record in monitoring_records:
                 try:
+                    # 创建通知器并发送启动通知
+                    notifier = Notifier(webhook_url=record.webhook_url)
+                    notifier.send_startup_notification(record.name)
+
                     # 启动监控线程
                     self.monitor_states[record.id] = True
                     thread = threading.Thread(
@@ -78,6 +83,10 @@ class PriceMonitor:
             record.status = "monitoring"
             db.commit()
 
+            # 创建通知器并发送启动通知
+            notifier = Notifier(webhook_url=record.webhook_url)
+            notifier.send_startup_notification(record.name)
+
             # 启动监控线程
             self.monitor_states[record_id] = True
             thread = threading.Thread(target=self._monitor_loop, args=(record_id,), daemon=True)
@@ -98,9 +107,7 @@ class PriceMonitor:
         if record_id in self.running_monitors:
             del self.running_monitors[record_id]
 
-        # 清理通知时间戳
-        if record_id in self.last_notification_times:
-            del self.last_notification_times[record_id]
+        # 注意：不在这里清理last_market_caps，因为其他监控可能还在使用相同的token
 
         # 更新数据库状态
         db = SessionLocal()
@@ -114,14 +121,22 @@ class PriceMonitor:
 
         return True, "监控已停止"
 
-    def _should_send_notification(self, record_id: int) -> bool:
-        """检查是否应该发送通知（避免频繁通知）"""
-        current_time = time.time()
-        last_time = self.last_notification_times.get(record_id, 0)
-
-        if current_time - last_time >= self.notification_cooldown:
-            self.last_notification_times[record_id] = current_time
-            return True
+    def _should_send_price_update(self, token_address: str, current_mc: float) -> bool:
+        """检查是否应该发送价格更新通知（基于token地址的市值变化）"""
+        if token_address not in self.last_market_caps:
+            # 第一次检查，记录市值但不发送通知
+            self.last_market_caps[token_address] = current_mc
+            return False
+        
+        last_mc = self.last_market_caps[token_address]
+        
+        # 计算变化百分比
+        if last_mc > 0:
+            change_percent = abs((current_mc - last_mc) / last_mc)
+            if change_percent >= self.market_cap_change_threshold:
+                self.last_market_caps[token_address] = current_mc
+                return True
+        
         return False
 
     def _monitor_loop(self, record_id: int):
@@ -159,8 +174,7 @@ class PriceMonitor:
                             f"监控 {record.name} 市值达到阈值！当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
 
                         # 发送阈值达到通知
-                        if self._should_send_notification(record_id):
-                            notifier.send_price_alert(price_info, threshold_reached=True)
+                        notifier.send_price_alert(price_info, record.name, threshold_reached=True)
 
                         # 执行交易
                         try:
@@ -184,7 +198,8 @@ class PriceMonitor:
                                 token_balance = trader.get_token_balance(record.token_address)
                                 actual_sell_amount = token_balance * record.sell_percentage
                                 estimated_usd_value = actual_sell_amount * price_info['price']
-                                notifier.send_trade_notification(tx_hash, actual_sell_amount, estimated_usd_value)
+                                notifier.send_trade_notification(tx_hash, actual_sell_amount, estimated_usd_value,
+                                                                 record.name)
 
                                 print(f"交易完成，继续监控等待下一次达到阈值...")
                                 # 交易成功后继续监控，不停止
@@ -193,15 +208,15 @@ class PriceMonitor:
 
                         except Exception as e:
                             print(f"交易执行失败: {e}")
-                            notifier.send_error_notification(f"交易执行失败: {e}")
+                            notifier.send_error_notification(f"交易执行失败: {e}", record.name)
                     else:
-                        # 市值未达到阈值时，定期发送价格报告
+                        # 市值未达到阈值时，检查是否有显著变化需要推送
                         print(
                             f"监控 {record.name} 市值未达到阈值。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
 
-                        # 定期发送价格报告（每5分钟一次）
-                        if self._should_send_notification(record_id):
-                            notifier.send_price_alert(price_info, threshold_reached=False)
+                        # 根据市值变化发送价格报告
+                        if self._should_send_price_update(record.token_address, price_info['market_cap']):
+                            notifier.send_price_alert(price_info, record.name, threshold_reached=False)
 
                     time.sleep(record.check_interval)
 
@@ -220,8 +235,7 @@ class PriceMonitor:
                 self.monitor_states[record_id] = False
             if record_id in self.running_monitors:
                 del self.running_monitors[record_id]
-            if record_id in self.last_notification_times:
-                del self.last_notification_times[record_id]
+            # 注意：不在这里清理last_market_caps，因为其他监控可能还在使用相同的token
 
             # 更新数据库状态
             try:
@@ -278,8 +292,8 @@ class PriceMonitor:
         for record_id in list(self.monitor_states.keys()):
             self.stop_monitor(record_id)
 
-        # 清理所有通知时间戳
-        self.last_notification_times.clear()
+        # 清理所有市值记录
+        self.last_market_caps.clear()
 
     def get_running_count(self) -> int:
         """获取正在运行的监控数量"""
@@ -289,10 +303,34 @@ class PriceMonitor:
         """检查指定监控是否在运行"""
         return record_id in self.monitor_states and self.monitor_states[record_id]
 
-    def set_notification_cooldown(self, seconds: int):
-        """设置通知冷却时间"""
-        self.notification_cooldown = max(60, seconds)  # 最少1分钟
+    def set_market_cap_change_threshold(self, threshold: float):
+        """设置市值变化阈值（百分比）"""
+        self.market_cap_change_threshold = max(0.01, min(1.0, threshold))  # 限制在1%-100%之间
 
-    def get_notification_cooldown(self) -> int:
-        """获取通知冷却时间"""
-        return self.notification_cooldown
+    def get_market_cap_change_threshold(self) -> float:
+        """获取市值变化阈值"""
+        return self.market_cap_change_threshold
+
+    def cleanup_unused_market_caps(self):
+        """清理不再使用的token市值缓存"""
+        db = SessionLocal()
+        try:
+            # 获取所有正在运行的监控的token地址
+            active_tokens = set()
+            for record_id in self.monitor_states.keys():
+                if self.monitor_states[record_id]:  # 正在运行
+                    record = db.query(MonitorRecord).filter(MonitorRecord.id == record_id).first()
+                    if record:
+                        active_tokens.add(record.token_address)
+            
+            # 清理不在活跃列表中的token缓存
+            tokens_to_remove = []
+            for token_address in self.last_market_caps.keys():
+                if token_address not in active_tokens:
+                    tokens_to_remove.append(token_address)
+            
+            for token_address in tokens_to_remove:
+                del self.last_market_caps[token_address]
+                
+        finally:
+            db.close()
