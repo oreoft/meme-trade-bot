@@ -1,0 +1,38 @@
+name: Deploy to Server via SSH
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  SERVER_IP: ${{ secrets.PROXY_HOST }}
+  SERVER_USER: root
+  SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+  SSHPASS: ${{ secrets.SSH_PASSWORD }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH and Run Commands
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: Execute ai Commands Over SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no -p ${{ secrets.SER1_PROXY_PORT }} ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'EOF'
+            cd /root/meme-trade-bot
+            git pull
+            systemctl restart meme-trade-bot
+          EOF
