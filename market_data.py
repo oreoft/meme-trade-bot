@@ -12,11 +12,29 @@ class MarketDataFetcher:
 
     def __init__(self):
         self.base_url = 'https://public-api.birdeye.so/defi/v3'
-        self.headers = {
+        self._headers_cache = None
+        self._last_config_update = 0
+        # 初始化时加载配置
+        self.refresh_config()
+        # 注册到配置管理器，支持统一刷新
+        ConfigManager.register_service(self)
+
+    def refresh_config(self):
+        """刷新配置缓存 - 可通过Web界面的刷新按钮调用"""
+        self._headers_cache = {
             'X-API-KEY': ConfigManager.get_config('API_KEY', ''),
             'accept': 'application/json',
             'x-chain': ConfigManager.get_config('CHAIN_HEADER', 'solana')
         }
+        self._last_config_update = time.time()
+        logging.info("MarketDataFetcher配置已刷新")
+
+    @property
+    def headers(self):
+        """获取请求头，使用缓存机制提高性能"""
+        if not self._headers_cache:
+            self.refresh_config()
+        return self._headers_cache
 
     def get_market_data(self, address: str = None) -> Optional[Dict]:
         """获取市场数据"""

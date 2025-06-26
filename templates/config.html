@@ -8,9 +8,17 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2><i class="fas fa-cog me-2"></i>配置管理</h2>
-                <button class="btn btn-success" @click="showAddModal = true">
-                    <i class="fas fa-plus me-1"></i>添加配置
-                </button>
+                <div>
+                    <button class="btn btn-info me-2" @click="refreshConfigs" :disabled="refreshing">
+                        <span v-if="refreshing" class="spinner-border spinner-border-sm me-1"></span>
+                        <i v-else class="fas fa-sync-alt me-1"></i>
+                        <span v-if="refreshing">刷新中...</span>
+                        <span v-else>刷新配置</span>
+                    </button>
+                    <button class="btn btn-success" @click="showAddModal = true">
+                        <i class="fas fa-plus me-1"></i>添加配置
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -166,6 +174,7 @@ createApp({
             configs: [],
             loading: true,
             saving: false,
+            refreshing: false,
             showAddModal: false,
             showEditModal: false,
             form: {
@@ -195,6 +204,22 @@ createApp({
                 this.showMessage('网络错误: ' + error.message, 'error');
             } finally {
                 this.loading = false;
+            }
+        },
+        
+        async refreshConfigs() {
+            this.refreshing = true;
+            try {
+                const response = await axios.post('/api/refresh-configs');
+                if (response.data.success) {
+                    this.showMessage(`配置刷新成功，已更新 ${response.data.count} 个服务的配置`, 'success');
+                } else {
+                    this.showMessage('配置刷新失败: ' + response.data.error, 'error');
+                }
+            } catch (error) {
+                this.showMessage('网络错误: ' + error.message, 'error');
+            } finally {
+                this.refreshing = false;
             }
         },
         

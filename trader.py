@@ -26,11 +26,48 @@ class SolanaTrader:
     """Solana交易器"""
 
     def __init__(self, private_key: str = None):
-        self.client = Client(ConfigManager.get_config('RPC_URL', 'https://api.mainnet-beta.solana.com'))
-        self.jupiter_url = ConfigManager.get_config('JUPITER_API_URL', 'https://quote-api.jup.ag/v6')
         self._private_key = private_key
         self.wallet = None
+        # 配置缓存
+        self._client_cache = None
+        self._jupiter_url_cache = None
+        self._slippage_bps_cache = None
+        self._last_config_update = 0
+        # 初始化配置和钱包
+        self.refresh_config()
         self._init_wallet()
+        # 注册到配置管理器，支持统一刷新
+        ConfigManager.register_service(self)
+
+    def refresh_config(self):
+        """刷新配置缓存 - 可通过Web界面的刷新按钮调用"""
+        rpc_url = ConfigManager.get_config('RPC_URL', 'https://api.mainnet-beta.solana.com')
+        self._client_cache = Client(rpc_url)
+        self._jupiter_url_cache = ConfigManager.get_config('JUPITER_API_URL', 'https://quote-api.jup.ag/v6')
+        self._slippage_bps_cache = ConfigManager.get_config('SLIPPAGE_BPS', 100)
+        self._last_config_update = time.time()
+        logging.info("SolanaTrader配置已刷新")
+
+    @property
+    def client(self):
+        """获取Solana客户端，使用缓存机制提高性能"""
+        if not self._client_cache:
+            self.refresh_config()
+        return self._client_cache
+
+    @property
+    def jupiter_url(self):
+        """获取Jupiter API URL，使用缓存机制提高性能"""
+        if not self._jupiter_url_cache:
+            self.refresh_config()
+        return self._jupiter_url_cache
+
+    @property
+    def slippage_bps(self):
+        """获取滑点设置，使用缓存机制提高性能"""
+        if self._slippage_bps_cache is None:
+            self.refresh_config()
+        return self._slippage_bps_cache
 
     def _init_wallet(self):
         """初始化钱包"""
@@ -107,7 +144,7 @@ class SolanaTrader:
                 'inputMint': input_mint,
                 'outputMint': output_mint,
                 'amount': amount,
-                'slippageBps': ConfigManager.get_config('SLIPPAGE_BPS', 100)
+                'slippageBps': self.slippage_bps
             }
 
             response = requests.get(url, params=params)
@@ -225,21 +262,3 @@ class SolanaTrader:
         except Exception as e:
             logging.error(f"出售代币失败: {e}")
             return None
-
-    def get_wallet_info(self) -> Dict:
-        """获取钱包信息"""
-        if not self.wallet:
-            return {"error": "钱包未初始化"}
-
-        try:
-            sol_balance = self.get_sol_balance()
-            token_balance = self.get_token_balance(ConfigManager.get_config('TOKEN_ADDRESS', ''))
-
-            return {
-                "address": str(self.wallet.pubkey()),
-                "sol_balance": sol_balance,
-                "token_balance": token_balance
-            }
-        except Exception as e:
-            logging.error(f"获取钱包信息失败: {e}")
-            return {"error": str(e)}

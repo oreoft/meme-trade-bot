@@ -81,6 +81,31 @@ async def update_config(request: ConfigUpdateRequest):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+@app.delete("/api/configs/{config_key}")
+async def delete_config(config_key: str):
+    """删除配置"""
+    try:
+        success = ConfigManager.delete_config(config_key)
+        if success:
+            return {"success": True, "message": "配置删除成功"}
+        else:
+            return {"success": False, "error": "配置删除失败"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/refresh-configs")
+async def refresh_configs():
+    """刷新所有服务的配置缓存"""
+    try:
+        count = ConfigManager.refresh_all_services()
+        return {
+            "success": True,
+            "message": "配置刷新成功",
+            "count": count
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 @app.post("/api/monitor/start")
 async def start_monitor(record_id: int):
     """启动监控"""

@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 from typing import Any
 
@@ -15,6 +16,29 @@ class ConfigManager:
         'JUPITER_API_URL': {'value': 'https://quote-api.jup.ag/v6', 'description': 'Jupiter API地址', 'config_type': 'string'},
         'SLIPPAGE_BPS': {'value': '100', 'description': '滑点设置（100 = 1%）', 'config_type': 'number'}
     }
+
+    # 存储需要刷新配置的服务实例
+    _service_instances = []
+
+    @classmethod
+    def register_service(cls, service_instance):
+        """注册需要配置刷新的服务实例"""
+        if service_instance not in cls._service_instances:
+            cls._service_instances.append(service_instance)
+
+    @classmethod
+    def refresh_all_services(cls):
+        """刷新所有已注册服务的配置"""
+        refreshed_count = 0
+        for service in cls._service_instances:
+            if hasattr(service, 'refresh_config'):
+                try:
+                    service.refresh_config()
+                    refreshed_count += 1
+                except Exception as e:
+                    logging.error(f"刷新服务配置失败: {e}")
+        logging.info(f"已刷新 {refreshed_count} 个服务的配置")
+        return refreshed_count
 
     @staticmethod
     def get_db():
