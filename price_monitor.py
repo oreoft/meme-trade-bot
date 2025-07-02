@@ -219,9 +219,23 @@ class PriceMonitor:
                         # 发送阈值达到通知
                         notifier.send_price_alert(price_info, record.name, threshold_reached=True)
 
-                        # 执行交易
+                        # 执行交易 - 先获取交易前的余额
                         try:
-                            tx_hash = trader.sell_token_for_sol(record.token_address, record.sell_percentage)
+                            # 获取交易前的代币余额
+                            token_balance_before = trader.get_token_balance(record.token_address)
+                            
+                            # 检查是否会因为低于50USD而出售100%
+                            actual_sell_percentage = record.sell_percentage
+                            if price_info['price'] is not None:
+                                total_asset_value = token_balance_before * price_info['price']
+                                if total_asset_value < 50:
+                                    actual_sell_percentage = 1.0
+                            
+                            # 计算实际出售数量
+                            actual_sell_amount = token_balance_before * actual_sell_percentage
+                            estimated_usd_value = actual_sell_amount * price_info['price']
+
+                            tx_hash = trader.sell_token_for_sol(record.token_address, actual_sell_percentage)
                             if tx_hash:
                                 print(f"交易成功: {tx_hash}")
                                 # 记录交易日志 - 确保tx_hash是字符串类型
@@ -236,11 +250,7 @@ class PriceMonitor:
                                 db.add(log)
                                 db.commit()
 
-                                # 发送交易成功通知
-                                # 获取代币余额来计算实际出售数量
-                                token_balance = trader.get_token_balance(record.token_address)
-                                actual_sell_amount = token_balance * record.sell_percentage
-                                estimated_usd_value = actual_sell_amount * price_info['price']
+                                # 发送交易成功通知 - 使用交易前计算的数量
                                 notifier.send_trade_notification(tx_hash, actual_sell_amount, estimated_usd_value,
                                                                  record.name)
 
