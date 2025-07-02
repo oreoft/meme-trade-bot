@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}私钥管理 - 币价监控系统{% endblock %}
+
+{% block content %}
+<div id="app">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6 mb-0">
+                        <i class="fas fa-key me-2 text-warning"></i>
+                        私钥管理
+                    </h1>
+                    <p class="text-muted mb-0">统一管理您的钱包私钥</p>
+                </div>
+                <button class="btn btn-primary" @click="showAddModal = true">
+                    <i class="fas fa-plus me-2"></i>添加私钥
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" v-text="privateKeys.length">0</h3>
+                            <small>私钥总数</small>
+                        </div>
+                        <i class="fas fa-key fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 私钥列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>私钥列表
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div v-if="loading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted">加载中...</p>
+                    </div>
+                    
+                    <div v-else-if="privateKeys.length === 0" class="text-center py-5">
+                        <i class="fas fa-key fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无私钥记录</h5>
+                        <p class="text-muted">点击"添加私钥"按钮添加第一个私钥</p>
+                    </div>
+
+                    <div v-else class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>昵称</th>
+                                    <th>公钥地址</th>
+                                    <th>私钥预览</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="key in privateKeys" :key="key.id">
+                                    <td>
+                                        <strong v-text="key.nickname"></strong>
+                                    </td>
+                                    <td>
+                                        <code class="small" v-text="key.public_key.substring(0, 8) + '...' + key.public_key.substring(key.public_key.length - 8)"></code>
+                                    </td>
+                                    <td>
+                                        <code class="small text-muted" v-text="key.private_key_preview"></code>
+                                    </td>
+                                    <td>
+                                        <small v-text="formatTime(key.created_at)"></small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button 
+                                                class="btn btn-outline-primary"
+                                                @click="editKey(key)"
+                                                title="编辑">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button 
+                                                class="btn btn-outline-danger"
+                                                @click="deleteKey(key.id)"
+                                                title="删除">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑私钥模态框 -->
+    <div class="modal fade" :class="{ show: showAddModal || showEditModal }" 
+         :style="{ display: showAddModal || showEditModal ? 'block' : 'none' }"
+         @click="closeModal">
+        <div class="modal-dialog" @click.stop>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-key me-2"></i>
+                        <span v-if="showEditModal">编辑私钥</span>
+                        <span v-else>添加私钥</span>
+                    </h5>
+                    <button type="button" class="btn-close" @click="closeModal"></button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="saveKey">
+                        <div class="mb-3">
+                            <label class="form-label">私钥昵称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" v-model="keyForm.nickname" required>
+                            <div class="form-text">给私钥起一个容易识别的名称</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">私钥 <span class="text-danger">*</span></label>
+                            <textarea class="form-control" rows="3" v-model="keyForm.private_key" required
+                                      placeholder="请输入Solana钱包私钥 (Base58格式)"></textarea>
+                            <div class="form-text text-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                私钥将被安全加密存储，请确保私钥来源安全可靠
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @click="closeModal">取消</button>
+                            <button type="submit" class="btn btn-primary" :disabled="saveLoading">
+                                <span v-if="saveLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                <span v-if="saveLoading">保存中...</span>
+                                <span v-else>保存</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框背景 -->
+    <div v-if="showAddModal || showEditModal" class="modal-backdrop fade show"></div>
+
+    <!-- 消息提示 -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+        <div v-for="message in messages" :key="message.id" 
+             class="toast align-items-center border-0 show mb-2" 
+             :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
+            <div class="d-flex">
+                <div class="toast-body" v-text="message.text">
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" 
+                        @click="removeMessage(message.id)"></button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            privateKeys: [],
+            loading: true,
+            saveLoading: false,
+            showAddModal: false,
+            showEditModal: false,
+            editingKeyId: null,
+            keyForm: {
+                nickname: '',
+                private_key: ''
+            },
+            messages: []
+        }
+    },
+    mounted() {
+        this.loadPrivateKeys();
+    },
+    methods: {
+        async loadPrivateKeys() {
+            try {
+                const response = await fetch('/api/keys');
+                const data = await response.json();
+                if (data.success) {
+                    this.privateKeys = data.data;
+                } else {
+                    this.showMessage('error', data.error || '加载私钥失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.loading = false;
+            }
+        },
+        async saveKey() {
+            this.saveLoading = true;
+            try {
+                const formData = new FormData();
+                Object.keys(this.keyForm).forEach(key => {
+                    formData.append(key, this.keyForm[key]);
+                });
+
+                const url = this.showEditModal 
+                    ? `/api/keys/${this.editingKeyId}`
+                    : '/api/keys';
+                
+                const method = this.showEditModal ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    this.showMessage('success', data.message);
+                    this.closeModal();
+                    this.loadPrivateKeys();
+                } else {
+                    this.showMessage('error', data.error || '保存失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.saveLoading = false;
+            }
+        },
+        async deleteKey(keyId) {
+            if (!confirm('确定要删除这个私钥吗？删除后相关的监控记录将无法使用。')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/keys/${keyId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showMessage('success', data.message);
+                    this.loadPrivateKeys();
+                } else {
+                    this.showMessage('error', data.error || '删除失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            }
+        },
+        editKey(key) {
+            this.editingKeyId = key.id;
+            this.keyForm = {
+                nickname: key.nickname,
+                private_key: ''  // 安全起见，不回填私钥
+            };
+            this.showEditModal = true;
+        },
+        closeModal() {
+            this.showAddModal = false;
+            this.showEditModal = false;
+            this.editingKeyId = null;
+            this.keyForm = {
+                nickname: '',
+                private_key: ''
+            };
+        },
+        formatTime(timestamp) {
+            if (!timestamp) return '--';
+            return new Date(timestamp).toLocaleString('zh-CN');
+        },
+        showMessage(type, text) {
+            const id = Date.now() + Math.random();
+            this.messages.push({ id, type, text });
+            setTimeout(() => {
+                this.removeMessage(id);
+            }, 5000);
+        },
+        removeMessage(id) {
+            this.messages = this.messages.filter(m => m.id !== id);
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %} 

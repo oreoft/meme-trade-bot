@@ -182,7 +182,16 @@ class PriceMonitor:
                 return
 
             # 创建专用的交易器和通知器
-            trader = SolanaTrader(private_key=record.private_key)
+            # 向后兼容：优先使用新的private_key_obj关系，如果没有则使用旧的private_key字段
+            private_key = None
+            if hasattr(record, 'private_key_obj') and record.private_key_obj:
+                # 新版本：通过关系获取私钥
+                private_key = record.private_key_obj.private_key
+            elif hasattr(record, 'private_key') and record.private_key:
+                # 旧版本：直接使用private_key字段
+                private_key = record.private_key
+            
+            trader = SolanaTrader(private_key=private_key)
             notifier = Notifier(webhook_url=record.webhook_url)
 
             while self.monitor_states.get(record_id, False):

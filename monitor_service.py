@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import List, Dict, Optional
 
-from models import MonitorRecord, MonitorLog, SessionLocal
+from solders.keypair import Keypair
+
+from models import MonitorRecord, MonitorLog, PrivateKey, SessionLocal
 
 
 class MonitorService:
@@ -17,6 +19,8 @@ class MonitorService:
                 {
                     "id": record.id,
                     "name": record.name,
+                    "private_key_id": record.private_key_id,
+                    "private_key_nickname": record.private_key_obj.nickname if record.private_key_obj else "未知",
                     "token_address": record.token_address,
                     "threshold": record.threshold,
                     "sell_percentage": record.sell_percentage,
@@ -34,7 +38,7 @@ class MonitorService:
             db.close()
 
     @staticmethod
-    def create_record(name: str, private_key: str, token_address: str,
+    def create_record(name: str, private_key_id: int, token_address: str,
                       threshold: float, sell_percentage: float, webhook_url: str,
                       check_interval: int = 5) -> tuple[bool, str, Optional[int]]:
         """创建监控记录"""
@@ -50,9 +54,15 @@ class MonitorService:
 
         db = SessionLocal()
         try:
+            # 检查私钥是否存在
+            private_key_obj = db.query(PrivateKey).filter(PrivateKey.id == private_key_id).first()
+            if not private_key_obj:
+                return False, "私钥不存在", None
+
             record = MonitorRecord(
                 name=name,
-                private_key=private_key,
+                private_key=private_key_obj.private_key,  # 向后兼容
+                private_key_id=private_key_id,
                 token_address=token_address,
                 threshold=threshold,
                 sell_percentage=sell_percentage,
@@ -72,7 +82,7 @@ class MonitorService:
             db.close()
 
     @staticmethod
-    def update_record(record_id: int, name: str, private_key: str,
+    def update_record(record_id: int, name: str, private_key_id: int,
                       token_address: str, threshold: float, sell_percentage: float,
                       webhook_url: str, check_interval: int = 5) -> tuple[bool, str]:
         """更新监控记录"""
@@ -92,8 +102,14 @@ class MonitorService:
             if not record:
                 return False, "监控记录不存在"
 
+            # 检查私钥是否存在
+            private_key_obj = db.query(PrivateKey).filter(PrivateKey.id == private_key_id).first()
+            if not private_key_obj:
+                return False, "私钥不存在"
+
             record.name = name
-            record.private_key = private_key
+            record.private_key = private_key_obj.private_key  # 向后兼容
+            record.private_key_id = private_key_id
             record.token_address = token_address
             record.threshold = threshold
             record.sell_percentage = sell_percentage
@@ -177,7 +193,8 @@ class MonitorService:
             return {
                 "id": record.id,
                 "name": record.name,
-                "private_key": record.private_key,
+                "private_key_id": record.private_key_id,
+                "private_key": record.private_key_obj.private_key if record.private_key_obj else record.private_key,
                 "token_address": record.token_address,
                 "threshold": record.threshold,
                 "sell_percentage": record.sell_percentage,
@@ -212,32 +229,169 @@ class MonitorService:
     @staticmethod
     def clear_logs(monitor_record_id: Optional[int] = None) -> tuple[bool, str, int]:
         """清空日志
-        
+
         Args:
             monitor_record_id: 监控记录ID，如果为None则清空所有日志
-            
+
         Returns:
             tuple[bool, str, int]: (是否成功, 消息, 清空的日志数量)
         """
         db = SessionLocal()
         try:
             query = db.query(MonitorLog)
-            
+
             if monitor_record_id:
                 query = query.filter(MonitorLog.monitor_record_id == monitor_record_id)
-            
+
             # 获取要删除的日志数量
             count = query.count()
-            
+
             # 删除日志
             query.delete()
             db.commit()
-            
+
             if monitor_record_id:
                 return True, f"成功清空监控记录 {monitor_record_id} 的 {count} 条日志", count
             else:
                 return True, f"成功清空所有 {count} 条日志", count
         except Exception as e:
             return False, f"清空日志失败: {str(e)}", 0
+        finally:
+            db.close()
+
+    # 私钥管理方法
+    @staticmethod
+    def get_all_private_keys() -> List[Dict]:
+        """获取所有私钥（安全显示）"""
+        db = SessionLocal()
+        try:
+            private_keys = db.query(PrivateKey).all()
+            return [
+                {
+                    "id": pk.id,
+                    "nickname": pk.nickname,
+                    "public_key": pk.public_key,
+                    "private_key_preview": pk.private_key[:4] + "..." if pk.private_key else "...",
+                    "created_at": pk.created_at.isoformat() if pk.created_at else None
+                }
+                for pk in private_keys
+            ]
+        finally:
+            db.close()
+
+    @staticmethod
+    def create_private_key(nickname: str, private_key: str) -> tuple[bool, str, Optional[int]]:
+        """创建私钥记录"""
+        db = SessionLocal()
+        try:
+            # 验证私钥格式并生成公钥
+            try:
+                # 尝试从base58解码私钥
+                keypair = Keypair.from_base58_string(private_key)
+                public_key = str(keypair.pubkey())
+            except Exception as e:
+                return False, f"私钥格式错误: {str(e)}", None
+
+            # 检查昵称是否已存在
+            existing = db.query(PrivateKey).filter(PrivateKey.nickname == nickname).first()
+            if existing:
+                return False, "私钥昵称已存在", None
+
+            # 检查私钥是否已存在
+            existing = db.query(PrivateKey).filter(PrivateKey.private_key == private_key).first()
+            if existing:
+                return False, "该私钥已存在", None
+
+            pk = PrivateKey(
+                nickname=nickname,
+                private_key=private_key,
+                public_key=public_key
+            )
+
+            db.add(pk)
+            db.commit()
+            db.refresh(pk)
+
+            return True, "私钥添加成功", pk.id
+        except Exception as e:
+            return False, str(e), None
+        finally:
+            db.close()
+
+    @staticmethod
+    def update_private_key(pk_id: int, nickname: str, private_key: str) -> tuple[bool, str]:
+        """更新私钥记录"""
+        db = SessionLocal()
+        try:
+            pk_record = db.query(PrivateKey).filter(PrivateKey.id == pk_id).first()
+            if not pk_record:
+                return False, "私钥记录不存在"
+
+            # 验证私钥格式并生成公钥
+            try:
+                keypair = Keypair.from_base58_string(private_key)
+                public_key = str(keypair.pubkey())
+            except Exception as e:
+                return False, f"私钥格式错误: {str(e)}"
+
+            # 检查昵称是否已被其他记录使用
+            existing = db.query(PrivateKey).filter(
+                PrivateKey.nickname == nickname,
+                PrivateKey.id != pk_id
+            ).first()
+            if existing:
+                return False, "私钥昵称已存在"
+
+            pk_record.nickname = nickname
+            pk_record.private_key = private_key
+            pk_record.public_key = public_key
+            pk_record.updated_at = datetime.utcnow()
+
+            db.commit()
+            return True, "私钥更新成功"
+        except Exception as e:
+            return False, str(e)
+        finally:
+            db.close()
+
+    @staticmethod
+    def delete_private_key(pk_id: int) -> tuple[bool, str]:
+        """删除私钥记录"""
+        db = SessionLocal()
+        try:
+            # 检查是否有监控记录在使用该私钥
+            using_records = db.query(MonitorRecord).filter(MonitorRecord.private_key_id == pk_id).count()
+            if using_records > 0:
+                return False, f"该私钥正被 {using_records} 个监控记录使用，无法删除"
+
+            pk_record = db.query(PrivateKey).filter(PrivateKey.id == pk_id).first()
+            if not pk_record:
+                return False, "私钥记录不存在"
+
+            db.delete(pk_record)
+            db.commit()
+
+            return True, "私钥删除成功"
+        except Exception as e:
+            return False, str(e)
+        finally:
+            db.close()
+
+    @staticmethod
+    def get_private_key_by_id(pk_id: int) -> Optional[Dict]:
+        """根据ID获取私钥详情"""
+        db = SessionLocal()
+        try:
+            pk = db.query(PrivateKey).filter(PrivateKey.id == pk_id).first()
+            if not pk:
+                return None
+
+            return {
+                "id": pk.id,
+                "nickname": pk.nickname,
+                "private_key": pk.private_key,
+                "public_key": pk.public_key,
+                "created_at": pk.created_at.isoformat() if pk.created_at else None
+            }
         finally:
             db.close()

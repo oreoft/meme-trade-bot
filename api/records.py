@@ -36,7 +36,7 @@ async def get_monitor_records():
 @router.post("")
 async def create_monitor_record(
     name: str = Form(...),
-    private_key: str = Form(...),
+    private_key_id: int = Form(...),
     token_address: str = Form(...),
     threshold: float = Form(...),
     sell_percentage: float = Form(...),
@@ -46,7 +46,7 @@ async def create_monitor_record(
     """创建监控记录"""
     try:
         success, message, record_id = MonitorService.create_record(
-            name, private_key, token_address, threshold,
+            name, private_key_id, token_address, threshold,
             sell_percentage, webhook_url, check_interval
         )
 
@@ -65,7 +65,7 @@ async def create_monitor_record(
 async def update_monitor_record(
     record_id: int,
     name: str = Form(...),
-    private_key: str = Form(...),
+    private_key_id: int = Form(...),
     token_address: str = Form(...),
     threshold: float = Form(...),
     sell_percentage: float = Form(...),
@@ -79,7 +79,7 @@ async def update_monitor_record(
             return {"success": False, "error": "请先停止监控再修改"}
 
         success, message = MonitorService.update_record(
-            record_id, name, private_key, token_address,
+            record_id, name, private_key_id, token_address,
             threshold, sell_percentage, webhook_url, check_interval
         )
 

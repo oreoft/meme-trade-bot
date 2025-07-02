@@ -26,4 +26,8 @@ async def monitor_page(request: Request):
 
 @router.get("/logs", response_class=HTMLResponse)
 async def logs_page(request: Request):
-    return templates.TemplateResponse("logs.html", {"request": request}) 
+    return templates.TemplateResponse("logs.html", {"request": request})
+
+@router.get("/keys", response_class=HTMLResponse)
+async def keys_page(request: Request):
+    return templates.TemplateResponse("keys.html", {"request": request}) 

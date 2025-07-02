@@ -248,11 +248,17 @@
                             <input type="url" class="form-control" v-model="recordForm.webhook_url" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">钱包私钥 <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" v-model="recordForm.private_key" required>
-                            <div class="form-text text-warning">
-                                <i class="fas fa-exclamation-triangle me-1"></i>
-                                私钥将被加密存储，请确保私钥安全
+                            <label class="form-label">选择钱包私钥 <span class="text-danger">*</span></label>
+                            <select class="form-select" v-model="recordForm.private_key_id" required>
+                                <option value="">请选择钱包私钥</option>
+                                <option v-for="key in privateKeys" :key="key.id" :value="key.id" v-text="key.nickname + ' (' + key.public_key.substring(0,8) + '...' + key.public_key.substring(key.public_key.length-8) + ')'">
+                                </option>
+                            </select>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                如果列表为空，请先到
+                                <a href="/keys" target="_blank" class="text-decoration-none">私钥管理</a>
+                                页面添加私钥
                             </div>
                         </div>
                         <div class="d-flex justify-content-end gap-2">
@@ -368,6 +374,7 @@ createApp({
     data() {
         return {
             monitorRecords: [],
+            privateKeys: [],
             logs: [],
             loading: true,
             logsLoading: false,
@@ -379,7 +386,7 @@ createApp({
             operationLoading: {},
             recordForm: {
                 name: '',
-                private_key: '',
+                private_key_id: '',
                 token_address: '',
                 threshold: 200000,
                 sell_percentage: 0.1,
@@ -402,6 +409,7 @@ createApp({
     },
     mounted() {
         this.loadMonitorRecords();
+        this.loadPrivateKeys();
         // 每30秒自动刷新
         setInterval(() => {
             this.loadMonitorRecords();
@@ -421,6 +429,19 @@ createApp({
                 this.showMessage('error', '网络错误');
             } finally {
                 this.loading = false;
+            }
+        },
+        async loadPrivateKeys() {
+            try {
+                const response = await fetch('/api/keys');
+                const data = await response.json();
+                if (data.success) {
+                    this.privateKeys = data.data;
+                } else {
+                    this.showMessage('error', data.error || '加载私钥列表失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
             }
         },
         async saveRecord() {
@@ -518,7 +539,7 @@ createApp({
             this.editingRecordId = record.id;
             this.recordForm = {
                 name: record.name,
-                private_key: '',  // 安全起见，不回填私钥
+                private_key_id: record.private_key_id,
                 token_address: record.token_address,
                 threshold: record.threshold,
                 sell_percentage: record.sell_percentage,
@@ -550,7 +571,7 @@ createApp({
             this.editingRecordId = null;
             this.recordForm = {
                 name: '',
-                private_key: '',
+                private_key_id: '',
                 token_address: '',
                 threshold: 200000,
                 sell_percentage: 0.1,
