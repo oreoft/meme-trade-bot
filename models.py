@@ -38,6 +38,11 @@ class MonitorRecord(Base):
     private_key = Column(Text)  # 旧版本私钥字段（向后兼容）
     private_key_id = Column(Integer, ForeignKey("private_keys.id"))  # 私钥ID（新版本）
     token_address = Column(String, nullable=False)  # 代币地址
+    # Token 元数据字段
+    token_name = Column(String)  # Token名称
+    token_symbol = Column(String)  # Token符号
+    token_logo_uri = Column(String)  # Token Logo URI
+    token_decimals = Column(Integer)  # Token小数位数
     threshold = Column(Float, nullable=False)  # 阈值
     sell_percentage = Column(Float, nullable=False)  # 出售比例
     webhook_url = Column(String, nullable=False)  # 通知webhook

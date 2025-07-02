@@ -20,6 +20,7 @@ except ImportError:
     # 如果spl包导入失败，我们稍后会手动实现相关功能
     pass
 from config_manager import ConfigManager
+from models import MonitorRecord, SessionLocal
 
 
 class SolanaTrader:
@@ -222,6 +223,28 @@ class SolanaTrader:
             logging.error(f"执行交易失败: {e}")
             return None
 
+    def get_token_decimals(self, token_address: str) -> int:
+        """从数据库获取token的小数位数"""
+        db = SessionLocal()
+        try:
+            # 查询监控记录中是否有这个token的信息
+            record = db.query(MonitorRecord).filter(
+                MonitorRecord.token_address == token_address
+            ).first()
+            
+            if record and record.token_decimals is not None:
+                logging.info(f"从数据库获取token decimals: {record.token_decimals}")
+                return record.token_decimals
+            else:
+                # 如果数据库中没有，默认使用9位小数（大多数Solana代币的标准）
+                logging.warning(f"数据库中未找到token {token_address} 的decimals信息，使用默认值9")
+                return 9
+        except Exception as e:
+            logging.error(f"查询token decimals失败: {e}")
+            return 9  # 默认返回9
+        finally:
+            db.close()
+
     def sell_token_for_sol(self, token_address: str, sell_percentage: float) -> Optional[str]:
         """将代币换成SOL"""
         try:
@@ -234,11 +257,13 @@ class SolanaTrader:
             # 计算出售数量
             sell_amount = token_balance * sell_percentage
 
-            # 转换为最小单位（通常是6或9位小数）
-            # 这里假设是9位小数，实际使用时需要根据代币的decimals调整
-            sell_amount_lamports = int(sell_amount * 1e9)
+            # 从数据库获取正确的小数位数
+            token_decimals = self.get_token_decimals(token_address)
+            
+            # 转换为最小单位（使用实际的decimals）
+            sell_amount_lamports = int(sell_amount * (10 ** token_decimals))
 
-            logging.info(f"准备出售 {sell_amount} 个代币")
+            logging.info(f"准备出售 {sell_amount} 个代币 (decimals: {token_decimals})")
 
             # SOL的mint地址
             sol_mint = "So11111111111111111111111111111111111111112"

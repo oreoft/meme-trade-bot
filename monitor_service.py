@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 
 from solders.keypair import Keypair
 
+from birdeye_api import BirdEyeAPI
 from models import MonitorRecord, MonitorLog, PrivateKey, SessionLocal
 
 
@@ -22,6 +23,10 @@ class MonitorService:
                     "private_key_id": record.private_key_id,
                     "private_key_nickname": record.private_key_obj.nickname if record.private_key_obj else "未知",
                     "token_address": record.token_address,
+                    "token_name": record.token_name,
+                    "token_symbol": record.token_symbol,
+                    "token_logo_uri": record.token_logo_uri,
+                    "token_decimals": record.token_decimals,
                     "threshold": record.threshold,
                     "sell_percentage": record.sell_percentage,
                     "webhook_url": record.webhook_url,
@@ -59,11 +64,31 @@ class MonitorService:
             if not private_key_obj:
                 return False, "私钥不存在", None
 
+            # 获取token元数据
+            api = BirdEyeAPI()
+            token_meta_data = api.get_token_meta_data(token_address)
+            
+            # 提取token信息，如果获取失败则使用默认值
+            token_name = None
+            token_symbol = None
+            token_logo_uri = None
+            token_decimals = None
+            
+            if token_meta_data:
+                token_name = token_meta_data.get('name')
+                token_symbol = token_meta_data.get('symbol')
+                token_logo_uri = token_meta_data.get('logo_uri')
+                token_decimals = token_meta_data.get('decimals')
+
             record = MonitorRecord(
                 name=name,
                 private_key=private_key_obj.private_key,  # 向后兼容
                 private_key_id=private_key_id,
                 token_address=token_address,
+                token_name=token_name,
+                token_symbol=token_symbol,
+                token_logo_uri=token_logo_uri,
+                token_decimals=token_decimals,
                 threshold=threshold,
                 sell_percentage=sell_percentage,
                 webhook_url=webhook_url,
@@ -75,7 +100,13 @@ class MonitorService:
             db.commit()
             db.refresh(record)
 
-            return True, "监控记录创建成功", record.id
+            success_message = "监控记录创建成功"
+            if token_meta_data:
+                success_message += f"，已获取Token信息: {token_name or 'Unknown'} ({token_symbol or 'N/A'})"
+            else:
+                success_message += "，但无法获取Token元数据"
+
+            return True, success_message, record.id
         except Exception as e:
             return False, str(e), None
         finally:
@@ -107,6 +138,24 @@ class MonitorService:
             if not private_key_obj:
                 return False, "私钥不存在"
 
+            # 检查token地址是否改变，如果改变则重新获取元数据
+            token_address_changed = record.token_address != token_address
+            if token_address_changed:
+                api = BirdEyeAPI()
+                token_meta_data = api.get_token_meta_data(token_address)
+                
+                if token_meta_data:
+                    record.token_name = token_meta_data.get('name')
+                    record.token_symbol = token_meta_data.get('symbol')
+                    record.token_logo_uri = token_meta_data.get('logo_uri')
+                    record.token_decimals = token_meta_data.get('decimals')
+                else:
+                    # 如果获取失败，清空原有的token信息
+                    record.token_name = None
+                    record.token_symbol = None
+                    record.token_logo_uri = None
+                    record.token_decimals = None
+
             record.name = name
             record.private_key = private_key_obj.private_key  # 向后兼容
             record.private_key_id = private_key_id
@@ -118,7 +167,15 @@ class MonitorService:
             record.updated_at = datetime.utcnow()
 
             db.commit()
-            return True, "监控记录更新成功"
+            
+            success_message = "监控记录更新成功"
+            if token_address_changed:
+                if record.token_name:
+                    success_message += f"，已更新Token信息: {record.token_name} ({record.token_symbol or 'N/A'})"
+                else:
+                    success_message += "，但无法获取新Token的元数据"
+            
+            return True, success_message
         except Exception as e:
             return False, str(e)
         finally:
@@ -196,6 +253,10 @@ class MonitorService:
                 "private_key_id": record.private_key_id,
                 "private_key": record.private_key_obj.private_key if record.private_key_obj else record.private_key,
                 "token_address": record.token_address,
+                "token_name": record.token_name,
+                "token_symbol": record.token_symbol,
+                "token_logo_uri": record.token_logo_uri,
+                "token_decimals": record.token_decimals,
                 "threshold": record.threshold,
                 "sell_percentage": record.sell_percentage,
                 "webhook_url": record.webhook_url,
