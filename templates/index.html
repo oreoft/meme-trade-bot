@@ -236,7 +236,13 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">代币地址 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" v-model="recordForm.token_address" required>
+                            <input type="text" class="form-control" v-model="recordForm.token_address" 
+                                   :class="{ 'is-invalid': tokenAddressError }" 
+                                   @input="tokenAddressError = ''" required>
+                            <div v-if="tokenAddressError" class="invalid-feedback d-block">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <span v-text="tokenAddressError"></span>
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6">
@@ -414,6 +420,7 @@ createApp({
             showLogsModal: false,
             editingRecordId: null,
             operationLoading: {},
+            tokenAddressError: '',
             recordForm: {
                 name: '',
                 private_key_id: '',
@@ -478,6 +485,7 @@ createApp({
         },
         async saveRecord() {
             this.saveLoading = true;
+            this.tokenAddressError = ''; // 清空之前的错误
             try {
                 const formData = new FormData();
                 Object.keys(this.recordForm).forEach(key => {
@@ -501,7 +509,12 @@ createApp({
                     this.closeModal();
                     this.loadMonitorRecords();
                 } else {
-                    this.showMessage('error', data.error || '保存失败');
+                    // 检查是否是token相关错误
+                    if (data.error && (data.error.includes('Token') || data.error.includes('代币') || data.error.includes('token'))) {
+                        this.tokenAddressError = data.error;
+                    } else {
+                        this.showMessage('error', data.error || '保存失败');
+                    }
                 }
             } catch (error) {
                 this.showMessage('error', '网络错误');
@@ -569,6 +582,7 @@ createApp({
         },
         editRecord(record) {
             this.editingRecordId = record.id;
+            this.tokenAddressError = ''; // 清空token地址错误
             this.recordForm = {
                 name: record.name,
                 private_key_id: record.private_key_id,
@@ -603,6 +617,7 @@ createApp({
             this.showAddModal = false;
             this.showEditModal = false;
             this.editingRecordId = null;
+            this.tokenAddressError = ''; // 清空token地址错误
             this.recordForm = {
                 name: '',
                 private_key_id: '',

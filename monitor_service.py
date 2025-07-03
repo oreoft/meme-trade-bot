@@ -77,17 +77,15 @@ class MonitorService:
             api = BirdEyeAPI()
             token_meta_data = api.get_token_meta_data(token_address)
             
-            # 提取token信息，如果获取失败则使用默认值
-            token_name = None
-            token_symbol = None
-            token_logo_uri = None
-            token_decimals = None
+            # 如果获取token信息失败，则不保存记录
+            if not token_meta_data:
+                return False, "无法获取Token信息，请检查Token地址是否正确", None
             
-            if token_meta_data:
-                token_name = token_meta_data.get('name')
-                token_symbol = token_meta_data.get('symbol')
-                token_logo_uri = token_meta_data.get('logo_uri')
-                token_decimals = token_meta_data.get('decimals')
+            # 提取token信息
+            token_name = token_meta_data.get('name')
+            token_symbol = token_meta_data.get('symbol')
+            token_logo_uri = token_meta_data.get('logo_uri')
+            token_decimals = token_meta_data.get('decimals')
 
             record = MonitorRecord(
                 name=name,
@@ -111,12 +109,7 @@ class MonitorService:
             db.commit()
             db.refresh(record)
 
-            success_message = "监控记录创建成功"
-            if token_meta_data:
-                success_message += f"，已获取Token信息: {token_name or 'Unknown'} ({token_symbol or 'N/A'})"
-            else:
-                success_message += "，但无法获取Token元数据"
-
+            success_message = f"监控记录创建成功，已获取Token信息: {token_name or 'Unknown'} ({token_symbol or 'N/A'})"
             return True, success_message, record.id
         except Exception as e:
             return False, str(e), None
@@ -162,17 +155,13 @@ class MonitorService:
                 api = BirdEyeAPI()
                 token_meta_data = api.get_token_meta_data(token_address)
                 
-                if token_meta_data:
-                    record.token_name = token_meta_data.get('name')
-                    record.token_symbol = token_meta_data.get('symbol')
-                    record.token_logo_uri = token_meta_data.get('logo_uri')
-                    record.token_decimals = token_meta_data.get('decimals')
-                else:
-                    # 如果获取失败，清空原有的token信息
-                    record.token_name = None
-                    record.token_symbol = None
-                    record.token_logo_uri = None
-                    record.token_decimals = None
+                if not token_meta_data:
+                    return False, "无法获取新Token信息，请检查Token地址是否正确"
+                
+                record.token_name = token_meta_data.get('name')
+                record.token_symbol = token_meta_data.get('symbol')
+                record.token_logo_uri = token_meta_data.get('logo_uri')
+                record.token_decimals = token_meta_data.get('decimals')
 
             record.name = name
             record.private_key = private_key_obj.private_key  # 向后兼容
@@ -190,10 +179,7 @@ class MonitorService:
             
             success_message = "监控记录更新成功"
             if token_address_changed:
-                if record.token_name:
-                    success_message += f"，已更新Token信息: {record.token_name} ({record.token_symbol or 'N/A'})"
-                else:
-                    success_message += "，但无法获取新Token的元数据"
+                success_message += f"，已更新Token信息: {record.token_name or 'Unknown'} ({record.token_symbol or 'N/A'})"
             
             return True, success_message
         except Exception as e:
