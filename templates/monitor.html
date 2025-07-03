@@ -134,7 +134,7 @@
                                     
                                     <div class="mb-2">
                                         <small class="text-muted">代币地址:</small><br>
-                                        <code class="small" v-text="monitor.token_address.substring(0, 12) + '...' + monitor.token_address.substring(monitor.token_address.length - 12)"></code>
+                                        <code class="small" v-text="monitor.token_address.substring(0, 4) + '...' + monitor.token_address.substring(monitor.token_address.length - 4) + (monitor.token_symbol ? '(' + monitor.token_symbol + ')' : '')"></code>
                                     </div>
                                     
                                     <div class="row text-center mb-2">

@@ -120,7 +120,7 @@
                                         <strong v-text="record.name"></strong>
                                     </td>
                                     <td>
-                                        <code class="small" v-text="record.token_address.substring(0, 8) + '...' + record.token_address.substring(record.token_address.length - 8)"></code>
+                                        <code class="small" v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4) + (record.token_symbol ? '(' + record.token_symbol + ')' : '')"></code>
                                     </td>
                                     <td>
                                         <strong v-text="'$' + record.threshold.toLocaleString()"></strong>
