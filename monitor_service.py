@@ -31,6 +31,8 @@ class MonitorService:
                     "sell_percentage": record.sell_percentage,
                     "webhook_url": record.webhook_url,
                     "check_interval": record.check_interval,
+                    "execution_mode": record.execution_mode,
+                    "minimum_hold_value": record.minimum_hold_value,
                     "status": record.status,
                     "created_at": record.created_at.isoformat() if record.created_at else None,
                     "last_check_at": record.last_check_at.isoformat() if record.last_check_at else None,
@@ -45,7 +47,8 @@ class MonitorService:
     @staticmethod
     def create_record(name: str, private_key_id: int, token_address: str,
                       threshold: float, sell_percentage: float, webhook_url: str,
-                      check_interval: int = 5) -> tuple[bool, str, Optional[int]]:
+                      check_interval: int = 5, execution_mode: str = "single",
+                      minimum_hold_value: float = 50.0) -> tuple[bool, str, Optional[int]]:
         """创建监控记录"""
         # 验证输入
         if sell_percentage <= 0 or sell_percentage > 1:
@@ -56,6 +59,12 @@ class MonitorService:
 
         if check_interval < 1:
             return False, "检查间隔必须大于等于1秒", None
+        
+        if execution_mode not in ["single", "multiple"]:
+            return False, "执行模式必须是 'single' 或 'multiple'", None
+            
+        if minimum_hold_value < 0:
+            return False, "最低持仓金额必须大于等于0", None
 
         db = SessionLocal()
         try:
@@ -93,6 +102,8 @@ class MonitorService:
                 sell_percentage=sell_percentage,
                 webhook_url=webhook_url,
                 check_interval=check_interval,
+                execution_mode=execution_mode,
+                minimum_hold_value=minimum_hold_value,
                 status="stopped"
             )
 
@@ -115,7 +126,8 @@ class MonitorService:
     @staticmethod
     def update_record(record_id: int, name: str, private_key_id: int,
                       token_address: str, threshold: float, sell_percentage: float,
-                      webhook_url: str, check_interval: int = 5) -> tuple[bool, str]:
+                      webhook_url: str, check_interval: int = 5, execution_mode: str = "single",
+                      minimum_hold_value: float = 50.0) -> tuple[bool, str]:
         """更新监控记录"""
         # 验证输入
         if sell_percentage <= 0 or sell_percentage > 1:
@@ -126,6 +138,12 @@ class MonitorService:
 
         if check_interval < 1:
             return False, "检查间隔必须大于等于1秒"
+            
+        if execution_mode not in ["single", "multiple"]:
+            return False, "执行模式必须是 'single' 或 'multiple'"
+            
+        if minimum_hold_value < 0:
+            return False, "最低持仓金额必须大于等于0"
 
         db = SessionLocal()
         try:
@@ -164,6 +182,8 @@ class MonitorService:
             record.sell_percentage = sell_percentage
             record.webhook_url = webhook_url
             record.check_interval = check_interval
+            record.execution_mode = execution_mode
+            record.minimum_hold_value = minimum_hold_value
             record.updated_at = datetime.utcnow()
 
             db.commit()
@@ -261,6 +281,8 @@ class MonitorService:
                 "sell_percentage": record.sell_percentage,
                 "webhook_url": record.webhook_url,
                 "check_interval": record.check_interval,
+                "execution_mode": record.execution_mode,
+                "minimum_hold_value": record.minimum_hold_value,
                 "status": record.status,
                 "created_at": record.created_at.isoformat() if record.created_at else None,
                 "last_check_at": record.last_check_at.isoformat() if record.last_check_at else None,

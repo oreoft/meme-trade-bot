@@ -107,6 +107,8 @@
                                     <th>代币地址</th>
                                     <th>阈值</th>
                                     <th>出售比例</th>
+                                    <th>执行模式</th>
+                                    <th>最低持仓</th>
                                     <th>检查间隔</th>
                                     <th>状态</th>
                                     <th>最后价格</th>
@@ -127,6 +129,14 @@
                                     </td>
                                     <td>
                                         <span class="badge bg-info" v-text="(record.sell_percentage * 100).toFixed(1) + '%'"></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" 
+                                              v-text="record.execution_mode === 'single' ? '单次' : '多次'"></span>
+                                    </td>
+                                    <td>
+                                        <span v-if="record.execution_mode === 'multiple'" v-text="'$' + record.minimum_hold_value.toFixed(2)"></span>
+                                        <span v-else class="text-muted">--</span>
                                     </td>
                                     <td>
                                         <span v-text="record.check_interval + '秒'"></span>
@@ -246,6 +256,26 @@
                         <div class="mb-3">
                             <label class="form-label">通知Webhook地址 <span class="text-danger">*</span></label>
                             <input type="url" class="form-control" v-model="recordForm.webhook_url" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">执行模式 <span class="text-danger">*</span></label>
+                                    <select class="form-select" v-model="recordForm.execution_mode" required>
+                                        <option value="single">单次执行</option>
+                                        <option value="multiple">多次执行</option>
+                                    </select>
+                                    <div class="form-text">单次执行：达到阈值后按比例出售并停止监控；多次执行：可部分出售并继续监控</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">最低持仓金额(USD)</label>
+                                    <input type="number" class="form-control" v-model="recordForm.minimum_hold_value" 
+                                           step="0.01" min="0" :disabled="recordForm.execution_mode === 'single'">
+                                    <div class="form-text">多次执行模式下，当持仓价值低于此金额时将100%出售</div>
+                                </div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">选择钱包私钥 <span class="text-danger">*</span></label>
@@ -391,7 +421,9 @@ createApp({
                 threshold: 200000,
                 sell_percentage: 0.1,
                 webhook_url: '',
-                check_interval: 5
+                check_interval: 5,
+                execution_mode: 'single',
+                minimum_hold_value: 50.0
             },
             messages: []
         }
@@ -544,7 +576,9 @@ createApp({
                 threshold: record.threshold,
                 sell_percentage: record.sell_percentage,
                 webhook_url: record.webhook_url,
-                check_interval: record.check_interval
+                check_interval: record.check_interval,
+                execution_mode: record.execution_mode || 'single',
+                minimum_hold_value: record.minimum_hold_value || 50.0
             };
             this.showEditModal = true;
         },
@@ -576,7 +610,9 @@ createApp({
                 threshold: 200000,
                 sell_percentage: 0.1,
                 webhook_url: '',
-                check_interval: 5
+                check_interval: 5,
+                execution_mode: 'single',
+                minimum_hold_value: 50.0
             };
         },
         closeLogsModal() {

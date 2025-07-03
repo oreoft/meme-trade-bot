@@ -173,16 +173,17 @@ class PriceMonitor:
 
         return False
 
-    def _complete_monitor_task(self, record_id: int, record, notifier, db, reason: str, message_title: str, message_content: str):
+    def _complete_monitor_task(self, record_id: int, record, notifier, db, reason: str, message_title: str,
+                               message_content: str):
         """完成监控任务的通用方法"""
         print(f"{reason}: {record.name}")
         # 更新状态为已完成
         record.status = "completed"
         db.commit()
-        
+
         # 发送完成通知
         notifier.send_message(message_title, message_content)
-        
+
         # 停止监控循环
         self.monitor_states[record_id] = False
 
@@ -195,15 +196,7 @@ class PriceMonitor:
                 return
 
             # 创建专用的交易器和通知器
-            # 向后兼容：优先使用新的private_key_obj关系，如果没有则使用旧的private_key字段
-            private_key = None
-            if hasattr(record, 'private_key_obj') and record.private_key_obj:
-                # 新版本：通过关系获取私钥
-                private_key = record.private_key_obj.private_key
-            elif hasattr(record, 'private_key') and record.private_key:
-                # 旧版本：直接使用private_key字段
-                private_key = record.private_key
-            
+            private_key = record.private_key_obj.private_key
             trader = SolanaTrader(private_key=private_key)
             notifier = Notifier(webhook_url=record.webhook_url)
 
@@ -236,7 +229,7 @@ class PriceMonitor:
                         try:
                             # 获取交易前的代币余额
                             token_balance_before = trader.get_token_balance(record.token_address)
-                            
+
                             # 如果代币余额为0，停止监控任务
                             if token_balance_before <= 0:
                                 self._complete_monitor_task(
@@ -246,14 +239,16 @@ class PriceMonitor:
                                     message_content=f"【{record.name}】代币余额为0，监控任务自动停止。"
                                 )
                                 break
-                            
-                            # 检查是否会因为低于50USD而出售100%
+
+                            # 根据执行模式和最低持仓金额决定出售比例
                             actual_sell_percentage = record.sell_percentage
-                            if price_info['price'] is not None:
+                            # 多次执行模式：检查是否会因为低于最低持仓金额而出售100%
+                            if record.execution_mode != "single" and price_info['price'] is not None:
                                 total_asset_value = token_balance_before * price_info['price']
-                                if total_asset_value < 50:
+                                minimum_hold_value = getattr(record, 'minimum_hold_value', 50.0)
+                                if total_asset_value < minimum_hold_value:
                                     actual_sell_percentage = 1.0
-                            
+
                             # 计算实际出售数量
                             actual_sell_amount = token_balance_before * actual_sell_percentage
                             estimated_usd_value = actual_sell_amount * price_info['price']
@@ -277,8 +272,19 @@ class PriceMonitor:
                                 notifier.send_trade_notification(tx_hash, actual_sell_amount, estimated_usd_value,
                                                                  record.name)
 
-                                # 如果是100%出售，停止监控任务
-                                if actual_sell_percentage >= 1.0:
+                                # 根据执行模式决定是否停止监控
+                                if record.execution_mode == "single":
+                                    # 单次执行模式：无论出售比例如何都停止监控
+                                    sell_percentage_text = f"{(actual_sell_percentage * 100):.1f}%"
+                                    self._complete_monitor_task(
+                                        record_id, record, notifier, db,
+                                        reason="单次执行模式完成，停止监控任务",
+                                        message_title=f"🎯 【{record.name}】单次执行完成",
+                                        message_content=f"【{record.name}】单次执行模式已完成交易（出售{sell_percentage_text}），监控任务自动停止。"
+                                    )
+                                    break
+                                elif actual_sell_percentage >= 1.0:
+                                    # 多次执行模式：只有100%出售时才停止
                                     self._complete_monitor_task(
                                         record_id, record, notifier, db,
                                         reason="已100%出售完毕，停止监控任务",

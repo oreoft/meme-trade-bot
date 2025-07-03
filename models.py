@@ -47,6 +47,8 @@ class MonitorRecord(Base):
     sell_percentage = Column(Float, nullable=False)  # 出售比例
     webhook_url = Column(String, nullable=False)  # 通知webhook
     check_interval = Column(Integer, default=5)  # 检查间隔（秒）
+    execution_mode = Column(String, default="single")  # 执行模式：single(单次), multiple(多次)
+    minimum_hold_value = Column(Float, default=50.0)  # 最低持仓金额(USD)，用于多次执行模式
     status = Column(String, default="stopped")  # 状态：monitoring, stopped, error
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
