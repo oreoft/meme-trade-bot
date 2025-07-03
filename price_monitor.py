@@ -173,6 +173,19 @@ class PriceMonitor:
 
         return False
 
+    def _complete_monitor_task(self, record_id: int, record, notifier, db, reason: str, message_title: str, message_content: str):
+        """完成监控任务的通用方法"""
+        print(f"{reason}: {record.name}")
+        # 更新状态为已完成
+        record.status = "completed"
+        db.commit()
+        
+        # 发送完成通知
+        notifier.send_message(message_title, message_content)
+        
+        # 停止监控循环
+        self.monitor_states[record_id] = False
+
     def _monitor_loop(self, record_id: int):
         """监控循环"""
         db = SessionLocal()
@@ -224,6 +237,16 @@ class PriceMonitor:
                             # 获取交易前的代币余额
                             token_balance_before = trader.get_token_balance(record.token_address)
                             
+                            # 如果代币余额为0，停止监控任务
+                            if token_balance_before <= 0:
+                                self._complete_monitor_task(
+                                    record_id, record, notifier, db,
+                                    reason="代币余额为0，停止监控任务",
+                                    message_title=f"⚠️ 【{record.name}】余额不足",
+                                    message_content=f"【{record.name}】代币余额为0，监控任务自动停止。"
+                                )
+                                break
+                            
                             # 检查是否会因为低于50USD而出售100%
                             actual_sell_percentage = record.sell_percentage
                             if price_info['price'] is not None:
@@ -254,10 +277,20 @@ class PriceMonitor:
                                 notifier.send_trade_notification(tx_hash, actual_sell_amount, estimated_usd_value,
                                                                  record.name)
 
-                                print(f"交易完成，继续监控等待下一次达到阈值...")
-                                # 交易成功后继续监控，不停止
-                                # 可以选择等待一段时间再继续，避免频繁交易
-                                time.sleep(60)  # 等待1分钟再继续监控
+                                # 如果是100%出售，停止监控任务
+                                if actual_sell_percentage >= 1.0:
+                                    self._complete_monitor_task(
+                                        record_id, record, notifier, db,
+                                        reason="已100%出售完毕，停止监控任务",
+                                        message_title=f"🎯 【{record.name}】监控任务完成",
+                                        message_content=f"【{record.name}】已100%出售完毕，监控任务自动停止。"
+                                    )
+                                    break
+                                else:
+                                    print(f"交易完成，继续监控等待下一次达到阈值...")
+                                    # 交易成功后继续监控，不停止
+                                    # 可以选择等待一段时间再继续，避免频繁交易
+                                    time.sleep(60)  # 等待1分钟再继续监控
 
                         except Exception as e:
                             print(f"交易执行失败: {e}")
