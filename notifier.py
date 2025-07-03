@@ -76,12 +76,12 @@ class Notifier:
             return False
 
     def send_trade_notification(self, tx_hash: str, sell_amount: float, estimated_usd_value: float,
-                                meme_name: str) -> bool:
+                                meme_name: str, token_symbol: str = None) -> bool:
         """发送交易通知"""
         try:
             title = f"✅ 【{meme_name}】交易执行完成"
             content = f"""【{meme_name}】自动出售交易已完成！
-出售数量: {sell_amount:.4f} 代币
+出售数量: {sell_amount:.4f} {token_symbol or '代币'}
 估算价值: ${estimated_usd_value:.2f} USD
 交易哈希: {tx_hash}
 查看交易: https://solscan.io/tx/{tx_hash}"""

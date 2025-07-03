@@ -270,7 +270,7 @@ class PriceMonitor:
 
                                 # 发送交易成功通知 - 使用交易前计算的数量
                                 notifier.send_trade_notification(tx_hash, actual_sell_amount, estimated_usd_value,
-                                                                 record.name)
+                                                                 record.name, record.token_symbol)
 
                                 # 根据执行模式决定是否停止监控
                                 if record.execution_mode == "single":
