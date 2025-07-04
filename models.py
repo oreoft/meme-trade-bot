@@ -27,6 +27,7 @@ class PrivateKey(Base):
     nickname = Column(String, nullable=False)  # 私钥昵称
     private_key = Column(Text, nullable=False)  # 私钥
     public_key = Column(String, nullable=False)  # 公钥
+    deleted = Column(Boolean, default=False)  # 逻辑删除标记
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 

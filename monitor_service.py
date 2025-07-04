@@ -68,10 +68,10 @@ class MonitorService:
 
         db = SessionLocal()
         try:
-            # 检查私钥是否存在
-            private_key_obj = db.query(PrivateKey).filter(PrivateKey.id == private_key_id).first()
+            # 检查私钥是否存在（只检查未删除的）
+            private_key_obj = db.query(PrivateKey).filter(PrivateKey.id == private_key_id, PrivateKey.deleted == False).first()
             if not private_key_obj:
-                return False, "私钥不存在", None
+                return False, "私钥不存在或已删除", None
 
             # 获取token元数据
             api = BirdEyeAPI()
@@ -144,10 +144,10 @@ class MonitorService:
             if not record:
                 return False, "监控记录不存在"
 
-            # 检查私钥是否存在
-            private_key_obj = db.query(PrivateKey).filter(PrivateKey.id == private_key_id).first()
+            # 检查私钥是否存在（只检查未删除的）
+            private_key_obj = db.query(PrivateKey).filter(PrivateKey.id == private_key_id, PrivateKey.deleted == False).first()
             if not private_key_obj:
-                return False, "私钥不存在"
+                return False, "私钥不存在或已删除"
 
             # 检查token地址是否改变，如果改变则重新获取元数据
             token_address_changed = record.token_address != token_address
@@ -334,7 +334,7 @@ class MonitorService:
         """获取所有私钥（安全显示）"""
         db = SessionLocal()
         try:
-            private_keys = db.query(PrivateKey).all()
+            private_keys = db.query(PrivateKey).filter(PrivateKey.deleted == False).all()
             return [
                 {
                     "id": pk.id,
@@ -353,7 +353,7 @@ class MonitorService:
         """获取所有私钥（包含完整私钥信息，仅用于导出）"""
         db = SessionLocal()
         try:
-            private_keys = db.query(PrivateKey).all()
+            private_keys = db.query(PrivateKey).filter(PrivateKey.deleted == False).all()
             return [
                 {
                     "id": pk.id,
@@ -387,13 +387,13 @@ class MonitorService:
             except Exception as e:
                 return False, f"私钥格式错误: {str(e)}", None
 
-            # 检查昵称是否已存在
-            existing = db.query(PrivateKey).filter(PrivateKey.nickname == nickname).first()
+            # 检查昵称是否已存在（只检查未删除的）
+            existing = db.query(PrivateKey).filter(PrivateKey.nickname == nickname, PrivateKey.deleted == False).first()
             if existing:
                 return False, "私钥昵称已存在", None
 
-            # 检查私钥是否已存在
-            existing = db.query(PrivateKey).filter(PrivateKey.private_key == private_key).first()
+            # 检查私钥是否已存在（只检查未删除的）
+            existing = db.query(PrivateKey).filter(PrivateKey.private_key == private_key, PrivateKey.deleted == False).first()
             if existing:
                 return False, "该私钥已存在", None
 
@@ -418,9 +418,9 @@ class MonitorService:
         """更新私钥记录"""
         db = SessionLocal()
         try:
-            pk_record = db.query(PrivateKey).filter(PrivateKey.id == pk_id).first()
+            pk_record = db.query(PrivateKey).filter(PrivateKey.id == pk_id, PrivateKey.deleted == False).first()
             if not pk_record:
-                return False, "私钥记录不存在"
+                return False, "私钥记录不存在或已删除"
 
             # 验证私钥格式并生成公钥
             try:
@@ -429,10 +429,11 @@ class MonitorService:
             except Exception as e:
                 return False, f"私钥格式错误: {str(e)}"
 
-            # 检查昵称是否已被其他记录使用
+            # 检查昵称是否已被其他记录使用（只检查未删除的）
             existing = db.query(PrivateKey).filter(
                 PrivateKey.nickname == nickname,
-                PrivateKey.id != pk_id
+                PrivateKey.id != pk_id,
+                PrivateKey.deleted == False
             ).first()
             if existing:
                 return False, "私钥昵称已存在"
@@ -451,22 +452,24 @@ class MonitorService:
 
     @staticmethod
     def delete_private_key(pk_id: int) -> tuple[bool, str]:
-        """删除私钥记录"""
+        """删除私钥记录（逻辑删除）"""
         db = SessionLocal()
         try:
+            pk_record = db.query(PrivateKey).filter(PrivateKey.id == pk_id, PrivateKey.deleted == False).first()
+            if not pk_record:
+                return False, "私钥记录不存在或已删除"
+
             # 检查是否有监控记录在使用该私钥
             using_records = db.query(MonitorRecord).filter(MonitorRecord.private_key_id == pk_id).count()
             if using_records > 0:
                 return False, f"该私钥正被 {using_records} 个监控记录使用，无法删除"
 
-            pk_record = db.query(PrivateKey).filter(PrivateKey.id == pk_id).first()
-            if not pk_record:
-                return False, "私钥记录不存在"
-
-            db.delete(pk_record)
+            # 逻辑删除：设置 deleted 标记为 True
+            pk_record.deleted = True
+            pk_record.updated_at = datetime.utcnow()
             db.commit()
 
-            return True, "私钥删除成功"
+            return True, "私钥已删除（逻辑删除）"
         except Exception as e:
             return False, str(e)
         finally:
@@ -477,7 +480,7 @@ class MonitorService:
         """根据ID获取私钥详情"""
         db = SessionLocal()
         try:
-            pk = db.query(PrivateKey).filter(PrivateKey.id == pk_id).first()
+            pk = db.query(PrivateKey).filter(PrivateKey.id == pk_id, PrivateKey.deleted == False).first()
             if not pk:
                 return None
 

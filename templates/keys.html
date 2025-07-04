@@ -327,7 +327,7 @@ createApp({
             }
         },
         async deleteKey(keyId) {
-            if (!confirm('确定要删除这个私钥吗？删除后相关的监控记录将无法使用。')) {
+            if (!confirm('确定要删除这个私钥吗？删除后数据将被标记为删除状态（逻辑删除），相关的监控记录将无法使用。')) {
                 return;
             }
             
