@@ -122,13 +122,15 @@
                                         <strong v-text="record.name"></strong>
                                     </td>
                                     <td>
-                                        <code class="small address-copy" 
-                                              @click="copyToClipboard(record.token_address, '代币地址')"
-                                              :title="record.token_address + ' (点击复制)'"
-                                              style="cursor: pointer; user-select: none;"
-                                              v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4) + (record.token_symbol ? '(' + record.token_symbol + ')' : '')">
-                                        </code>
-                                        <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.8em;"></i>
+                                        <a :href="'https://dexscreener.com/solana/' + record.token_address" 
+                                           target="_blank" 
+                                           class="text-decoration-none"
+                                           :title="'在DexScreener上查看 ' + record.token_address">
+                                            <code class="small text-primary" 
+                                                  style="cursor: pointer;"
+                                                  v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4) + (record.token_symbol ? '(' + record.token_symbol + ')' : '')">
+                                            </code>
+                                        </a>
                                     </td>
                                     <td>
                                         <strong v-text="'$' + record.threshold.toLocaleString()"></strong>

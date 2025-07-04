@@ -155,7 +155,7 @@ async def get_private_keys_token_summary():
     try:
         # 获取所有私钥
         private_keys = MonitorService.get_all_private_keys_with_secrets()
-
+        
         if not private_keys:
             return {
                 "success": True,
@@ -166,30 +166,30 @@ async def get_private_keys_token_summary():
                     "tokens": []
                 }
             }
-
+        
         # 初始化BirdEye API
         api = BirdEyeAPI()
-
+        
         # 汇总数据
         total_usd = 0
         total_sol = 0
         token_summary = {}  # {token_address: {name, symbol, total_amount, total_value, logo_uri}}
-
+        
         # 遍历每个私钥获取token信息
         for pk in private_keys:
             public_key = pk.get('public_key')
             if not public_key:
                 continue
-
+                
             # 获取钱包token列表
             wallet_data = api.get_wallet_token_list(public_key)
             if not wallet_data:
                 continue
-
+                
             # 累计总USD价值
             wallet_usd = wallet_data.get('totalUsd', 0)
             total_usd += wallet_usd
-
+            
             # 处理token项目
             items = wallet_data.get('items', [])
             for item in items:
@@ -199,11 +199,11 @@ async def get_private_keys_token_summary():
                 token_amount = item.get('uiAmount', 0)
                 token_value = item.get('valueUsd', 0)
                 token_logo = item.get('logoURI', '')
-
+                
                 # 统计SOL
                 if token_symbol == 'SOL':
                     total_sol += token_amount
-
+                
                 # 汇总token数据
                 if token_address in token_summary:
                     token_summary[token_address]['total_amount'] += token_amount
@@ -216,7 +216,7 @@ async def get_private_keys_token_summary():
                         'total_value': token_value,
                         'logo_uri': token_logo
                     }
-
+        
         # 转换为列表并按价值排序
         tokens_list = []
         for address, data in token_summary.items():
@@ -228,10 +228,10 @@ async def get_private_keys_token_summary():
                 'total_value': data['total_value'],
                 'logo_uri': data['logo_uri']
             })
-
+        
         # 按总价值降序排序
         tokens_list.sort(key=lambda x: x['total_value'], reverse=True)
-
+        
         return {
             "success": True,
             "data": {
@@ -241,6 +241,64 @@ async def get_private_keys_token_summary():
                 "tokens": tokens_list
             }
         }
+    
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
+@router.get("/{key_id}/tokens")
+async def get_private_key_tokens(key_id: int):
+    """获取单个私钥的token明细"""
+    try:
+        # 获取私钥详情
+        key_detail = MonitorService.get_private_key_by_id(key_id)
+        if not key_detail:
+            return {"success": False, "error": "私钥不存在"}
+        
+        public_key = key_detail.get('public_key')
+        if not public_key:
+            return {"success": False, "error": "公钥地址不存在"}
+        
+        # 初始化BirdEye API
+        api = BirdEyeAPI()
+        
+        # 获取钱包token列表
+        wallet_data = api.get_wallet_token_list(public_key)
+        if not wallet_data:
+            return {
+                "success": True,
+                "data": {
+                    "wallet": public_key,
+                    "total_usd": 0,
+                    "tokens": []
+                }
+            }
+        
+        # 处理token数据
+        items = wallet_data.get('items', [])
+        tokens_list = []
+        
+        for item in items:
+            tokens_list.append({
+                'address': item.get('address', ''),
+                'name': item.get('name', '未知'),
+                'symbol': item.get('symbol', '未知'),
+                'amount': item.get('uiAmount', 0),
+                'price_usd': item.get('priceUsd', 0),
+                'value_usd': item.get('valueUsd', 0),
+                'logo_uri': item.get('logoURI', '')
+            })
+        
+        # 按价值降序排序
+        tokens_list.sort(key=lambda x: x['value_usd'], reverse=True)
+        
+        return {
+            "success": True,
+            "data": {
+                "wallet": wallet_data.get('wallet', public_key),
+                "total_usd": wallet_data.get('totalUsd', 0),
+                "tokens": tokens_list
+            }
+        }
+    
     except Exception as e:
         return {"success": False, "error": str(e)}

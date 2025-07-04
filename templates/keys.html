@@ -123,15 +123,19 @@
                             </thead>
                             <tbody>
                                 <tr v-for="token in tokenSummary.tokens" :key="token.address">
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <img v-if="token.logo_uri" :src="token.logo_uri" 
-                                                 alt="token logo" class="me-2 rounded-circle" 
-                                                 style="width: 24px; height: 24px;"
-                                                 @error="$event.target.style.display='none'">
-                                            <span v-text="token.name"></span>
-                                        </div>
-                                    </td>
+                                                                         <td>
+                                         <div class="d-flex align-items-center">
+                                             <img v-if="token.logo_uri" :src="token.logo_uri" 
+                                                  alt="token logo" class="me-2 rounded-circle" 
+                                                  style="width: 24px; height: 24px;"
+                                                  @error="$event.target.style.display='none'">
+                                             <a :href="'https://dexscreener.com/solana/' + token.address" 
+                                                target="_blank" 
+                                                class="text-decoration-none fw-bold text-primary"
+                                                :title="'在DexScreener上查看 ' + token.name"
+                                                v-text="token.name"></a>
+                                         </div>
+                                     </td>
                                     <td>
                                         <span class="badge bg-secondary" v-text="token.symbol"></span>
                                     </td>
@@ -198,42 +202,126 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="key in privateKeys" :key="key.id">
-                                    <td>
-                                        <strong v-text="key.nickname"></strong>
-                                    </td>
-                                    <td>
-                                        <code class="small address-copy" 
-                                              @click="copyToClipboard(key.public_key, '公钥地址')"
-                                              :title="key.public_key + ' (点击复制)'"
-                                              style="cursor: pointer; user-select: none;"
-                                              v-text="key.public_key.substring(0, 8) + '...' + key.public_key.substring(key.public_key.length - 8)">
-                                        </code>
-                                        <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.8em;"></i>
-                                    </td>
-                                    <td>
-                                        <code class="small text-muted" v-text="key.private_key_preview"></code>
-                                    </td>
-                                    <td>
-                                        <small v-text="formatTime(key.created_at)"></small>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <button 
-                                                class="btn btn-outline-primary"
-                                                @click="editKey(key)"
-                                                title="编辑">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button 
-                                                class="btn btn-outline-danger"
-                                                @click="deleteKey(key.id)"
-                                                title="删除">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                <template v-for="key in privateKeys" :key="key.id">
+                                    <tr>
+                                        <td>
+                                            <strong v-text="key.nickname"></strong>
+                                        </td>
+                                        <td>
+                                            <code class="small address-copy" 
+                                                  @click="copyToClipboard(key.public_key, '公钥地址')"
+                                                  :title="key.public_key + ' (点击复制)'"
+                                                  style="cursor: pointer; user-select: none;"
+                                                  v-text="key.public_key.substring(0, 8) + '...' + key.public_key.substring(key.public_key.length - 8)">
+                                            </code>
+                                            <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.8em;"></i>
+                                        </td>
+                                        <td>
+                                            <code class="small text-muted" v-text="key.private_key_preview"></code>
+                                        </td>
+                                        <td>
+                                            <small v-text="formatTime(key.created_at)"></small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button 
+                                                    class="btn btn-outline-info"
+                                                    @click="toggleWalletTokens(key.id)"
+                                                    :title="walletTokensExpanded[key.id] ? '收起Token明细' : '展开Token明细'">
+                                                    <span v-if="walletTokensLoading[key.id]" class="spinner-border spinner-border-sm"></span>
+                                                    <i v-else-if="walletTokensExpanded[key.id]" class="fas fa-chevron-up"></i>
+                                                    <i v-else class="fas fa-chevron-down"></i>
+                                                </button>
+                                                <button 
+                                                    class="btn btn-outline-primary"
+                                                    @click="editKey(key)"
+                                                    title="编辑">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button 
+                                                    class="btn btn-outline-danger"
+                                                    @click="deleteKey(key.id)"
+                                                    title="删除">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <!-- Token明细展开行 -->
+                                    <tr v-if="walletTokensExpanded[key.id]" class="bg-light">
+                                        <td colspan="5" class="p-0">
+                                            <div class="p-3">
+                                                <div v-if="walletTokensLoading[key.id]" class="text-center py-3">
+                                                    <div class="spinner-border text-primary" role="status"></div>
+                                                    <p class="mt-2 text-muted">加载Token明细中...</p>
+                                                </div>
+                                                <div v-else-if="walletTokensData[key.id] && walletTokensData[key.id].tokens.length > 0">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0">
+                                                            <i class="fas fa-coins me-2 text-primary"></i>
+                                                            <span v-text="key.nickname"></span> 的Token明细
+                                                        </h6>
+                                                        <div class="text-muted">
+                                                            总价值: <span class="text-success fw-bold" v-text="'$' + walletTokensData[key.id].total_usd.toFixed(2)"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Token</th>
+                                                                    <th>符号</th>
+                                                                    <th>持有量</th>
+                                                                    <th>价格</th>
+                                                                    <th>价值</th>
+                                                                    <th>Token地址</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr v-for="token in walletTokensData[key.id].tokens" :key="token.address">
+                                                                                                                                         <td>
+                                                                         <div class="d-flex align-items-center">
+                                                                             <img v-if="token.logo_uri" :src="token.logo_uri" 
+                                                                                  alt="token logo" class="me-2 rounded-circle" 
+                                                                                  style="width: 20px; height: 20px;"
+                                                                                  @error="$event.target.style.display='none'">
+                                                                             <a :href="'https://dexscreener.com/solana/' + token.address" 
+                                                                                target="_blank" 
+                                                                                class="text-decoration-none fw-bold text-primary"
+                                                                                :title="'在DexScreener上查看 ' + token.name"
+                                                                                v-text="token.name"></a>
+                                                                         </div>
+                                                                     </td>
+                                                                    <td>
+                                                                        <span class="badge bg-secondary small" v-text="token.symbol"></span>
+                                                                    </td>
+                                                                    <td v-text="formatAmount(token.amount)"></td>
+                                                                    <td v-text="'$' + token.price_usd.toFixed(6)"></td>
+                                                                    <td>
+                                                                        <span class="text-success fw-bold" v-text="'$' + token.value_usd.toFixed(2)"></span>
+                                                                    </td>
+                                                                    <td>
+                                                                        <code class="small address-copy" 
+                                                                              @click="copyToClipboard(token.address, 'Token地址')"
+                                                                              :title="token.address + ' (点击复制)'"
+                                                                              style="cursor: pointer; user-select: none;"
+                                                                              v-text="token.address.substring(0, 6) + '...' + token.address.substring(token.address.length - 6)">
+                                                                        </code>
+                                                                        <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.7em;"></i>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                <div v-else class="text-center py-3 text-muted">
+                                                    <i class="fas fa-coins fa-2x mb-2"></i>
+                                                    <p class="mb-0">该钱包暂无Token记录</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>
@@ -396,7 +484,10 @@ createApp({
                 total_sol: 0,
                 total_usd: 0,
                 tokens: []
-            }
+            },
+            walletTokensExpanded: {}, // 钱包Token明细展开状态
+            walletTokensLoading: {}, // 钱包Token明细加载状态
+            walletTokensData: {} // 钱包Token明细数据
         }
     },
     mounted() {
@@ -462,6 +553,10 @@ createApp({
                 if (data.success) {
                     this.showMessage('success', data.message);
                     this.closeModal();
+                    // 清理所有展开状态，因为钱包列表可能会改变
+                    this.walletTokensExpanded = {};
+                    this.walletTokensLoading = {};
+                    this.walletTokensData = {};
                     this.loadPrivateKeys();
                     this.loadTokenSummary();
                 } else {
@@ -485,6 +580,16 @@ createApp({
                 const data = await response.json();
                 if (data.success) {
                     this.showMessage('success', data.message);
+                    // 清理钱包Token相关状态
+                    const newExpanded = { ...this.walletTokensExpanded };
+                    const newLoading = { ...this.walletTokensLoading };
+                    const newData = { ...this.walletTokensData };
+                    delete newExpanded[keyId];
+                    delete newLoading[keyId];
+                    delete newData[keyId];
+                    this.walletTokensExpanded = newExpanded;
+                    this.walletTokensLoading = newLoading;
+                    this.walletTokensData = newData;
                     this.loadPrivateKeys();
                     this.loadTokenSummary();
                 } else {
@@ -635,6 +740,40 @@ createApp({
                 return amount.toFixed(2);
             } else {
                 return amount.toFixed(6);
+            }
+        },
+        async toggleWalletTokens(keyId) {
+            // 如果已经展开，则收起
+            if (this.walletTokensExpanded[keyId]) {
+                this.walletTokensExpanded = { ...this.walletTokensExpanded, [keyId]: false };
+                return;
+            }
+            
+            // 展开并加载数据
+            this.walletTokensExpanded = { ...this.walletTokensExpanded, [keyId]: true };
+            
+            // 如果已经有数据，直接返回
+            if (this.walletTokensData[keyId]) {
+                return;
+            }
+            
+            // 加载数据
+            await this.loadWalletTokens(keyId);
+        },
+        async loadWalletTokens(keyId) {
+            this.walletTokensLoading = { ...this.walletTokensLoading, [keyId]: true };
+            try {
+                const response = await fetch(`/api/keys/${keyId}/tokens`);
+                const data = await response.json();
+                if (data.success) {
+                    this.walletTokensData = { ...this.walletTokensData, [keyId]: data.data };
+                } else {
+                    this.showMessage('error', data.error || '加载Token明细失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.walletTokensLoading = { ...this.walletTokensLoading, [keyId]: false };
             }
         }
     }
