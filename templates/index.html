@@ -122,7 +122,13 @@
                                         <strong v-text="record.name"></strong>
                                     </td>
                                     <td>
-                                        <code class="small" v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4) + (record.token_symbol ? '(' + record.token_symbol + ')' : '')"></code>
+                                        <code class="small address-copy" 
+                                              @click="copyToClipboard(record.token_address, '代币地址')"
+                                              :title="record.token_address + ' (点击复制)'"
+                                              style="cursor: pointer; user-select: none;"
+                                              v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4) + (record.token_symbol ? '(' + record.token_symbol + ')' : '')">
+                                        </code>
+                                        <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.8em;"></i>
                                     </td>
                                     <td>
                                         <strong v-text="'$' + record.threshold.toLocaleString()"></strong>
@@ -674,6 +680,45 @@ createApp({
         },
         removeMessage(id) {
             this.messages = this.messages.filter(m => m.id !== id);
+        },
+        copyToClipboard(text, type) {
+            // 优先使用现代 Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    this.showMessage('success', `${type}已复制到剪贴板`);
+                }).catch(err => {
+                    console.error('Clipboard API 失败:', err);
+                    this.fallbackCopyTextToClipboard(text, type);
+                });
+            } else {
+                // 使用备用方案
+                this.fallbackCopyTextToClipboard(text, type);
+            }
+        },
+        fallbackCopyTextToClipboard(text, type) {
+            // 创建临时文本区域
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            
+            try {
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    this.showMessage('success', `${type}已复制到剪贴板`);
+                } else {
+                    this.showMessage('error', '复制失败，请手动复制');
+                }
+            } catch (err) {
+                console.error('备用复制方法失败:', err);
+                this.showMessage('error', '复制失败，请手动复制');
+            } finally {
+                document.body.removeChild(textArea);
+            }
         }
     }
 }).mount('#app');

@@ -77,7 +77,13 @@
                                         <strong v-text="key.nickname"></strong>
                                     </td>
                                     <td>
-                                        <code class="small" v-text="key.public_key.substring(0, 8) + '...' + key.public_key.substring(key.public_key.length - 8)"></code>
+                                        <code class="small address-copy" 
+                                              @click="copyToClipboard(key.public_key, '公钥地址')"
+                                              :title="key.public_key + ' (点击复制)'"
+                                              style="cursor: pointer; user-select: none;"
+                                              v-text="key.public_key.substring(0, 8) + '...' + key.public_key.substring(key.public_key.length - 8)">
+                                        </code>
+                                        <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.8em;"></i>
                                     </td>
                                     <td>
                                         <code class="small text-muted" v-text="key.private_key_preview"></code>
@@ -295,6 +301,45 @@ createApp({
         },
         removeMessage(id) {
             this.messages = this.messages.filter(m => m.id !== id);
+        },
+        copyToClipboard(text, type) {
+            // 优先使用现代 Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    this.showMessage('success', `${type}已复制到剪贴板`);
+                }).catch(err => {
+                    console.error('Clipboard API 失败:', err);
+                    this.fallbackCopyTextToClipboard(text, type);
+                });
+            } else {
+                // 使用备用方案
+                this.fallbackCopyTextToClipboard(text, type);
+            }
+        },
+        fallbackCopyTextToClipboard(text, type) {
+            // 创建临时文本区域
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            
+            try {
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    this.showMessage('success', `${type}已复制到剪贴板`);
+                } else {
+                    this.showMessage('error', '复制失败，请手动复制');
+                }
+            } catch (err) {
+                console.error('备用复制方法失败:', err);
+                this.showMessage('error', '复制失败，请手动复制');
+            } finally {
+                document.body.removeChild(textArea);
+            }
         }
     }
 }).mount('#app');

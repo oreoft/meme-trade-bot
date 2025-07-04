@@ -41,6 +41,26 @@
             opacity: 0.6;
             pointer-events: none;
         }
+        .address-copy {
+            transition: all 0.2s ease;
+            border-radius: 3px;
+            padding: 2px 4px;
+        }
+        .address-copy:hover {
+            background-color: #e9ecef;
+            color: #0d6efd !important;
+        }
+        .address-copy:active {
+            transform: scale(0.95);
+        }
+        .address-copy + i {
+            opacity: 0.5;
+            transition: opacity 0.2s ease;
+        }
+        .address-copy:hover + i {
+            opacity: 1;
+            color: #0d6efd;
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
