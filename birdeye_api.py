@@ -181,3 +181,71 @@ Token符号: {meta_data.get('symbol', '未知')}
             formatted_info += self.format_market_data(market_data)
 
         return formatted_info
+
+    def get_wallet_token_list(self, wallet_address: str) -> Optional[Dict]:
+        """获取钱包的token列表
+        
+        Args:
+            wallet_address: 钱包地址
+            
+        Returns:
+            包含钱包token列表的字典，包含wallet, totalUsd, items等字段
+        """
+        try:
+            # 使用v1版本的钱包API
+            url = 'https://public-api.birdeye.so/v1/wallet/token_list'
+            params = {'wallet': wallet_address}
+            
+            response = requests.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            
+            json_response = response.json()
+            if not json_response.get('success', False):
+                logging.error(f"获取钱包token列表API返回失败: {json_response}")
+                return None
+            
+            data = json_response.get('data', {})
+            logging.info(f"成功获取钱包token列表: {wallet_address}")
+            return data
+            
+        except requests.exceptions.RequestException as e:
+            logging.error(f"获取钱包token列表网络请求失败 [{wallet_address}]: {e}")
+            return None
+        except Exception as e:
+            logging.error(f"解析钱包token列表失败 [{wallet_address}]: {e}")
+            return None
+
+    def format_wallet_token_list(self, wallet_data: Dict) -> str:
+        """格式化钱包token列表为可读字符串"""
+        if not wallet_data:
+            return "无法获取钱包token列表"
+        
+        wallet_address = wallet_data.get('wallet', '未知')
+        total_usd = wallet_data.get('totalUsd', 0)
+        items = wallet_data.get('items', [])
+        
+        formatted_info = f"""
+钱包地址: {wallet_address}
+总价值: ${total_usd:.2f}
+Token数量: {len(items)}
+
+=== Token列表 ===
+        """.strip()
+        
+        if items:
+            formatted_info += "\n"
+            for item in items:
+                name = item.get('name', '未知')
+                symbol = item.get('symbol', '未知')
+                ui_amount = item.get('uiAmount', 0)
+                price_usd = item.get('priceUsd', 0)
+                value_usd = item.get('valueUsd', 0)
+                
+                formatted_info += f"""
+{name} ({symbol})
+  数量: {ui_amount:.6f}
+  价格: ${price_usd:.6f}
+  价值: ${value_usd:.2f}
+                """.strip() + "\n"
+        
+        return formatted_info
