@@ -96,12 +96,17 @@
                         <h5 class="mb-0">
                             <i class="fas fa-coins me-2"></i>Token汇总
                         </h5>
-                        <button class="btn btn-outline-primary btn-sm" @click="refreshTokenSummary" :disabled="summaryLoading">
-                            <span v-if="summaryLoading" class="spinner-border spinner-border-sm me-1"></span>
-                            <i v-else class="fas fa-refresh me-1"></i>
-                            <span v-if="summaryLoading">刷新中...</span>
-                            <span v-else>刷新数据</span>
-                        </button>
+                        <div class="d-flex align-items-center gap-2">
+                            <small v-if="isUsingCache" class="text-muted">
+                                <i class="fas fa-clock me-1"></i>缓存数据
+                            </small>
+                            <button class="btn btn-outline-primary btn-sm" @click="refreshTokenSummary" :disabled="summaryLoading">
+                                <span v-if="summaryLoading" class="spinner-border spinner-border-sm me-1"></span>
+                                <i v-else class="fas fa-refresh me-1"></i>
+                                <span v-if="summaryLoading">刷新中...</span>
+                                <span v-else>刷新数据</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
@@ -487,12 +492,15 @@ createApp({
             },
             walletTokensExpanded: {}, // 钱包Token明细展开状态
             walletTokensLoading: {}, // 钱包Token明细加载状态
-            walletTokensData: {} // 钱包Token明细数据
+            walletTokensData: {}, // 钱包Token明细数据
+            isUsingCache: false // 是否正在使用缓存数据
         }
     },
     mounted() {
         this.loadPrivateKeys();
         this.loadTokenSummary();
+        // 重置缓存状态
+        this.isUsingCache = false;
     },
     methods: {
         async loadPrivateKeys() {
@@ -511,12 +519,44 @@ createApp({
             }
         },
         async loadTokenSummary() {
+            // 检查本地缓存
+            const cacheKey = 'token_summary_cache';
+            const cacheData = localStorage.getItem(cacheKey);
+            
+            if (cacheData) {
+                try {
+                    const cached = JSON.parse(cacheData);
+                    const now = Date.now();
+                    const cacheAge = now - cached.timestamp;
+                    const cacheExpiry = 30 * 60 * 1000; // 30分钟
+                    
+                    if (cacheAge < cacheExpiry) {
+                        // 缓存有效，直接使用
+                        this.tokenSummary = cached.data;
+                        this.isUsingCache = true;
+                        return;
+                    }
+                } catch (e) {
+                    // 缓存数据损坏，清除它
+                    localStorage.removeItem(cacheKey);
+                }
+            }
+            
+            // 缓存无效或不存在，从服务器获取
             this.summaryLoading = true;
             try {
                 const response = await fetch('/api/keys/summary/tokens');
                 const data = await response.json();
                 if (data.success) {
                     this.tokenSummary = data.data;
+                    this.isUsingCache = false;
+                    
+                    // 保存到本地缓存
+                    const cacheData = {
+                        data: data.data,
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
                 } else {
                     this.showMessage('error', data.error || '加载Token汇总失败');
                 }
@@ -527,6 +567,9 @@ createApp({
             }
         },
         async refreshTokenSummary() {
+            // 清除本地缓存
+            localStorage.removeItem('token_summary_cache');
+            this.isUsingCache = false;
             await this.loadTokenSummary();
             this.showMessage('success', 'Token汇总数据已刷新');
         },
@@ -557,6 +600,9 @@ createApp({
                     this.walletTokensExpanded = {};
                     this.walletTokensLoading = {};
                     this.walletTokensData = {};
+                    // 清除缓存，因为私钥发生了变化
+                    localStorage.removeItem('token_summary_cache');
+                    this.isUsingCache = false;
                     this.loadPrivateKeys();
                     this.loadTokenSummary();
                 } else {
@@ -590,6 +636,9 @@ createApp({
                     this.walletTokensExpanded = newExpanded;
                     this.walletTokensLoading = newLoading;
                     this.walletTokensData = newData;
+                    // 清除缓存，因为私钥发生了变化
+                    localStorage.removeItem('token_summary_cache');
+                    this.isUsingCache = false;
                     this.loadPrivateKeys();
                     this.loadTokenSummary();
                 } else {
