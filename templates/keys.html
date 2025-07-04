@@ -44,9 +44,17 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-list me-2"></i>私钥列表
-                    </h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-2"></i>私钥列表
+                        </h5>
+                        <button class="btn btn-outline-danger btn-sm" 
+                                @click="showExportModal = true"
+                                :disabled="privateKeys.length === 0"
+                                v-if="privateKeys.length > 0">
+                            <i class="fas fa-download me-1"></i>导出私钥
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div v-if="loading" class="text-center py-5">
@@ -139,11 +147,28 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">私钥 <span class="text-danger">*</span></label>
-                            <textarea class="form-control" rows="3" v-model="keyForm.private_key" required
-                                      placeholder="请输入Solana钱包私钥 (Base58格式)"></textarea>
+                            <div class="input-group">
+                                <textarea class="form-control" rows="3" v-model="keyForm.private_key" required
+                                          placeholder="请输入Solana钱包私钥 (Base58格式)"></textarea>
+                                <button type="button" class="btn btn-outline-secondary generate-key-btn" 
+                                        @click="generatePrivateKey" 
+                                        :disabled="generateLoading || showEditModal"
+                                        style="writing-mode: vertical-lr; text-orientation: mixed;"
+                                        :title="showEditModal ? '编辑模式下不可生成' : '生成新私钥'">
+                                    <span v-if="generateLoading" class="spinner-border spinner-border-sm"></span>
+                                    <span v-else>
+                                        <i class="fas fa-dice d-block mb-1"></i>
+                                        <small>生成</small>
+                                    </span>
+                                </button>
+                            </div>
                             <div class="form-text text-warning">
                                 <i class="fas fa-exclamation-triangle me-1"></i>
                                 私钥将被安全加密存储，请确保私钥来源安全可靠
+                            </div>
+                            <div class="form-text text-info">
+                                <i class="fas fa-info-circle me-1"></i>
+                                点击"生成"按钮可以自动生成新的Solana私钥
                             </div>
                         </div>
                         <div class="d-flex justify-content-end gap-2">
@@ -160,8 +185,54 @@
         </div>
     </div>
 
+    <!-- 导出确认模态框 -->
+    <div class="modal fade" :class="{ show: showExportModal }" 
+         :style="{ display: showExportModal ? 'block' : 'none' }"
+         @click="closeExportModal">
+        <div class="modal-dialog modal-dialog-centered" @click.stop>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        导出私钥确认
+                    </h5>
+                    <button type="button" class="btn-close" @click="closeExportModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        <strong>安全警告</strong>
+                        <p class="mb-0 mt-2">您即将导出包含完整私钥信息的敏感数据。请确保：</p>
+                        <ul class="mt-2 mb-0">
+                            <li>在安全的环境中操作</li>
+                            <li>导出后妥善保管数据</li>
+                            <li>不要在不安全的网络中传输</li>
+                        </ul>
+                    </div>
+                    <form @submit.prevent="exportPrivateKeys">
+                        <div class="mb-3">
+                            <label class="form-label">请输入导出Token <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" v-model="exportToken" 
+                                   placeholder="请输入导出验证token" required>
+                            <div class="form-text">请联系管理员获取导出token</div>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @click="closeExportModal">取消</button>
+                            <button type="submit" class="btn btn-danger" :disabled="exportLoading">
+                                <span v-if="exportLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                <i v-else class="fas fa-download me-2"></i>
+                                <span v-if="exportLoading">导出中...</span>
+                                <span v-else>确认导出</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 模态框背景 -->
-    <div v-if="showAddModal || showEditModal" class="modal-backdrop fade show"></div>
+    <div v-if="showAddModal || showEditModal || showExportModal" class="modal-backdrop fade show"></div>
 
     <!-- 消息提示 -->
     <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
@@ -189,13 +260,17 @@ createApp({
             privateKeys: [],
             loading: true,
             saveLoading: false,
+            generateLoading: false,
+            exportLoading: false,
             showAddModal: false,
             showEditModal: false,
+            showExportModal: false,
             editingKeyId: null,
             keyForm: {
                 nickname: '',
                 private_key: ''
             },
+            exportToken: '',
             messages: []
         }
     },
@@ -339,6 +414,68 @@ createApp({
                 this.showMessage('error', '复制失败，请手动复制');
             } finally {
                 document.body.removeChild(textArea);
+            }
+        },
+        async generatePrivateKey() {
+            this.generateLoading = true;
+            try {
+                const response = await fetch('/api/keys/generate', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.keyForm.private_key = data.data.private_key;
+                    this.showMessage('success', '私钥生成成功！公钥地址：' + data.data.public_key.substring(0, 8) + '...' + data.data.public_key.substring(data.data.public_key.length - 8));
+                } else {
+                    this.showMessage('error', data.error || '生成私钥失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.generateLoading = false;
+            }
+        },
+        closeExportModal() {
+            this.showExportModal = false;
+            this.exportToken = '';
+        },
+        async exportPrivateKeys() {
+            this.exportLoading = true;
+            try {
+                const formData = new FormData();
+                formData.append('token', this.exportToken);
+                
+                const response = await fetch('/api/keys/export', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 创建下载文件
+                    const jsonData = JSON.stringify(data.data, null, 2);
+                    const blob = new Blob([jsonData], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    // 创建临时下载链接
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `private_keys_export_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    this.showMessage('success', `导出成功！共导出 ${data.data.total_count} 个私钥`);
+                    this.closeExportModal();
+                } else {
+                    this.showMessage('error', data.error || '导出失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.exportLoading = false;
             }
         }
     }

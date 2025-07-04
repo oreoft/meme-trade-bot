@@ -349,6 +349,32 @@ class MonitorService:
             db.close()
 
     @staticmethod
+    def get_all_private_keys_with_secrets() -> List[Dict]:
+        """获取所有私钥（包含完整私钥信息，仅用于导出）"""
+        db = SessionLocal()
+        try:
+            private_keys = db.query(PrivateKey).all()
+            return [
+                {
+                    "id": pk.id,
+                    "nickname": pk.nickname,
+                    "public_key": pk.public_key,
+                    "private_key": pk.private_key,
+                    "private_key_preview": pk.private_key[:4] + "..." if pk.private_key else "...",
+                    "created_at": pk.created_at.isoformat() if pk.created_at else None,
+                    "updated_at": pk.updated_at.isoformat() if pk.updated_at else None
+                }
+                for pk in private_keys
+            ]
+        finally:
+            db.close()
+
+    @staticmethod
+    def get_current_time() -> str:
+        """获取当前时间字符串"""
+        return datetime.utcnow().isoformat()
+
+    @staticmethod
     def create_private_key(nickname: str, private_key: str) -> tuple[bool, str, Optional[int]]:
         """创建私钥记录"""
         db = SessionLocal()
