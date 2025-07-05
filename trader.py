@@ -156,7 +156,17 @@ class SolanaTrader:
             return response.json()
         except Exception as e:
             logging.error(f"获取交易报价失败: {e}")
-            return None
+            # 尝试提取Jupiter返回的JSON错误信息
+            try:
+                import json
+                err_str = str(e)
+                if err_str.startswith('{') and '"error"' in err_str:
+                    err_json = json.loads(err_str)
+                    if 'error' in err_json:
+                        return {"error": err_json['error']}
+            except Exception:
+                pass
+            return {"error": str(e)}
 
     def execute_swap(self, quote_data: Dict) -> Optional[str]:
         """执行交换交易"""
@@ -220,12 +230,34 @@ class SolanaTrader:
                     if attempts < 4:  # 如果不是最后一次尝试
                         time.sleep(5)
                     else:
+                        # 提取Program log详细信息
+                        err_str = str(e)
+                        program_logs = []
+                        for line in err_str.splitlines():
+                            if "Program log:" in line:
+                                log_msg = line.split("Program log:", 1)[-1].strip()
+                                program_logs.append(log_msg)
+                        if program_logs:
+                            error_detail = "\n".join(program_logs)
+                            logging.error(f"所有重试尝试都失败了，链上日志：{error_detail}")
+                            return {"error": f"交易失败，链上日志：\n{error_detail}"}
                         logging.error("所有重试尝试都失败了")
-                        return None
+                        return {"error": f"交易失败: {err_str}"}
 
         except Exception as e:
+            # 提取Program log详细信息
+            err_str = str(e)
+            program_logs = []
+            for line in err_str.splitlines():
+                if "Program log:" in line:
+                    log_msg = line.split("Program log:", 1)[-1].strip()
+                    program_logs.append(log_msg)
+            if program_logs:
+                error_detail = "\n".join(program_logs)
+                logging.error(f"执行交易失败，链上日志：{error_detail}")
+                return {"error": f"交易失败，链上日志：\n{error_detail}"}
             logging.error(f"执行交易失败: {e}")
-            return None
+            return {"error": f"交易失败: {err_str}"}
 
     def get_token_decimals(self, token_address: str) -> int:
         """从数据库获取token的小数位数"""

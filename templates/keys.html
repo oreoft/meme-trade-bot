@@ -473,9 +473,11 @@
     <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
         <div v-for="message in messages" :key="message.id"
              class="toast align-items-center border-0 show mb-2"
-             :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
+             :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'"
+             style="max-width: 90vw; min-width: 220px; word-break: break-all; white-space: pre-line;">
             <div class="d-flex">
-                <div class="toast-body" v-text="message.text">
+                <div class="toast-body" style="max-width: 70vw; word-break: break-all; white-space: pre-line;"
+                     v-text="message.text">
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto"
                         @click="removeMessage(message.id)"></button>
@@ -487,8 +489,8 @@
     <div class="modal fade" :class="{ show: showConvertModal }"
          :style="{ display: showConvertModal ? 'block' : 'none' }"
          @click="closeConvertModal">
-        <div class="modal-dialog" @click.stop>
-            <div class="modal-content">
+        <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 500px; width: 95vw;" @click.stop>
+            <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <h5 class="modal-title">
                         <i class="fas fa-exchange-alt me-2"></i>
@@ -539,17 +541,61 @@
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">兑换数量 <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" v-model.number="convertAmount"
-                                   :max="convertFromToken ? convertFromToken.amount : null" min="0" step="any" required
-                                   placeholder="请输入要兑换的数量">
-                            <div class="form-text">可用余额: <span
-                                        v-text="convertFromToken ? formatAmount(convertFromToken.amount) : '--'"></span>
+                            <label class="form-label d-flex align-items-center justify-content-between">
+                                <div>
+                                    <span v-if="!isAmountInUsd">兑换数量</span>
+                                    <span v-else>兑换金额</span>
+                                    <span class="text-danger">*</span>
+                                </div>
+                                {% raw %}
+                                <div>
+                                    <button v-for="p in [0.25,0.5,0.75,1]" :key="p" type="button"
+                                            class="btn btn-sm btn-outline-primary ms-1"
+                                            @click="isAmountInUsd ? setQuickAmountUsd(p) : setQuickAmount(p)">{{ (p
+                                        *100).toFixed(0) }}%
+                                    </button>
+                                </div>
+                                {% endraw %}
+                            </label>
+                            <div class="input-group">
+                                <input v-if="!isAmountInUsd" type="number" class="form-control"
+                                       v-model.number="convertAmount"
+                                       :max="convertFromToken ? convertFromToken.amount : null" min="0" step="any"
+                                       required
+                                       placeholder="请输入要兑换的数量">
+                                <input v-else type="number" class="form-control" v-model.number="convertAmountUsd"
+                                       min="0" step="any" required placeholder="请输入要兑换的USD金额">
+                                {% raw %}
+                                <span class="input-group-text"
+                                      v-if="!isAmountInUsd && convertFromToken">{{ convertFromToken.symbol }}</span>
+                                <span class="input-group-text" v-else>$</span>
+                                {% endraw %}
+                                <button class="btn btn-outline-secondary" type="button" @click="toggleAmountInputMode"
+                                        :title="isAmountInUsd ? '切换为按Token数量输入' : '切换为按USD金额输入'">
+                                    <i v-if="isAmountInUsd" class="fas fa-hashtag"></i>
+                                    <i v-else class="fas fa-dollar-sign"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                <template v-if="!isAmountInUsd">
+                                    可用余额: <span
+                                            v-text="convertFromToken ? formatAmount(convertFromToken.amount) : '--'"></span>
+                                </template>
+                                <template v-else>
+                                    当前Token价格: <span
+                                            v-text="convertFromToken ? ('$' + convertFromToken.price_usd.toFixed(6)) : '--'"></span>
+                                    {% raw %}
+                                    <br>
+                                    <span class="text-danger" v-if="convertAmountUsd > maxConvertUsd">输入金额超出最大可兑换USD ({{ maxConvertUsd.toFixed(2) }})</span>
+                                    <span class="text-muted" v-else>最大可兑换: ${{ maxConvertUsd.toFixed(2) }}</span>
+                                    {% endraw %}
+                                </template>
                             </div>
                         </div>
                         <div class="d-flex justify-content-end gap-2">
                             <button type="button" class="btn btn-secondary" @click="closeConvertModal">取消</button>
-                            <button type="submit" class="btn btn-primary" :disabled="quoteLoading">
+                            <button type="submit" class="btn btn-primary"
+                                    :disabled="quoteLoading || (isAmountInUsd && convertAmountUsd > maxConvertUsd)">
                                 <span v-if="quoteLoading" class="spinner-border spinner-border-sm me-2"></span>
                                 <span v-if="quoteLoading">获取报价中...</span>
                                 <span v-else>获取报价</span>
@@ -656,6 +702,9 @@
                 ],
                 showToDropdown: false,
                 filteredToTokenList: [],
+                isAmountInUsd: false,
+                convertAmountUsd: '',
+                maxConvertUsd: 0,
             }
         },
         mounted() {
@@ -1013,8 +1062,12 @@
                 this.convertToToken = null;
                 this.convertToTokenError = '';
                 this.convertAmount = '';
+                this.convertAmountUsd = '';
                 this.convertQuote = null;
                 this.swapResult = null;
+                this.isAmountInUsd = false;
+                // 计算最大可兑换USD
+                this.maxConvertUsd = token && token.price_usd ? (token.amount * token.price_usd) : 0;
             },
             closeConvertModal() {
                 this.showConvertModal = false;
@@ -1024,8 +1077,10 @@
                 this.convertToToken = null;
                 this.convertToTokenError = '';
                 this.convertAmount = '';
+                this.convertAmountUsd = ''; // 重置USD输入框
                 this.convertQuote = null;
                 this.swapResult = null;
+                this.isAmountInUsd = false; // 关闭时重置模式
             },
             async fetchToTokenInfo() {
                 this.convertToToken = null;
@@ -1046,18 +1101,24 @@
                 }
             },
             async getQuote() {
+                if (this.isAmountInUsd && this.convertAmountUsd > this.maxConvertUsd) {
+                    this.showMessage('error', `输入金额不能超过最大可兑换USD ($${this.maxConvertUsd.toFixed(2)})`);
+                    return;
+                }
                 this.quoteLoading = true;
                 this.convertQuote = null;
                 this.swapResult = null;
                 try {
-                    // 这里模拟获取报价，后续可接后端API
-                    // 假设有/api/quote?from=xxx&to=xxx&amount=xxx&key_id=xxx
                     const params = new URLSearchParams({
                         from: this.convertFromToken.address,
                         to: this.convertToAddress,
-                        amount: this.convertAmount,
                         key_id: this.convertFromKey.id
                     });
+                    if (this.isAmountInUsd) {
+                        params.append('amount_in_usd', this.convertAmountUsd);
+                    } else {
+                        params.append('amount', this.convertAmount);
+                    }
                     const resp = await fetch(`/api/quote?${params.toString()}`);
                     const data = await resp.json();
                     if (data.success) {
@@ -1125,6 +1186,40 @@
                     this.fetchToTokenInfo();
                     console.log('onToBlur, hide dropdown and fetch token info');
                 }, 200);
+            },
+            toggleAmountInputMode() {
+                this.isAmountInUsd = !this.isAmountInUsd;
+                if (this.isAmountInUsd) {
+                    // 切到USD，自动填充USD金额
+                    if (this.convertAmount && this.convertFromToken && this.convertFromToken.price_usd) {
+                        this.convertAmountUsd = (this.convertAmount * this.convertFromToken.price_usd).toFixed(2);
+                    } else {
+                        this.convertAmountUsd = '';
+                    }
+                } else {
+                    // 切到Token数量，自动换算
+                    if (this.convertAmountUsd && this.convertFromToken && this.convertFromToken.price_usd) {
+                        this.convertAmount = (this.convertAmountUsd / this.convertFromToken.price_usd).toFixed(6);
+                    } else {
+                        this.convertAmount = '';
+                    }
+                }
+            },
+            setQuickAmount(percent) {
+                if (this.convertFromToken) {
+                    this.convertAmount = (this.convertFromToken.amount * percent).toFixed(6);
+                    if (this.isAmountInUsd && this.convertFromToken.price_usd) {
+                        this.convertAmountUsd = (this.convertAmount * this.convertFromToken.price_usd).toFixed(2);
+                    }
+                }
+            },
+            setQuickAmountUsd(percent) {
+                if (this.convertFromToken && this.convertFromToken.price_usd) {
+                    this.convertAmountUsd = (this.maxConvertUsd * percent).toFixed(2);
+                    if (!this.isAmountInUsd) {
+                        this.convertAmount = (this.convertAmountUsd / this.convertFromToken.price_usd).toFixed(6);
+                    }
+                }
             }
         }
     }).mount('#app');
