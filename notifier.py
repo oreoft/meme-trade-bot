@@ -68,7 +68,7 @@ class Notifier:
                 if percent_change is not None:
                     direction = "激增" if percent_change > 0 else "骤降"
                     title = f"【{meme_name}】市值{direction}{abs(percent_change):.2f}%"
-                    content = f"当前价格: ${price_info['price']:.8f}\n当前市值: ${price_info['market_cap']:,.2f}\n与上次相比{direction}{abs(percent_change):.2f}%"
+                    content = f"{title}\n\n当前价格: ${price_info['price']:.8f}\n当前市值: ${price_info['market_cap']:,.2f}\n与上次相比{direction}{abs(percent_change):.2f}%"
                 else:
                     title = f"【{meme_name}】市值变化通知"
                     content = f"当前价格: ${price_info['price']:.8f}\n当前市值: ${price_info['market_cap']:,.2f}"
