@@ -128,9 +128,9 @@
                                             </code>
                                         </a>
                                     </td>
-                                    <td><strong v-text="'$' + record.threshold.toLocaleString()"></strong></td>
+                                    <td><strong v-text="'$' + formatShortNumber(record.threshold)"></strong></td>
                                     <td>
-                                        <span v-if="record.last_market_cap" class="fw-bold" v-text="'$' + record.last_market_cap.toLocaleString(undefined, {maximumFractionDigits: 2})"></span>
+                                        <span v-if="record.last_market_cap" class="fw-bold" v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
                                         <span v-else class="text-muted">--</span>
                                     </td>
                                     <td>
@@ -140,7 +140,7 @@
                                     <td><span class="badge bg-info" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
                                     <td><span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" v-text="record.execution_mode === 'single' ? '单次' : '多次'"></span></td>
                                     <td>
-                                        <span v-if="record.execution_mode === 'multiple'" v-text="'$' + record.minimum_hold_value.toFixed(2)"></span>
+                                        <span v-if="record.execution_mode === 'multiple'" v-text="'$' + formatShortNumber(record.minimum_hold_value)"></span>
                                         <span v-else class="text-muted">--</span>
                                     </td>
                                     <td><span v-text="record.check_interval + '秒'"></span></td>
@@ -208,15 +208,15 @@
                                             </code>
                                         </a>
                                     </td>
-                                    <td><strong v-text="'$' + record.threshold.toLocaleString()"></strong></td>
+                                    <td><strong v-text="'$' + formatShortNumber(record.threshold)"></strong></td>
                                     <td>
-                                        <span v-if="record.last_market_cap" class="fw-bold" v-text="'$' + record.last_market_cap.toLocaleString(undefined, {maximumFractionDigits: 2})"></span>
+                                        <span v-if="record.last_market_cap" class="fw-bold" v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
                                         <span v-else class="text-muted">--</span>
                                     </td>
                                     <td>
                                         <span v-if="record.last_market_cap && record.threshold && record.last_market_cap > record.threshold"
                                               class="fw-bold text-success"
-                                              v-text="'还需跌 $' + (record.last_market_cap - record.threshold).toLocaleString(undefined, {maximumFractionDigits: 2})"></span>
+                                              v-text="'还需跌 $' + formatShortNumber(record.last_market_cap - record.threshold)"></span>
                                         <span v-else-if="record.last_market_cap && record.threshold"
                                               class="fw-bold text-danger"
                                               v-text="'已低于阈值'"></span>
@@ -226,7 +226,7 @@
                                     <td><span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" v-text="record.execution_mode === 'single' ? '单次' : '多次'"/></td>
                                     <td>
                                         <span v-if="record.max_buy_amount && record.max_buy_amount > 0">
-                                            <span v-text="(typeof record.accumulated_buy_usd !== 'undefined' ? ('$' + record.accumulated_buy_usd.toFixed(2)) : (record._accumulated_buy_usd ? ('$' + record._accumulated_buy_usd.toFixed(2)) : '$0.00')) + ' / $' + record.max_buy_amount.toFixed(2)"></span>
+                                            <span v-text="(typeof record.accumulated_buy_usd !== 'undefined' ? ('$' + formatShortNumber(record.accumulated_buy_usd)) : (record._accumulated_buy_usd ? ('$' + formatShortNumber(record._accumulated_buy_usd)) : '$0.00')) + ' / $' + formatShortNumber(record.max_buy_amount)"></span>
                                         </span>
                                         <span v-else class="text-muted">--</span>
                                     </td>
@@ -303,7 +303,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">市值阈值(USD) <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" v-model="recordForm.threshold" step="0.01" min="0" required>
+                                    <input type="text" class="form-control" v-model="recordForm.threshold" step="0.01" min="0" required @input="onThresholdInput">
                                     <div class="form-text" v-if="recordForm.type === 'sell'">市值高于此值时出售</div>
                                     <div class="form-text" v-else>市值低于此值时买入</div>
                                 </div>
@@ -485,6 +485,29 @@
 <script>
 const { createApp } = Vue;
 
+function formatShortNumber(num) {
+    if (num === null || num === undefined) return '--';
+    num = Math.abs(num);
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'm';
+    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'k';
+    return num.toLocaleString(undefined, {maximumFractionDigits: 2});
+}
+
+const defaultRecordForm = {
+    name: '',
+    private_key_id: '',
+    token_address: '',
+    threshold: 200000,
+    sell_percentage: 0.1,
+    webhook_url: '',
+    check_interval: 5,
+    execution_mode: 'single',
+    minimum_hold_value: 50.0,
+    pre_sniper_mode: false,
+    type: 'sell',
+    max_buy_amount: 0.0
+};
+
 createApp({
     data() {
         return {
@@ -500,20 +523,7 @@ createApp({
             editingRecordId: null,
             operationLoading: {},
             tokenAddressError: '',
-            recordForm: {
-                name: '',
-                private_key_id: '',
-                token_address: '',
-                threshold: 200000,
-                sell_percentage: 0.1,
-                webhook_url: '',
-                check_interval: 5,
-                execution_mode: 'single',
-                minimum_hold_value: 50.0,
-                pre_sniper_mode: false,
-                type: 'sell',
-                max_buy_amount: 0.0
-            },
+            recordForm: { ...defaultRecordForm },
             messages: []
         }
     },
@@ -543,6 +553,13 @@ createApp({
         }, 30000);
     },
     methods: {
+        formatShortNumber(num) {
+            if (num === null || num === undefined) return '--';
+            num = Math.abs(num);
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'm';
+            if (num >= 1e3) return (num / 1e3).toFixed(2) + 'k';
+            return num.toLocaleString(undefined, {maximumFractionDigits: 2});
+        },
         async loadMonitorRecords() {
             try {
                 const response = await fetch('/api/monitor/records');
@@ -576,8 +593,10 @@ createApp({
             this.tokenAddressError = ''; // 清空之前的错误
             try {
                 const formData = new FormData();
+                // 确保threshold为数字
+                formData.append('threshold', parseFloat(this.recordForm.threshold) || 0);
                 Object.keys(this.recordForm).forEach(key => {
-                    formData.append(key, this.recordForm[key]);
+                    if (key !== 'threshold') formData.append(key, this.recordForm[key]);
                 });
 
                 const url = this.showEditModal 
@@ -670,21 +689,10 @@ createApp({
         },
         editRecord(record) {
             this.editingRecordId = record.id;
-            this.tokenAddressError = ''; // 清空token地址错误
-            this.recordForm = {
-                name: record.name,
-                private_key_id: record.private_key_id,
-                token_address: record.token_address,
-                threshold: record.threshold,
-                sell_percentage: record.sell_percentage,
-                webhook_url: record.webhook_url,
-                check_interval: record.check_interval,
-                execution_mode: record.execution_mode || 'single',
-                minimum_hold_value: record.minimum_hold_value || 50.0,
-                pre_sniper_mode: record.pre_sniper_mode === true,
-                type: record.type || 'sell',
-                max_buy_amount: record.max_buy_amount || 0.0
-            };
+            this.tokenAddressError = '';
+            Object.keys(this.recordForm).forEach(key => {
+                this.recordForm[key] = record[key] !== undefined ? record[key] : defaultRecordForm[key];
+            });
             this.showEditModal = true;
         },
         async viewLogs(recordId) {
@@ -708,21 +716,10 @@ createApp({
             this.showAddModal = false;
             this.showEditModal = false;
             this.editingRecordId = null;
-            this.tokenAddressError = ''; // 清空token地址错误
-            this.recordForm = {
-                name: '',
-                private_key_id: '',
-                token_address: '',
-                threshold: 200000,
-                sell_percentage: 0.1,
-                webhook_url: '',
-                check_interval: 5,
-                execution_mode: 'single',
-                minimum_hold_value: 50.0,
-                pre_sniper_mode: false,
-                type: 'sell',
-                max_buy_amount: 0.0
-            };
+            this.tokenAddressError = '';
+            Object.keys(this.recordForm).forEach(key => {
+                this.recordForm[key] = defaultRecordForm[key];
+            });
         },
         closeLogsModal() {
             this.showLogsModal = false;
@@ -813,12 +810,18 @@ createApp({
             if (record.last_market_cap < record.threshold) {
                 const diff = record.threshold - record.last_market_cap;
                 const percent = ((diff / record.last_market_cap) * 100).toFixed(2);
-                return `<div><span class='fw-bold text-danger'>还需涨 $${diff.toLocaleString(undefined, {maximumFractionDigits: 2})}</span><div class='small text-secondary mt-1'>(${percent}%)</div></div>`;
+                return `<div><span class='fw-bold text-danger'>还需涨 $${formatShortNumber(diff)}</span><div class='small text-secondary mt-1'>(${percent}%)</div></div>`;
             } else {
                 const diff = record.last_market_cap - record.threshold;
                 const percent = ((diff / record.threshold) * 100).toFixed(2);
-                return `<div><span class='fw-bold text-success'>已超阈值 $${diff.toLocaleString(undefined, {maximumFractionDigits: 2})}</span><div class='small text-secondary mt-1'>(${percent}%)</div></div>`;
+                return `<div><span class='fw-bold text-success'>已超阈值 $${formatShortNumber(diff)}</span><div class='small text-secondary mt-1'>(${percent}%)</div></div>`;
             }
+        },
+        onThresholdInput(e) {
+            // 只允许数字和小数点，防止输入异常变0
+            let val = e.target.value.replace(/[^\d.]/g, '');
+            if (val.split('.').length > 2) val = val.replace(/\.+$/, '');
+            this.recordForm.threshold = val;
         }
     }
 }).mount('#app');
