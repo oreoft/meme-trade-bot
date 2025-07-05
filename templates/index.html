@@ -298,6 +298,15 @@
                             </div>
                         </div>
                         <div class="mb-3">
+                            <label class="form-label">是否开启预抢购模式</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="preSniperMode" v-model="recordForm.pre_sniper_mode">
+                                <label class="form-check-label" for="preSniperMode">
+                                    开启后，达到阈值但余额不足时不会停止监控，而是跳过本次，等待下次再判断余额（默认关闭）
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label">选择钱包私钥 <span class="text-danger">*</span></label>
                             <select class="form-select" v-model="recordForm.private_key_id" required>
                                 <option value="">请选择钱包私钥</option>
@@ -444,7 +453,8 @@ createApp({
                 webhook_url: '',
                 check_interval: 5,
                 execution_mode: 'single',
-                minimum_hold_value: 50.0
+                minimum_hold_value: 50.0,
+                pre_sniper_mode: false
             },
             messages: []
         }
@@ -606,7 +616,8 @@ createApp({
                 webhook_url: record.webhook_url,
                 check_interval: record.check_interval,
                 execution_mode: record.execution_mode || 'single',
-                minimum_hold_value: record.minimum_hold_value || 50.0
+                minimum_hold_value: record.minimum_hold_value || 50.0,
+                pre_sniper_mode: record.pre_sniper_mode === true
             };
             this.showEditModal = true;
         },
@@ -641,7 +652,8 @@ createApp({
                 webhook_url: '',
                 check_interval: 5,
                 execution_mode: 'single',
-                minimum_hold_value: 50.0
+                minimum_hold_value: 50.0,
+                pre_sniper_mode: false
             };
         },
         closeLogsModal() {

@@ -230,15 +230,20 @@ class PriceMonitor:
                             # 获取交易前的代币余额
                             token_balance_before = trader.get_token_balance(record.token_address)
 
-                            # 如果代币余额为0，停止监控任务
+                            # 如果代币余额为0，按预抢购模式处理
                             if token_balance_before <= 0:
-                                self._complete_monitor_task(
-                                    record_id, record, notifier, db,
-                                    reason="代币余额为0，停止监控任务",
-                                    message_title=f"⚠️ 【{record.name}】余额不足",
-                                    message_content=f"【{record.name}】代币余额为0，监控任务自动停止。"
-                                )
-                                break
+                                if getattr(record, 'pre_sniper_mode', False):
+                                    print(f"余额不足，预抢购模式开启，跳过本次监控: {record.name}")
+                                    time.sleep(record.check_interval)
+                                    continue
+                                else:
+                                    self._complete_monitor_task(
+                                        record_id, record, notifier, db,
+                                        reason="代币余额为0，停止监控任务",
+                                        message_title=f"⚠️ 【{record.name}】余额不足",
+                                        message_content=f"【{record.name}】代币余额为0，监控任务自动停止。"
+                                    )
+                                    break
 
                             # 根据执行模式和最低持仓金额决定出售比例
                             actual_sell_percentage = record.sell_percentage

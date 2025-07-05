@@ -56,6 +56,7 @@ class MonitorRecord(Base):
     last_check_at = Column(DateTime)
     last_price = Column(Float)
     last_market_cap = Column(Float)
+    pre_sniper_mode = Column(Boolean, default=False)  # 是否开启预抢购模式
     
     # 关系
     private_key_obj = relationship("PrivateKey", lazy="joined", foreign_keys=[private_key_id])

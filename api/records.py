@@ -43,14 +43,15 @@ async def create_monitor_record(
     webhook_url: str = Form(...),
     check_interval: int = Form(5),
     execution_mode: str = Form("single"),
-    minimum_hold_value: float = Form(50.0)
+    minimum_hold_value: float = Form(50.0),
+    pre_sniper_mode: bool = Form(False)
 ):
     """创建监控记录"""
     try:
         success, message, record_id = MonitorService.create_record(
             name, private_key_id, token_address, threshold,
             sell_percentage, webhook_url, check_interval,
-            execution_mode, minimum_hold_value
+            execution_mode, minimum_hold_value, pre_sniper_mode
         )
 
         if success:
@@ -75,7 +76,8 @@ async def update_monitor_record(
     webhook_url: str = Form(...),
     check_interval: int = Form(5),
     execution_mode: str = Form("single"),
-    minimum_hold_value: float = Form(50.0)
+    minimum_hold_value: float = Form(50.0),
+    pre_sniper_mode: bool = Form(False)
 ):
     """更新监控记录"""
     try:
@@ -86,7 +88,7 @@ async def update_monitor_record(
         success, message = MonitorService.update_record(
             record_id, name, private_key_id, token_address,
             threshold, sell_percentage, webhook_url, check_interval,
-            execution_mode, minimum_hold_value
+            execution_mode, minimum_hold_value, pre_sniper_mode
         )
 
         if success:

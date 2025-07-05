@@ -48,7 +48,7 @@ class MonitorService:
     def create_record(name: str, private_key_id: int, token_address: str,
                       threshold: float, sell_percentage: float, webhook_url: str,
                       check_interval: int = 5, execution_mode: str = "single",
-                      minimum_hold_value: float = 50.0) -> tuple[bool, str, Optional[int]]:
+                      minimum_hold_value: float = 50.0, pre_sniper_mode: bool = False) -> tuple[bool, str, Optional[int]]:
         """创建监控记录"""
         # 验证输入
         if sell_percentage <= 0 or sell_percentage > 1:
@@ -102,6 +102,7 @@ class MonitorService:
                 check_interval=check_interval,
                 execution_mode=execution_mode,
                 minimum_hold_value=minimum_hold_value,
+                pre_sniper_mode=pre_sniper_mode,
                 status="stopped"
             )
 
@@ -120,7 +121,7 @@ class MonitorService:
     def update_record(record_id: int, name: str, private_key_id: int,
                       token_address: str, threshold: float, sell_percentage: float,
                       webhook_url: str, check_interval: int = 5, execution_mode: str = "single",
-                      minimum_hold_value: float = 50.0) -> tuple[bool, str]:
+                      minimum_hold_value: float = 50.0, pre_sniper_mode: bool = False) -> tuple[bool, str]:
         """更新监控记录"""
         # 验证输入
         if sell_percentage <= 0 or sell_percentage > 1:
@@ -173,6 +174,7 @@ class MonitorService:
             record.check_interval = check_interval
             record.execution_mode = execution_mode
             record.minimum_hold_value = minimum_hold_value
+            record.pre_sniper_mode = pre_sniper_mode
             record.updated_at = datetime.utcnow()
 
             db.commit()
