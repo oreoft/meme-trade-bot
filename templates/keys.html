@@ -100,7 +100,8 @@
                             <small v-if="isUsingCache" class="text-muted">
                                 <i class="fas fa-clock me-1"></i>缓存数据
                             </small>
-                            <button class="btn btn-outline-primary btn-sm" @click="refreshTokenSummary" :disabled="summaryLoading">
+                            <button class="btn btn-outline-primary btn-sm" @click="refreshTokenSummary"
+                                    :disabled="summaryLoading">
                                 <span v-if="summaryLoading" class="spinner-border spinner-border-sm me-1"></span>
                                 <i v-else class="fas fa-refresh me-1"></i>
                                 <span v-if="summaryLoading">刷新中...</span>
@@ -114,50 +115,51 @@
                         <div class="spinner-border text-primary" role="status"></div>
                         <p class="mt-2 text-muted">加载汇总数据中...</p>
                     </div>
-                    
+
                     <div v-else class="table-responsive">
                         <table class="table table-hover">
                             <thead>
-                                <tr>
-                                    <th>Token</th>
-                                    <th>符号</th>
-                                    <th>总持有量</th>
-                                    <th>总价值</th>
-                                    <th>Token地址</th>
-                                </tr>
+                            <tr>
+                                <th>Token</th>
+                                <th>符号</th>
+                                <th>总持有量</th>
+                                <th>总价值</th>
+                                <th>Token地址</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="token in tokenSummary.tokens" :key="token.address">
-                                                                         <td>
-                                         <div class="d-flex align-items-center">
-                                             <img v-if="token.logo_uri" :src="token.logo_uri" 
-                                                  alt="token logo" class="me-2 rounded-circle" 
-                                                  style="width: 24px; height: 24px;"
-                                                  @error="$event.target.style.display='none'">
-                                             <a :href="'https://dexscreener.com/solana/' + token.address" 
-                                                target="_blank" 
-                                                class="text-decoration-none fw-bold text-primary"
-                                                :title="'在DexScreener上查看 ' + token.name"
-                                                v-text="token.name"></a>
-                                         </div>
-                                     </td>
-                                    <td>
-                                        <span class="badge bg-secondary" v-text="token.symbol"></span>
-                                    </td>
-                                    <td v-text="formatAmount(token.total_amount)"></td>
-                                    <td>
-                                        <span class="text-success fw-bold" v-text="'$' + token.total_value.toFixed(2)"></span>
-                                    </td>
-                                    <td>
-                                        <code class="small address-copy" 
-                                              @click="copyToClipboard(token.address, 'Token地址')"
-                                              :title="token.address + ' (点击复制)'"
-                                              style="cursor: pointer; user-select: none;"
-                                              v-text="token.address.substring(0, 8) + '...' + token.address.substring(token.address.length - 8)">
-                                        </code>
-                                        <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.8em;"></i>
-                                    </td>
-                                </tr>
+                            <tr v-for="token in tokenSummary.tokens" :key="token.address">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <img v-if="token.logo_uri" :src="token.logo_uri"
+                                             alt="token logo" class="me-2 rounded-circle"
+                                             style="width: 24px; height: 24px;"
+                                             @error="$event.target.style.display='none'">
+                                        <a :href="'https://dexscreener.com/solana/' + token.address"
+                                           target="_blank"
+                                           class="text-decoration-none fw-bold text-primary"
+                                           :title="'在DexScreener上查看 ' + token.name"
+                                           v-text="token.name"></a>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary" v-text="token.symbol"></span>
+                                </td>
+                                <td v-text="formatAmount(token.total_amount)"></td>
+                                <td>
+                                    <span class="text-success fw-bold"
+                                          v-text="'$' + token.total_value.toFixed(2)"></span>
+                                </td>
+                                <td>
+                                    <code class="small address-copy"
+                                          @click="copyToClipboard(token.address, 'Token地址')"
+                                          :title="token.address + ' (点击复制)'"
+                                          style="cursor: pointer; user-select: none;"
+                                          v-text="token.address.substring(0, 8) + '...' + token.address.substring(token.address.length - 8)">
+                                    </code>
+                                    <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.8em;"></i>
+                                </td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
@@ -175,7 +177,7 @@
                         <h5 class="mb-0">
                             <i class="fas fa-list me-2"></i>私钥列表
                         </h5>
-                        <button class="btn btn-outline-danger btn-sm" 
+                        <button class="btn btn-outline-danger btn-sm"
                                 @click="showExportModal = true"
                                 :disabled="privateKeys.length === 0"
                                 v-if="privateKeys.length > 0">
@@ -188,7 +190,7 @@
                         <div class="spinner-border text-primary" role="status"></div>
                         <p class="mt-2 text-muted">加载中...</p>
                     </div>
-                    
+
                     <div v-else-if="privateKeys.length === 0" class="text-center py-5">
                         <i class="fas fa-key fa-3x text-muted mb-3"></i>
                         <h5 class="text-muted">暂无私钥记录</h5>
@@ -198,146 +200,157 @@
                     <div v-else class="table-responsive">
                         <table class="table table-hover">
                             <thead>
-                                <tr>
-                                    <th>昵称</th>
-                                    <th>公钥地址</th>
-                                    <th>私钥预览</th>
-                                    <th>创建时间</th>
-                                    <th>操作</th>
-                                </tr>
+                            <tr>
+                                <th>昵称</th>
+                                <th>公钥地址</th>
+                                <th>私钥预览</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                <template v-for="key in privateKeys" :key="key.id">
-                                    <tr>
-                                        <td>
-                                            <strong v-text="key.nickname"></strong>
-                                        </td>
-                                        <td>
-                                            <code class="small address-copy" 
-                                                  @click="copyToClipboard(key.public_key, '公钥地址')"
-                                                  :title="key.public_key + ' (点击复制)'"
-                                                  style="cursor: pointer; user-select: none;"
-                                                  v-text="key.public_key.substring(0, 8) + '...' + key.public_key.substring(key.public_key.length - 8)">
-                                            </code>
-                                            <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.8em;"></i>
-                                        </td>
-                                        <td>
-                                            <code class="small text-muted" v-text="key.private_key_preview"></code>
-                                        </td>
-                                        <td>
-                                            <small v-text="formatTime(key.created_at)"></small>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button 
+                            <template v-for="key in privateKeys" :key="key.id">
+                                <tr>
+                                    <td>
+                                        <strong v-text="key.nickname"></strong>
+                                    </td>
+                                    <td>
+                                        <code class="small address-copy"
+                                              @click="copyToClipboard(key.public_key, '公钥地址')"
+                                              :title="key.public_key + ' (点击复制)'"
+                                              style="cursor: pointer; user-select: none;"
+                                              v-text="key.public_key.substring(0, 8) + '...' + key.public_key.substring(key.public_key.length - 8)">
+                                        </code>
+                                        <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.8em;"></i>
+                                    </td>
+                                    <td>
+                                        <code class="small text-muted" v-text="key.private_key_preview"></code>
+                                    </td>
+                                    <td>
+                                        <small v-text="formatTime(key.created_at)"></small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button
                                                     class="btn btn-outline-info"
                                                     @click="toggleWalletTokens(key.id)"
                                                     :title="walletTokensExpanded[key.id] ? '收起Token明细' : '展开Token明细'">
-                                                    <span v-if="walletTokensLoading[key.id]" class="spinner-border spinner-border-sm"></span>
-                                                    <i v-else-if="walletTokensExpanded[key.id]" class="fas fa-chevron-up"></i>
-                                                    <i v-else class="fas fa-chevron-down"></i>
-                                                </button>
-                                                <button 
+                                                <span v-if="walletTokensLoading[key.id]"
+                                                      class="spinner-border spinner-border-sm"></span>
+                                                <i v-else-if="walletTokensExpanded[key.id]"
+                                                   class="fas fa-chevron-up"></i>
+                                                <i v-else class="fas fa-chevron-down"></i>
+                                            </button>
+                                            <button
                                                     class="btn btn-outline-primary"
                                                     @click="editKey(key)"
                                                     title="编辑">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button 
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button
                                                     class="btn btn-outline-danger"
                                                     @click="deleteKey(key.id)"
                                                     title="删除">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Token明细展开行 -->
+                                <tr v-if="walletTokensExpanded[key.id]" class="bg-light">
+                                    <td colspan="5" class="p-0">
+                                        <div class="p-3">
+                                            <div v-if="walletTokensLoading[key.id]" class="text-center py-3">
+                                                <div class="spinner-border text-primary" role="status"></div>
+                                                <p class="mt-2 text-muted">加载Token明细中...</p>
                                             </div>
-                                        </td>
-                                    </tr>
-                                    <!-- Token明细展开行 -->
-                                    <tr v-if="walletTokensExpanded[key.id]" class="bg-light">
-                                        <td colspan="5" class="p-0">
-                                            <div class="p-3">
-                                                <div v-if="walletTokensLoading[key.id]" class="text-center py-3">
-                                                    <div class="spinner-border text-primary" role="status"></div>
-                                                    <p class="mt-2 text-muted">加载Token明细中...</p>
-                                                </div>
-                                                <div v-else-if="walletTokensData[key.id] && walletTokensData[key.id].tokens.length > 0">
-                                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        <h6 class="mb-0">
-                                                            <i class="fas fa-coins me-2 text-primary"></i>
-                                                            <span v-text="key.nickname"></span> 的Token明细
-                                                        </h6>
-                                                        <div class="text-muted d-flex align-items-center gap-2">
-                                                            总价值: <span class="text-success fw-bold" v-text="'$' + walletTokensData[key.id].total_usd.toFixed(2)"></span>
-                                                            <button class="btn btn-outline-primary btn-sm ms-2" :disabled="walletTokensLoading[key.id]" @click="refreshWalletTokens(key.id)">
-                                                                <span v-if="walletTokensLoading[key.id]" class="spinner-border spinner-border-sm me-1"></span>
-                                                                <i v-else class="fas fa-refresh me-1"></i>
-                                                                <span v-if="walletTokensLoading[key.id]">刷新中...</span>
-                                                                <span v-else>刷新</span>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="table-responsive">
-                                                        <table class="table table-sm mb-0">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Token</th>
-                                                                    <th>符号</th>
-                                                                    <th>持有量</th>
-                                                                    <th>价格</th>
-                                                                    <th>价值</th>
-                                                                    <th>Token地址</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                <tr v-for="token in walletTokensData[key.id].tokens" :key="token.address">
-                                                                                                                                         <td>
-                                                                         <div class="d-flex align-items-center">
-                                                                             <img v-if="token.logo_uri" :src="token.logo_uri" 
-                                                                                  alt="token logo" class="me-2 rounded-circle" 
-                                                                                  style="width: 20px; height: 20px;"
-                                                                                  @error="$event.target.style.display='none'">
-                                                                             <a :href="'https://dexscreener.com/solana/' + token.address" 
-                                                                                target="_blank" 
-                                                                                class="text-decoration-none fw-bold text-primary"
-                                                                                :title="'在DexScreener上查看 ' + token.name"
-                                                                                v-text="token.name"></a>
-                                                                         </div>
-                                                                     </td>
-                                                                    <td>
-                                                                        <span class="badge bg-secondary small" v-text="token.symbol"></span>
-                                                                    </td>
-                                                                    <td v-text="formatAmount(token.amount)"></td>
-                                                                    <td v-text="'$' + token.price_usd.toFixed(6)"></td>
-                                                                    <td>
-                                                                        <span class="text-success fw-bold" v-text="'$' + token.value_usd.toFixed(2)"></span>
-                                                                    </td>
-                                                                    <td>
-                                                                        <code class="small address-copy" 
-                                                                              @click="copyToClipboard(token.address, 'Token地址')"
-                                                                              :title="token.address + ' (点击复制)'"
-                                                                              style="cursor: pointer; user-select: none;"
-                                                                              v-text="token.address.substring(0, 6) + '...' + token.address.substring(token.address.length - 6)">
-                                                                        </code>
-                                                                        <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.7em;"></i>
-                                                                    </td>
-                                                                    <td>
-                                                                        <button class="btn btn-outline-success btn-sm" @click="openConvertModal(key, token)">
-                                                                            <i class="fas fa-exchange-alt me-1"></i>兑换
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
+                                            <div v-else-if="walletTokensData[key.id] && walletTokensData[key.id].tokens.length > 0">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0">
+                                                        <i class="fas fa-coins me-2 text-primary"></i>
+                                                        <span v-text="key.nickname"></span> 的Token明细
+                                                    </h6>
+                                                    <div class="text-muted d-flex align-items-center gap-2">
+                                                        总价值: <span class="text-success fw-bold"
+                                                                      v-text="'$' + walletTokensData[key.id].total_usd.toFixed(2)"></span>
+                                                        <button class="btn btn-outline-primary btn-sm ms-2"
+                                                                :disabled="walletTokensLoading[key.id]"
+                                                                @click="refreshWalletTokens(key.id)">
+                                                            <span v-if="walletTokensLoading[key.id]"
+                                                                  class="spinner-border spinner-border-sm me-1"></span>
+                                                            <i v-else class="fas fa-refresh me-1"></i>
+                                                            <span v-if="walletTokensLoading[key.id]">刷新中...</span>
+                                                            <span v-else>刷新</span>
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <div v-else class="text-center py-3 text-muted">
-                                                    <i class="fas fa-coins fa-2x mb-2"></i>
-                                                    <p class="mb-0">该钱包暂无Token记录</p>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm mb-0">
+                                                        <thead>
+                                                        <tr>
+                                                            <th>Token</th>
+                                                            <th>符号</th>
+                                                            <th>持有量</th>
+                                                            <th>价格</th>
+                                                            <th>价值</th>
+                                                            <th>Token地址</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        <tr v-for="token in walletTokensData[key.id].tokens"
+                                                            :key="token.address">
+                                                            <td>
+                                                                <div class="d-flex align-items-center">
+                                                                    <img v-if="token.logo_uri" :src="token.logo_uri"
+                                                                         alt="token logo" class="me-2 rounded-circle"
+                                                                         style="width: 20px; height: 20px;"
+                                                                         @error="$event.target.style.display='none'">
+                                                                    <a :href="'https://dexscreener.com/solana/' + token.address"
+                                                                       target="_blank"
+                                                                       class="text-decoration-none fw-bold text-primary"
+                                                                       :title="'在DexScreener上查看 ' + token.name"
+                                                                       v-text="token.name"></a>
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-secondary small"
+                                                                      v-text="token.symbol"></span>
+                                                            </td>
+                                                            <td v-text="formatAmount(token.amount)"></td>
+                                                            <td v-text="'$' + token.price_usd.toFixed(6)"></td>
+                                                            <td>
+                                                                <span class="text-success fw-bold"
+                                                                      v-text="'$' + token.value_usd.toFixed(2)"></span>
+                                                            </td>
+                                                            <td>
+                                                                <code class="small address-copy"
+                                                                      @click="copyToClipboard(token.address, 'Token地址')"
+                                                                      :title="token.address + ' (点击复制)'"
+                                                                      style="cursor: pointer; user-select: none;"
+                                                                      v-text="token.address.substring(0, 6) + '...' + token.address.substring(token.address.length - 6)">
+                                                                </code>
+                                                                <i class="fas fa-copy ms-1 text-muted"
+                                                                   style="font-size: 0.7em;"></i>
+                                                            </td>
+                                                            <td>
+                                                                <button class="btn btn-outline-success btn-sm"
+                                                                        @click="openConvertModal(key, token)">
+                                                                    <i class="fas fa-exchange-alt me-1"></i>兑换
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                        </tbody>
+                                                    </table>
                                                 </div>
                                             </div>
-                                        </td>
-                                    </tr>
-                                </template>
+                                            <div v-else class="text-center py-3 text-muted">
+                                                <i class="fas fa-coins fa-2x mb-2"></i>
+                                                <p class="mb-0">该钱包暂无Token记录</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
                             </tbody>
                         </table>
                     </div>
@@ -347,7 +360,7 @@
     </div>
 
     <!-- 添加/编辑私钥模态框 -->
-    <div class="modal fade" :class="{ show: showAddModal || showEditModal }" 
+    <div class="modal fade" :class="{ show: showAddModal || showEditModal }"
          :style="{ display: showAddModal || showEditModal ? 'block' : 'none' }"
          @click="closeModal">
         <div class="modal-dialog" @click.stop>
@@ -372,8 +385,8 @@
                             <div class="input-group">
                                 <textarea class="form-control" rows="3" v-model="keyForm.private_key" required
                                           placeholder="请输入Solana钱包私钥 (Base58格式)"></textarea>
-                                <button type="button" class="btn btn-outline-secondary generate-key-btn" 
-                                        @click="generatePrivateKey" 
+                                <button type="button" class="btn btn-outline-secondary generate-key-btn"
+                                        @click="generatePrivateKey"
                                         :disabled="generateLoading || showEditModal"
                                         style="writing-mode: vertical-lr; text-orientation: mixed;"
                                         :title="showEditModal ? '编辑模式下不可生成' : '生成新私钥'">
@@ -408,7 +421,7 @@
     </div>
 
     <!-- 导出确认模态框 -->
-    <div class="modal fade" :class="{ show: showExportModal }" 
+    <div class="modal fade" :class="{ show: showExportModal }"
          :style="{ display: showExportModal ? 'block' : 'none' }"
          @click="closeExportModal">
         <div class="modal-dialog modal-dialog-centered" @click.stop>
@@ -434,7 +447,7 @@
                     <form @submit.prevent="exportPrivateKeys">
                         <div class="mb-3">
                             <label class="form-label">请输入导出Token <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" v-model="exportToken" 
+                            <input type="password" class="form-control" v-model="exportToken"
                                    placeholder="请输入导出验证token" required>
                             <div class="form-text">请联系管理员获取导出token</div>
                         </div>
@@ -458,20 +471,20 @@
 
     <!-- 消息提示 -->
     <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
-        <div v-for="message in messages" :key="message.id" 
-             class="toast align-items-center border-0 show mb-2" 
+        <div v-for="message in messages" :key="message.id"
+             class="toast align-items-center border-0 show mb-2"
              :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
             <div class="d-flex">
                 <div class="toast-body" v-text="message.text">
                 </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" 
+                <button type="button" class="btn-close btn-close-white me-2 m-auto"
                         @click="removeMessage(message.id)"></button>
             </div>
         </div>
     </div>
 
     <!-- 兑换Token模态框 -->
-    <div class="modal fade" :class="{ show: showConvertModal }" 
+    <div class="modal fade" :class="{ show: showConvertModal }"
          :style="{ display: showConvertModal ? 'block' : 'none' }"
          @click="closeConvertModal">
         <div class="modal-dialog" @click.stop>
@@ -489,17 +502,35 @@
                             <div class="mb-3">
                                 <label class="form-label">兑换自 (From)</label>
                                 <div class="d-flex align-items-center">
-                                    <img v-if="convertFromToken.logo_uri" :src="convertFromToken.logo_uri" style="width:24px;height:24px;" class="me-2 rounded-circle">
+                                    <img v-if="convertFromToken.logo_uri" :src="convertFromToken.logo_uri"
+                                         style="width:24px;height:24px;" class="me-2 rounded-circle">
                                     <span class="fw-bold me-2" v-text="convertFromToken.name"></span>
                                     <span class="badge bg-secondary" v-text="convertFromToken.symbol"></span>
                                 </div>
                             </div>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3 position-relative">
                             <label class="form-label">兑换至 (To) Token地址 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" v-model="convertToAddress" @blur="fetchToTokenInfo" required placeholder="请输入目标Token地址">
+                            <input type="text" class="form-control" v-model="convertToAddress" @input="onToInput"
+                                   @focus="onToInput" @blur="onToBlur" required placeholder="请输入目标Token地址或选择"
+                                   autocomplete="off">
+                            <div v-if="showToDropdown && filteredToTokenList.length > 0"
+                                 class="dropdown-menu show w-100 mt-1"
+                                 style="max-height:260px;overflow:auto;z-index:1050;">
+                                <div v-for="token in filteredToTokenList" :key="token.address"
+                                     class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;"
+                                     @mousedown.prevent="selectToToken(token)">
+                                    <img v-if="token.logo_uri" :src="token.logo_uri" style="width:20px;height:20px;"
+                                         class="rounded-circle">
+                                    <span class="fw-bold" v-text="token.name"></span>
+                                    <span class="badge bg-secondary ms-2" v-text="token.symbol"></span>
+                                    <span class="text-muted ms-auto small"
+                                          v-text="token.address.substring(0,6)+'...'+token.address.substring(token.address.length-6)"></span>
+                                </div>
+                            </div>
                             <div v-if="convertToToken" class="form-text">
-                                <img v-if="convertToToken.logo_uri" :src="convertToToken.logo_uri" style="width:20px;height:20px;" class="me-2 rounded-circle">
+                                <img v-if="convertToToken.logo_uri" :src="convertToToken.logo_uri"
+                                     style="width:20px;height:20px;" class="me-2 rounded-circle">
                                 <span class="fw-bold me-2" v-text="convertToToken.name"></span>
                                 <span class="badge bg-secondary" v-text="convertToToken.symbol"></span>
                             </div>
@@ -509,8 +540,12 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">兑换数量 <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" v-model.number="convertAmount" :max="convertFromToken ? convertFromToken.amount : null" min="0" step="any" required placeholder="请输入要兑换的数量">
-                            <div class="form-text">可用余额: <span v-text="convertFromToken ? formatAmount(convertFromToken.amount) : '--'"></span></div>
+                            <input type="number" class="form-control" v-model.number="convertAmount"
+                                   :max="convertFromToken ? convertFromToken.amount : null" min="0" step="any" required
+                                   placeholder="请输入要兑换的数量">
+                            <div class="form-text">可用余额: <span
+                                        v-text="convertFromToken ? formatAmount(convertFromToken.amount) : '--'"></span>
+                            </div>
                         </div>
                         <div class="d-flex justify-content-end gap-2">
                             <button type="button" class="btn btn-secondary" @click="closeConvertModal">取消</button>
@@ -524,8 +559,10 @@
                     <div v-if="convertQuote" class="alert alert-info mt-3">
                         <div>
                             <strong>兑换结果：</strong>
-                            <div>可获得 <span class="fw-bold" v-text="convertQuote.outAmountDisplay"></span> <span v-text="convertToToken ? convertToToken.symbol : ''"></span></div>
-                            <div>预估价值：<span class="fw-bold text-success" v-text="'$ ' + convertQuote.estimatedUsd"></span></div>
+                            <div>可获得 <span class="fw-bold" v-text="convertQuote.outAmountDisplay"></span> <span
+                                        v-text="convertToToken ? convertToToken.symbol : ''"></span></div>
+                            <div>预估价值：<span class="fw-bold text-success"
+                                                v-text="'$ ' + convertQuote.estimatedUsd"></span></div>
                         </div>
                         <div class="d-flex justify-content-end mt-2">
                             <button class="btn btn-success" @click="doSwap" :disabled="swapLoading">
@@ -535,7 +572,8 @@
                             </button>
                         </div>
                     </div>
-                    <div v-if="swapResult" class="alert mt-3" :class="swapResult.success ? 'alert-success' : 'alert-danger'">
+                    <div v-if="swapResult" class="alert mt-3"
+                         :class="swapResult.success ? 'alert-success' : 'alert-danger'">
                         <div v-if="swapResult.success">
                             <i class="fas fa-check-circle me-1"></i>兑换成功！
                             <div>
@@ -560,493 +598,535 @@
 
 {% block extra_js %}
 <script>
-const { createApp } = Vue;
+    const {createApp} = Vue;
 
-createApp({
-    data() {
-        return {
-            privateKeys: [],
-            loading: true,
-            saveLoading: false,
-            generateLoading: false,
-            exportLoading: false,
-            summaryLoading: false,
-            showAddModal: false,
-            showEditModal: false,
-            showExportModal: false,
-            editingKeyId: null,
-            keyForm: {
-                nickname: '',
-                private_key: ''
-            },
-            exportToken: '',
-            messages: [],
-            tokenSummary: {
-                total_wallets: 0,
-                total_sol: 0,
-                total_usd: 0,
-                tokens: []
-            },
-            walletTokensExpanded: {}, // 钱包Token明细展开状态
-            walletTokensLoading: {}, // 钱包Token明细加载状态
-            walletTokensData: {}, // 钱包Token明细数据
-            isUsingCache: false, // 是否正在使用缓存数据
-            showConvertModal: false,
-            convertFromKey: null,
-            convertFromToken: null,
-            convertToAddress: '',
-            convertToToken: null,
-            convertToTokenError: '',
-            convertAmount: '',
-            quoteLoading: false,
-            convertQuote: null,
-            swapLoading: false,
-            swapResult: null,
-        }
-    },
-    mounted() {
-        this.loadPrivateKeys();
-        this.loadTokenSummary();
-        // 重置缓存状态
-        this.isUsingCache = false;
-    },
-    methods: {
-        async loadPrivateKeys() {
-            try {
-                const response = await fetch('/api/keys');
-                const data = await response.json();
-                if (data.success) {
-                    this.privateKeys = data.data;
-                } else {
-                    this.showMessage('error', data.error || '加载私钥失败');
-                }
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.loading = false;
+    createApp({
+        data() {
+            return {
+                privateKeys: [],
+                loading: true,
+                saveLoading: false,
+                generateLoading: false,
+                exportLoading: false,
+                summaryLoading: false,
+                showAddModal: false,
+                showEditModal: false,
+                showExportModal: false,
+                editingKeyId: null,
+                keyForm: {
+                    nickname: '',
+                    private_key: ''
+                },
+                exportToken: '',
+                messages: [],
+                tokenSummary: {
+                    total_wallets: 0,
+                    total_sol: 0,
+                    total_usd: 0,
+                    tokens: []
+                },
+                walletTokensExpanded: {}, // 钱包Token明细展开状态
+                walletTokensLoading: {}, // 钱包Token明细加载状态
+                walletTokensData: {}, // 钱包Token明细数据
+                isUsingCache: false, // 是否正在使用缓存数据
+                showConvertModal: false,
+                convertFromKey: null,
+                convertFromToken: null,
+                convertToAddress: '',
+                convertToToken: null,
+                convertToTokenError: '',
+                convertAmount: '',
+                quoteLoading: false,
+                convertQuote: null,
+                swapLoading: false,
+                swapResult: null,
+                commonTokens: [
+                    {
+                        address: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+                        name: 'Tether USD',
+                        symbol: 'USDT',
+                        logo_uri: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg'
+                    },
+                    {
+                        address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+                        name: 'USD Coin',
+                        symbol: 'USDC',
+                        logo_uri: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png'
+                    }
+                ],
+                showToDropdown: false,
+                filteredToTokenList: [],
             }
         },
-        async loadTokenSummary() {
-            // 检查本地缓存
-            const cacheKey = 'token_summary_cache';
-            const cacheData = localStorage.getItem(cacheKey);
-            
-            if (cacheData) {
+        mounted() {
+            this.loadPrivateKeys();
+            this.loadTokenSummary();
+            // 重置缓存状态
+            this.isUsingCache = false;
+        },
+        methods: {
+            async loadPrivateKeys() {
                 try {
-                    const cached = JSON.parse(cacheData);
-                    const now = Date.now();
-                    const cacheAge = now - cached.timestamp;
-                    const cacheExpiry = 30 * 60 * 1000; // 30分钟
-                    
-                    if (cacheAge < cacheExpiry) {
-                        // 缓存有效，直接使用
-                        this.tokenSummary = cached.data;
-                        this.isUsingCache = true;
-                        return;
+                    const response = await fetch('/api/keys');
+                    const data = await response.json();
+                    if (data.success) {
+                        this.privateKeys = data.data;
+                    } else {
+                        this.showMessage('error', data.error || '加载私钥失败');
+                    }
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.loading = false;
+                }
+            },
+            async loadTokenSummary() {
+                // 检查本地缓存
+                const cacheKey = 'token_summary_cache';
+                const cacheData = localStorage.getItem(cacheKey);
+
+                if (cacheData) {
+                    try {
+                        const cached = JSON.parse(cacheData);
+                        const now = Date.now();
+                        const cacheAge = now - cached.timestamp;
+                        const cacheExpiry = 30 * 60 * 1000; // 30分钟
+
+                        if (cacheAge < cacheExpiry) {
+                            // 缓存有效，直接使用
+                            this.tokenSummary = cached.data;
+                            this.isUsingCache = true;
+                            return;
+                        }
+                    } catch (e) {
+                        // 缓存数据损坏，清除它
+                        localStorage.removeItem(cacheKey);
+                    }
+                }
+
+                // 缓存无效或不存在，从服务器获取
+                this.summaryLoading = true;
+                try {
+                    const response = await fetch('/api/keys/summary/tokens');
+                    const data = await response.json();
+                    if (data.success) {
+                        this.tokenSummary = data.data;
+                        this.isUsingCache = false;
+
+                        // 保存到本地缓存
+                        const cacheData = {
+                            data: data.data,
+                            timestamp: Date.now()
+                        };
+                        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                    } else {
+                        this.showMessage('error', data.error || '加载Token汇总失败');
+                    }
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.summaryLoading = false;
+                }
+            },
+            async refreshTokenSummary() {
+                // 清除本地缓存
+                localStorage.removeItem('token_summary_cache');
+                this.isUsingCache = false;
+                await this.loadTokenSummary();
+                this.showMessage('success', 'Token汇总数据已刷新');
+            },
+            async saveKey() {
+                this.saveLoading = true;
+                try {
+                    const formData = new FormData();
+                    Object.keys(this.keyForm).forEach(key => {
+                        formData.append(key, this.keyForm[key]);
+                    });
+
+                    const url = this.showEditModal
+                        ? `/api/keys/${this.editingKeyId}`
+                        : '/api/keys';
+
+                    const method = this.showEditModal ? 'PUT' : 'POST';
+
+                    const response = await fetch(url, {
+                        method: method,
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        this.showMessage('success', data.message);
+                        this.closeModal();
+                        // 清理所有展开状态，因为钱包列表可能会改变
+                        this.walletTokensExpanded = {};
+                        this.walletTokensLoading = {};
+                        this.walletTokensData = {};
+                        // 清除缓存，因为私钥发生了变化
+                        localStorage.removeItem('token_summary_cache');
+                        this.isUsingCache = false;
+                        this.loadPrivateKeys();
+                        this.loadTokenSummary();
+                    } else {
+                        this.showMessage('error', data.error || '保存失败');
+                    }
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.saveLoading = false;
+                }
+            },
+            async deleteKey(keyId) {
+                if (!confirm('确定要删除这个私钥吗？删除后数据将被标记为删除状态（逻辑删除），相关的监控记录将无法使用。')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/keys/${keyId}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        this.showMessage('success', data.message);
+                        // 清理钱包Token相关状态
+                        const newExpanded = {...this.walletTokensExpanded};
+                        const newLoading = {...this.walletTokensLoading};
+                        const newData = {...this.walletTokensData};
+                        delete newExpanded[keyId];
+                        delete newLoading[keyId];
+                        delete newData[keyId];
+                        this.walletTokensExpanded = newExpanded;
+                        this.walletTokensLoading = newLoading;
+                        this.walletTokensData = newData;
+                        // 清除缓存，因为私钥发生了变化
+                        localStorage.removeItem('token_summary_cache');
+                        this.isUsingCache = false;
+                        this.loadPrivateKeys();
+                        this.loadTokenSummary();
+                    } else {
+                        this.showMessage('error', data.error || '删除失败');
+                    }
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                }
+            },
+            editKey(key) {
+                this.editingKeyId = key.id;
+                this.keyForm = {
+                    nickname: key.nickname,
+                    private_key: ''  // 安全起见，不回填私钥
+                };
+                this.showEditModal = true;
+            },
+            closeModal() {
+                this.showAddModal = false;
+                this.showEditModal = false;
+                this.editingKeyId = null;
+                this.keyForm = {
+                    nickname: '',
+                    private_key: ''
+                };
+            },
+            formatTime(timestamp) {
+                if (!timestamp) return '--';
+                return new Date(timestamp).toLocaleString('zh-CN');
+            },
+            showMessage(type, text) {
+                const id = Date.now() + Math.random();
+                this.messages.push({id, type, text});
+                setTimeout(() => {
+                    this.removeMessage(id);
+                }, 5000);
+            },
+            removeMessage(id) {
+                this.messages = this.messages.filter(m => m.id !== id);
+            },
+            copyToClipboard(text, type) {
+                // 优先使用现代 Clipboard API
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        this.showMessage('success', `${type}已复制到剪贴板`);
+                    }).catch(err => {
+                        console.error('Clipboard API 失败:', err);
+                        this.fallbackCopyTextToClipboard(text, type);
+                    });
+                } else {
+                    // 使用备用方案
+                    this.fallbackCopyTextToClipboard(text, type);
+                }
+            },
+            fallbackCopyTextToClipboard(text, type) {
+                // 创建临时文本区域
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+
+                try {
+                    textArea.focus();
+                    textArea.select();
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        this.showMessage('success', `${type}已复制到剪贴板`);
+                    } else {
+                        this.showMessage('error', '复制失败，请手动复制');
+                    }
+                } catch (err) {
+                    console.error('备用复制方法失败:', err);
+                    this.showMessage('error', '复制失败，请手动复制');
+                } finally {
+                    document.body.removeChild(textArea);
+                }
+            },
+            async generatePrivateKey() {
+                this.generateLoading = true;
+                try {
+                    const response = await fetch('/api/keys/generate', {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.keyForm.private_key = data.data.private_key;
+                        this.showMessage('success', '私钥生成成功！公钥地址：' + data.data.public_key.substring(0, 8) + '...' + data.data.public_key.substring(data.data.public_key.length - 8));
+                    } else {
+                        this.showMessage('error', data.error || '生成私钥失败');
+                    }
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.generateLoading = false;
+                }
+            },
+            closeExportModal() {
+                this.showExportModal = false;
+                this.exportToken = '';
+            },
+            async exportPrivateKeys() {
+                this.exportLoading = true;
+                try {
+                    const formData = new FormData();
+                    formData.append('token', this.exportToken);
+
+                    const response = await fetch('/api/keys/export', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // 创建下载文件
+                        const jsonData = JSON.stringify(data.data, null, 2);
+                        const blob = new Blob([jsonData], {type: 'application/json'});
+                        const url = URL.createObjectURL(blob);
+
+                        // 创建临时下载链接
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `private_keys_export_${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+
+                        this.showMessage('success', `导出成功！共导出 ${data.data.total_count} 个私钥`);
+                        this.closeExportModal();
+                    } else {
+                        this.showMessage('error', data.error || '导出失败');
+                    }
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.exportLoading = false;
+                }
+            },
+            formatAmount(amount) {
+                if (amount >= 1000000) {
+                    return (amount / 1000000).toFixed(2) + 'M';
+                } else if (amount >= 1000) {
+                    return (amount / 1000).toFixed(2) + 'K';
+                } else if (amount >= 1) {
+                    return amount.toFixed(2);
+                } else {
+                    return amount.toFixed(6);
+                }
+            },
+            async toggleWalletTokens(keyId) {
+                // 如果已经展开，则收起
+                if (this.walletTokensExpanded[keyId]) {
+                    this.walletTokensExpanded = {...this.walletTokensExpanded, [keyId]: false};
+                    return;
+                }
+
+                // 展开并加载数据
+                this.walletTokensExpanded = {...this.walletTokensExpanded, [keyId]: true};
+
+                // 如果已经有数据，直接返回
+                if (this.walletTokensData[keyId]) {
+                    return;
+                }
+
+                // 加载数据
+                await this.loadWalletTokens(keyId);
+            },
+            async loadWalletTokens(keyId) {
+                this.walletTokensLoading = {...this.walletTokensLoading, [keyId]: true};
+                try {
+                    const response = await fetch(`/api/keys/${keyId}/tokens`);
+                    const data = await response.json();
+                    if (data.success) {
+                        this.walletTokensData = {...this.walletTokensData, [keyId]: data.data};
+                    } else {
+                        this.showMessage('error', data.error || '加载Token明细失败');
+                    }
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.walletTokensLoading = {...this.walletTokensLoading, [keyId]: false};
+                }
+            },
+            async refreshWalletTokens(keyId) {
+                // 刷新单个钱包Token明细
+                this.walletTokensLoading = {...this.walletTokensLoading, [keyId]: true};
+                try {
+                    const response = await fetch(`/api/keys/${keyId}/tokens`);
+                    const data = await response.json();
+                    if (data.success) {
+                        this.walletTokensData = {...this.walletTokensData, [keyId]: data.data};
+                        this.showMessage('success', 'Token明细已刷新');
+                    } else {
+                        this.showMessage('error', data.error || '刷新Token明细失败');
+                    }
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.walletTokensLoading = {...this.walletTokensLoading, [keyId]: false};
+                }
+            },
+            openConvertModal(key, token) {
+                this.convertFromKey = key;
+                this.convertFromToken = token;
+                this.showConvertModal = true;
+                this.convertToAddress = '';
+                this.convertToToken = null;
+                this.convertToTokenError = '';
+                this.convertAmount = '';
+                this.convertQuote = null;
+                this.swapResult = null;
+            },
+            closeConvertModal() {
+                this.showConvertModal = false;
+                this.convertFromKey = null;
+                this.convertFromToken = null;
+                this.convertToAddress = '';
+                this.convertToToken = null;
+                this.convertToTokenError = '';
+                this.convertAmount = '';
+                this.convertQuote = null;
+                this.swapResult = null;
+            },
+            async fetchToTokenInfo() {
+                this.convertToToken = null;
+                this.convertToTokenError = '';
+                if (!this.convertToAddress) return;
+                try {
+                    // 这里模拟查询token信息，后续可接后端API
+                    // 假设有/api/token_info?address=xxx
+                    const resp = await fetch(`/api/token_info?address=${this.convertToAddress}`);
+                    const data = await resp.json();
+                    if (data.success) {
+                        this.convertToToken = data.data;
+                    } else {
+                        this.convertToTokenError = data.error || '未找到Token信息';
                     }
                 } catch (e) {
-                    // 缓存数据损坏，清除它
-                    localStorage.removeItem(cacheKey);
+                    this.convertToTokenError = '查询失败';
                 }
-            }
-            
-            // 缓存无效或不存在，从服务器获取
-            this.summaryLoading = true;
-            try {
-                const response = await fetch('/api/keys/summary/tokens');
-                const data = await response.json();
-                if (data.success) {
-                    this.tokenSummary = data.data;
-                    this.isUsingCache = false;
-                    
-                    // 保存到本地缓存
-                    const cacheData = {
-                        data: data.data,
-                        timestamp: Date.now()
-                    };
-                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-                } else {
-                    this.showMessage('error', data.error || '加载Token汇总失败');
-                }
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.summaryLoading = false;
-            }
-        },
-        async refreshTokenSummary() {
-            // 清除本地缓存
-            localStorage.removeItem('token_summary_cache');
-            this.isUsingCache = false;
-            await this.loadTokenSummary();
-            this.showMessage('success', 'Token汇总数据已刷新');
-        },
-        async saveKey() {
-            this.saveLoading = true;
-            try {
-                const formData = new FormData();
-                Object.keys(this.keyForm).forEach(key => {
-                    formData.append(key, this.keyForm[key]);
-                });
-
-                const url = this.showEditModal 
-                    ? `/api/keys/${this.editingKeyId}`
-                    : '/api/keys';
-                
-                const method = this.showEditModal ? 'PUT' : 'POST';
-                
-                const response = await fetch(url, {
-                    method: method,
-                    body: formData
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    this.showMessage('success', data.message);
-                    this.closeModal();
-                    // 清理所有展开状态，因为钱包列表可能会改变
-                    this.walletTokensExpanded = {};
-                    this.walletTokensLoading = {};
-                    this.walletTokensData = {};
-                    // 清除缓存，因为私钥发生了变化
-                    localStorage.removeItem('token_summary_cache');
-                    this.isUsingCache = false;
-                    this.loadPrivateKeys();
-                    this.loadTokenSummary();
-                } else {
-                    this.showMessage('error', data.error || '保存失败');
-                }
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.saveLoading = false;
-            }
-        },
-        async deleteKey(keyId) {
-            if (!confirm('确定要删除这个私钥吗？删除后数据将被标记为删除状态（逻辑删除），相关的监控记录将无法使用。')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/keys/${keyId}`, {
-                    method: 'DELETE'
-                });
-                const data = await response.json();
-                if (data.success) {
-                    this.showMessage('success', data.message);
-                    // 清理钱包Token相关状态
-                    const newExpanded = { ...this.walletTokensExpanded };
-                    const newLoading = { ...this.walletTokensLoading };
-                    const newData = { ...this.walletTokensData };
-                    delete newExpanded[keyId];
-                    delete newLoading[keyId];
-                    delete newData[keyId];
-                    this.walletTokensExpanded = newExpanded;
-                    this.walletTokensLoading = newLoading;
-                    this.walletTokensData = newData;
-                    // 清除缓存，因为私钥发生了变化
-                    localStorage.removeItem('token_summary_cache');
-                    this.isUsingCache = false;
-                    this.loadPrivateKeys();
-                    this.loadTokenSummary();
-                } else {
-                    this.showMessage('error', data.error || '删除失败');
-                }
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            }
-        },
-        editKey(key) {
-            this.editingKeyId = key.id;
-            this.keyForm = {
-                nickname: key.nickname,
-                private_key: ''  // 安全起见，不回填私钥
-            };
-            this.showEditModal = true;
-        },
-        closeModal() {
-            this.showAddModal = false;
-            this.showEditModal = false;
-            this.editingKeyId = null;
-            this.keyForm = {
-                nickname: '',
-                private_key: ''
-            };
-        },
-        formatTime(timestamp) {
-            if (!timestamp) return '--';
-            return new Date(timestamp).toLocaleString('zh-CN');
-        },
-        showMessage(type, text) {
-            const id = Date.now() + Math.random();
-            this.messages.push({ id, type, text });
-            setTimeout(() => {
-                this.removeMessage(id);
-            }, 5000);
-        },
-        removeMessage(id) {
-            this.messages = this.messages.filter(m => m.id !== id);
-        },
-        copyToClipboard(text, type) {
-            // 优先使用现代 Clipboard API
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(text).then(() => {
-                    this.showMessage('success', `${type}已复制到剪贴板`);
-                }).catch(err => {
-                    console.error('Clipboard API 失败:', err);
-                    this.fallbackCopyTextToClipboard(text, type);
-                });
-            } else {
-                // 使用备用方案
-                this.fallbackCopyTextToClipboard(text, type);
-            }
-        },
-        fallbackCopyTextToClipboard(text, type) {
-            // 创建临时文本区域
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-999999px';
-            textArea.style.top = '-999999px';
-            document.body.appendChild(textArea);
-            
-            try {
-                textArea.focus();
-                textArea.select();
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    this.showMessage('success', `${type}已复制到剪贴板`);
-                } else {
-                    this.showMessage('error', '复制失败，请手动复制');
-                }
-            } catch (err) {
-                console.error('备用复制方法失败:', err);
-                this.showMessage('error', '复制失败，请手动复制');
-            } finally {
-                document.body.removeChild(textArea);
-            }
-        },
-        async generatePrivateKey() {
-            this.generateLoading = true;
-            try {
-                const response = await fetch('/api/keys/generate', {
-                    method: 'POST'
-                });
-                const data = await response.json();
-                
-                if (data.success) {
-                    this.keyForm.private_key = data.data.private_key;
-                    this.showMessage('success', '私钥生成成功！公钥地址：' + data.data.public_key.substring(0, 8) + '...' + data.data.public_key.substring(data.data.public_key.length - 8));
-                } else {
-                    this.showMessage('error', data.error || '生成私钥失败');
-                }
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.generateLoading = false;
-            }
-        },
-        closeExportModal() {
-            this.showExportModal = false;
-            this.exportToken = '';
-        },
-        async exportPrivateKeys() {
-            this.exportLoading = true;
-            try {
-                const formData = new FormData();
-                formData.append('token', this.exportToken);
-                
-                const response = await fetch('/api/keys/export', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                
-                if (data.success) {
-                    // 创建下载文件
-                    const jsonData = JSON.stringify(data.data, null, 2);
-                    const blob = new Blob([jsonData], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    // 创建临时下载链接
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `private_keys_export_${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    
-                    this.showMessage('success', `导出成功！共导出 ${data.data.total_count} 个私钥`);
-                    this.closeExportModal();
-                } else {
-                    this.showMessage('error', data.error || '导出失败');
-                }
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.exportLoading = false;
-            }
-        },
-        formatAmount(amount) {
-            if (amount >= 1000000) {
-                return (amount / 1000000).toFixed(2) + 'M';
-            } else if (amount >= 1000) {
-                return (amount / 1000).toFixed(2) + 'K';
-            } else if (amount >= 1) {
-                return amount.toFixed(2);
-            } else {
-                return amount.toFixed(6);
-            }
-        },
-        async toggleWalletTokens(keyId) {
-            // 如果已经展开，则收起
-            if (this.walletTokensExpanded[keyId]) {
-                this.walletTokensExpanded = { ...this.walletTokensExpanded, [keyId]: false };
-                return;
-            }
-            
-            // 展开并加载数据
-            this.walletTokensExpanded = { ...this.walletTokensExpanded, [keyId]: true };
-            
-            // 如果已经有数据，直接返回
-            if (this.walletTokensData[keyId]) {
-                return;
-            }
-            
-            // 加载数据
-            await this.loadWalletTokens(keyId);
-        },
-        async loadWalletTokens(keyId) {
-            this.walletTokensLoading = { ...this.walletTokensLoading, [keyId]: true };
-            try {
-                const response = await fetch(`/api/keys/${keyId}/tokens`);
-                const data = await response.json();
-                if (data.success) {
-                    this.walletTokensData = { ...this.walletTokensData, [keyId]: data.data };
-                } else {
-                    this.showMessage('error', data.error || '加载Token明细失败');
-                }
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.walletTokensLoading = { ...this.walletTokensLoading, [keyId]: false };
-            }
-        },
-        async refreshWalletTokens(keyId) {
-            // 刷新单个钱包Token明细
-            this.walletTokensLoading = { ...this.walletTokensLoading, [keyId]: true };
-            try {
-                const response = await fetch(`/api/keys/${keyId}/tokens`);
-                const data = await response.json();
-                if (data.success) {
-                    this.walletTokensData = { ...this.walletTokensData, [keyId]: data.data };
-                    this.showMessage('success', 'Token明细已刷新');
-                } else {
-                    this.showMessage('error', data.error || '刷新Token明细失败');
-                }
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.walletTokensLoading = { ...this.walletTokensLoading, [keyId]: false };
-            }
-        },
-        openConvertModal(key, token) {
-            this.convertFromKey = key;
-            this.convertFromToken = token;
-            this.showConvertModal = true;
-            this.convertToAddress = '';
-            this.convertToToken = null;
-            this.convertToTokenError = '';
-            this.convertAmount = '';
-            this.convertQuote = null;
-            this.swapResult = null;
-        },
-        closeConvertModal() {
-            this.showConvertModal = false;
-            this.convertFromKey = null;
-            this.convertFromToken = null;
-            this.convertToAddress = '';
-            this.convertToToken = null;
-            this.convertToTokenError = '';
-            this.convertAmount = '';
-            this.convertQuote = null;
-            this.swapResult = null;
-        },
-        async fetchToTokenInfo() {
-            this.convertToToken = null;
-            this.convertToTokenError = '';
-            if (!this.convertToAddress) return;
-            try {
-                // 这里模拟查询token信息，后续可接后端API
-                // 假设有/api/token_info?address=xxx
-                const resp = await fetch(`/api/token_info?address=${this.convertToAddress}`);
-                const data = await resp.json();
-                if (data.success) {
-                    this.convertToToken = data.data;
-                } else {
-                    this.convertToTokenError = data.error || '未找到Token信息';
-                }
-            } catch (e) {
-                this.convertToTokenError = '查询失败';
-            }
-        },
-        async getQuote() {
-            this.quoteLoading = true;
-            this.convertQuote = null;
-            this.swapResult = null;
-            try {
-                // 这里模拟获取报价，后续可接后端API
-                // 假设有/api/quote?from=xxx&to=xxx&amount=xxx&key_id=xxx
-                const params = new URLSearchParams({
-                    from: this.convertFromToken.address,
-                    to: this.convertToAddress,
-                    amount: this.convertAmount,
-                    key_id: this.convertFromKey.id
-                });
-                const resp = await fetch(`/api/quote?${params.toString()}`);
-                const data = await resp.json();
-                if (data.success) {
-                    this.convertQuote = data.data;
-                } else {
-                    this.showMessage('error', data.error || '获取报价失败');
-                }
-            } catch (e) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.quoteLoading = false;
-            }
-        },
-        async doSwap() {
-            this.swapLoading = true;
-            this.swapResult = null;
-            try {
-                // 这里模拟发起兑换，后续可接后端API
-                // 假设有/api/swap POST
-                const resp = await fetch('/api/swap', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+            },
+            async getQuote() {
+                this.quoteLoading = true;
+                this.convertQuote = null;
+                this.swapResult = null;
+                try {
+                    // 这里模拟获取报价，后续可接后端API
+                    // 假设有/api/quote?from=xxx&to=xxx&amount=xxx&key_id=xxx
+                    const params = new URLSearchParams({
                         from: this.convertFromToken.address,
                         to: this.convertToAddress,
                         amount: this.convertAmount,
-                        key_id: this.convertFromKey.id,
-                        quote: this.convertQuote
-                    })
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    this.swapResult = { success: true, txid: data.data.txid };
-                } else {
-                    this.swapResult = { success: false, message: data.error || '兑换失败' };
+                        key_id: this.convertFromKey.id
+                    });
+                    const resp = await fetch(`/api/quote?${params.toString()}`);
+                    const data = await resp.json();
+                    if (data.success) {
+                        this.convertQuote = data.data;
+                    } else {
+                        this.showMessage('error', data.error || '获取报价失败');
+                    }
+                } catch (e) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.quoteLoading = false;
                 }
-            } catch (e) {
-                this.swapResult = { success: false, message: '网络错误' };
-            } finally {
-                this.swapLoading = false;
+            },
+            async doSwap() {
+                this.swapLoading = true;
+                this.swapResult = null;
+                try {
+                    // 这里模拟发起兑换，后续可接后端API
+                    // 假设有/api/swap POST
+                    const resp = await fetch('/api/swap', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            from: this.convertFromToken.address,
+                            to: this.convertToAddress,
+                            amount: this.convertAmount,
+                            key_id: this.convertFromKey.id,
+                            quote: this.convertQuote
+                        })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        this.swapResult = {success: true, txid: data.data.txid};
+                    } else {
+                        this.swapResult = {success: false, message: data.error || '兑换失败'};
+                    }
+                } catch (e) {
+                    this.swapResult = {success: false, message: '网络错误'};
+                } finally {
+                    this.swapLoading = false;
+                }
+            },
+            onToInput() {
+                const q = this.convertToAddress.trim().toLowerCase();
+                let all = [...this.commonTokens, ...this.tokenSummary.tokens];
+                if (q) {
+                    this.filteredToTokenList = all.filter(t =>
+                        t.address.toLowerCase().includes(q) ||
+                        (t.name && t.name.toLowerCase().includes(q)) ||
+                        (t.symbol && t.symbol.toLowerCase().includes(q))
+                    );
+                } else {
+                    this.filteredToTokenList = all;
+                }
+                this.showToDropdown = this.filteredToTokenList.length > 0;
+            },
+            selectToToken(token) {
+                this.convertToAddress = token.address;
+                this.showToDropdown = false;
+                this.fetchToTokenInfo();
+            },
+            onToBlur() {
+                setTimeout(() => {
+                    this.showToDropdown = false;
+                    this.fetchToTokenInfo();
+                    console.log('onToBlur, hide dropdown and fetch token info');
+                }, 200);
             }
         }
-    }
-}).mount('#app');
+    }).mount('#app');
 </script>
-{% endblock %} 
+{% endblock %}
