@@ -44,6 +44,7 @@ class MarketDataFetcher:
             logging.error(f"处理价格信息失败: {e}")
             return None
 
+
 # ====== 下面是模块级token信息查询函数 ======
 def get_token_market_info(address: str):
     """

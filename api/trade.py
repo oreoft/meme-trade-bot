@@ -6,11 +6,13 @@ from trader import SolanaTrader
 
 router = APIRouter(prefix="/api", tags=["交易相关"])
 
+
 def normalize_sol_address(address: str) -> str:
     """Jupiter只支持So11111111111111111111111111111111111111112，自动替换老SOL地址"""
     sol_alias = "So11111111111111111111111111111111111111111"
     sol_mint = "So11111111111111111111111111111111111111112"
     return sol_mint if address == sol_alias else address
+
 
 @router.get("/token_info")
 async def token_info(address: str = Query(...)):
@@ -25,13 +27,14 @@ async def token_info(address: str = Query(...)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+
 @router.get("/quote")
 async def quote(
-    from_: str = Query(..., alias="from"),
-    to: str = Query(...),
-    amount: float = Query(None),
-    key_id: int = Query(...),
-    amount_in_usd: float = Query(None)
+        from_: str = Query(..., alias="from"),
+        to: str = Query(...),
+        amount: float = Query(None),
+        key_id: int = Query(...),
+        amount_in_usd: float = Query(None)
 ):
     """获取兑换报价"""
     try:
@@ -61,7 +64,8 @@ async def quote(
                 return {"success": False, "error": quote["error"]}
             return {"success": False, "error": "获取报价失败"}
         to_info = get_token_market_info(to)
-        out_amount = float(quote["outAmount"]) / (10 ** (to_info["decimals"] if to_info and "decimals" in to_info else 9))
+        out_amount = float(quote["outAmount"]) / (
+                    10 ** (to_info["decimals"] if to_info and "decimals" in to_info else 9))
         usd = out_amount * (to_info["price_usd"] if to_info and "price_usd" in to_info else 0)
         return {"success": True, "data": {
             "outAmount": quote["outAmount"],
@@ -71,6 +75,7 @@ async def quote(
         }}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
 
 @router.post("/swap")
 async def swap(data: dict = Body(...)):
