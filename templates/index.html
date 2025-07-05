@@ -106,12 +106,13 @@
                                     <th>名称</th>
                                     <th>代币地址</th>
                                     <th>阈值</th>
+                                    <th>当前市值</th>
+                                    <th>距离阈值</th>
                                     <th>出售比例</th>
                                     <th>执行模式</th>
                                     <th>最低持仓</th>
                                     <th>检查间隔</th>
                                     <th>状态</th>
-                                    <th>最后价格</th>
                                     <th>最后检查</th>
                                     <th>操作</th>
                                 </tr>
@@ -121,14 +122,15 @@
                                     <td>
                                         <strong v-text="record.name"></strong>
                                     </td>
-                                    <td>
+                                    <td style="max-width: 160px;">
                                         <a :href="'https://dexscreener.com/solana/' + record.token_address" 
                                            target="_blank" 
-                                           class="text-decoration-none"
-                                           :title="'在DexScreener上查看 ' + record.token_address">
-                                            <code class="small text-primary" 
-                                                  style="cursor: pointer;"
-                                                  v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4) + (record.token_symbol ? '(' + record.token_symbol + ')' : '')">
+                                           class="text-decoration-none text-truncate d-inline-block"
+                                           style="max-width: 140px; vertical-align: middle;"
+                                           :title="record.token_address">
+                                            <code class="small text-primary">
+                                              <span v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></span>
+                                              <span v-if="record.token_symbol">(<span v-text="record.token_symbol"></span>)</span>
                                             </code>
                                         </a>
                                     </td>
@@ -136,7 +138,15 @@
                                         <strong v-text="'$' + record.threshold.toLocaleString()"></strong>
                                     </td>
                                     <td>
-                                        <span class="badge bg-info" v-text="(record.sell_percentage * 100).toFixed(1) + '%'"></span>
+                                        <span v-if="record.last_market_cap" class="fw-bold" v-text="'$' + record.last_market_cap.toLocaleString(undefined, {maximumFractionDigits: 2})"></span>
+                                        <span v-else class="text-muted">--</span>
+                                    </td>
+                                    <td>
+                                        <span v-if="record.last_market_cap && record.threshold" v-html="getThresholdDiffHtml(record)"></span>
+                                        <span v-else class="text-muted">--</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" />
                                     </td>
                                     <td>
                                         <span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" 
@@ -156,15 +166,11 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <span v-if="record.last_price" v-text="'$' + record.last_price.toFixed(8)"></span>
-                                        <span v-else class="text-muted">--</span>
-                                    </td>
-                                    <td>
                                         <small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small>
                                         <span v-else class="text-muted">--</span>
                                     </td>
                                     <td>
-                                        <div class="btn-group btn-group-sm">
+                                        <div class="btn-group btn-group-sm" style="gap: 6px;">
                                             <button 
                                                 v-if="record.status === 'stopped'" 
                                                 class="btn btn-outline-success"
@@ -192,7 +198,7 @@
                                                 class="btn btn-outline-info"
                                                 @click="viewLogs(record.id)"
                                                 title="查看日志">
-                                                                                                <i class="fas fa-history"></i>
+                                                <i class="fas fa-history"></i>
                                             </button>
                                             <button 
                                                 class="btn btn-outline-danger"
@@ -720,6 +726,18 @@ createApp({
                 this.showMessage('error', '复制失败，请手动复制');
             } finally {
                 document.body.removeChild(textArea);
+            }
+        },
+        getThresholdDiffHtml(record) {
+            if (!record.last_market_cap || !record.threshold) return '--';
+            if (record.last_market_cap < record.threshold) {
+                const diff = record.threshold - record.last_market_cap;
+                const percent = ((diff / record.last_market_cap) * 100).toFixed(2);
+                return `<div><span class='fw-bold text-danger'>还需涨 $${diff.toLocaleString(undefined, {maximumFractionDigits: 2})}</span><div class='small text-secondary mt-1'>(${percent}%)</div></div>`;
+            } else {
+                const diff = record.last_market_cap - record.threshold;
+                const percent = ((diff / record.threshold) * 100).toFixed(2);
+                return `<div><span class='fw-bold text-success'>已超阈值 $${diff.toLocaleString(undefined, {maximumFractionDigits: 2})}</span><div class='small text-secondary mt-1'>(${percent}%)</div></div>`;
             }
         }
     }

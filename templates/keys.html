@@ -1087,7 +1087,6 @@
                 this.convertToTokenError = '';
                 if (!this.convertToAddress) return;
                 try {
-                    // 这里模拟查询token信息，后续可接后端API
                     // 假设有/api/token_info?address=xxx
                     const resp = await fetch(`/api/token_info?address=${this.convertToAddress}`);
                     const data = await resp.json();
@@ -1136,7 +1135,6 @@
                 this.swapLoading = true;
                 this.swapResult = null;
                 try {
-                    // 这里模拟发起兑换，后续可接后端API
                     // 假设有/api/swap POST
                     const resp = await fetch('/api/swap', {
                         method: 'POST',
