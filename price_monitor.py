@@ -217,6 +217,96 @@ class PriceMonitor:
                     # 记录监控日志
                     self._log_monitor_data(record_id, price_info, record.threshold)
 
+                    # 新增：区分买入/卖出类型
+                    if getattr(record, 'type', 'sell') == 'buy':
+                        # 买入监听逻辑：市值低于阈值才买
+                        if price_info['market_cap'] < record.threshold:
+                            print(
+                                f"监控 {record.name} 市值低于阈值，尝试买入。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
+                            notifier.send_price_alert(price_info, record.name, threshold_reached=True)
+                            try:
+                                # 计算累计买入金额
+                                if not hasattr(record, '_accumulated_buy_usd'):
+                                    record._accumulated_buy_usd = 0.0
+                                # 获取SOL余额
+                                sol_balance = trader.get_sol_balance()
+                                if sol_balance <= 0:
+                                    self._complete_monitor_task(
+                                        record_id, record, notifier, db,
+                                        reason="SOL余额为0，停止买入监控任务",
+                                        message_title=f"⚠️ 【{record.name}】SOL余额不足",
+                                        message_content=f"【{record.name}】SOL余额为0，监控任务自动停止。"
+                                    )
+                                    break
+                                # 多次执行模式：检查最低保留金额
+                                actual_buy_percentage = record.sell_percentage
+                                # 获取SOL的美元价格
+                                sol_mint = "So11111111111111111111111111111111111111112"
+                                sol_info = self.market_fetcher.get_price_info(sol_mint)
+                                sol_usd_price = sol_info['price'] if sol_info and sol_info['price'] else 0.0
+                                if record.execution_mode != "single":
+                                    min_hold_usd = getattr(record, 'minimum_hold_value', 0.0)
+                                    min_hold_sol = min_hold_usd / sol_usd_price if sol_usd_price > 0 else 0.0
+                                    if sol_balance - (sol_balance * actual_buy_percentage) < min_hold_sol:
+                                        actual_buy_percentage = 1.0  # 全部买入
+                                buy_amount = sol_balance * actual_buy_percentage
+                                estimated_usd_value = buy_amount * sol_usd_price
+                                # 累计买入金额判断
+                                max_buy = getattr(record, 'max_buy_amount', 0.0)
+                                if max_buy > 0 and (
+                                        getattr(record, '_accumulated_buy_usd', 0.0) + estimated_usd_value) > max_buy:
+                                    self._complete_monitor_task(
+                                        record_id, record, notifier, db,
+                                        reason="累计买入金额已达上限，停止监控任务",
+                                        message_title=f"🎯 【{record.name}】累计买入上限已达",
+                                        message_content=f"【{record.name}】累计买入金额已达上限（{max_buy} USD），监控任务自动停止。"
+                                    )
+                                    break
+                                tx_hash = trader.buy_token_for_sol(record.token_address, actual_buy_percentage)
+                                if tx_hash:
+                                    print(f"买入交易成功: {tx_hash}")
+                                    # 记录日志
+                                    log = MonitorLog(
+                                        monitor_record_id=record_id,
+                                        price=price_info['price'],
+                                        market_cap=price_info['market_cap'],
+                                        threshold_reached=True,
+                                        action_taken="自动买入",
+                                        tx_hash=str(tx_hash)
+                                    )
+                                    db.add(log)
+                                    db.commit()
+                                    notifier.send_trade_notification(tx_hash, buy_amount, estimated_usd_value,
+                                                                     record.name, record.token_symbol)
+                                    # 累加累计买入金额
+                                    record._accumulated_buy_usd = getattr(record, '_accumulated_buy_usd',
+                                                                          0.0) + estimated_usd_value
+                                    # 单次执行或全部买入后停止
+                                    if record.execution_mode == "single" or actual_buy_percentage >= 1.0:
+                                        self._complete_monitor_task(
+                                            record_id, record, notifier, db,
+                                            reason="买入任务完成，停止监控任务",
+                                            message_title=f"🎯 【{record.name}】买入任务完成",
+                                            message_content=f"【{record.name}】买入任务已完成，监控任务自动停止。"
+                                        )
+                                        break
+                                    else:
+                                        print(f"买入完成，继续监控等待下一次低于阈值...")
+                                        time.sleep(60)
+                                else:
+                                    print(f"买入交易失败")
+                                    notifier.send_error_notification(f"买入交易失败", record.name)
+                            except Exception as e:
+                                print(f"买入执行失败: {e}")
+                                notifier.send_error_notification(f"买入执行失败: {e}", record.name)
+                        else:
+                            print(
+                                f"监控 {record.name} 市值未低于阈值。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
+                            if self._should_send_price_update(record.token_address, price_info['market_cap']):
+                                notifier.send_price_alert(price_info, record.name, threshold_reached=False)
+                        time.sleep(record.check_interval)
+                        continue
+                    # ======= 原有卖出逻辑 =======
                     # 检查是否达到阈值
                     if price_info['market_cap'] >= record.threshold:
                         print(

@@ -44,16 +44,18 @@ async def create_monitor_record(
     check_interval: int = Form(5),
     execution_mode: str = Form("single"),
     minimum_hold_value: float = Form(50.0),
-    pre_sniper_mode: bool = Form(False)
+    pre_sniper_mode: bool = Form(False),
+    type: str = Form("sell"),
+    max_buy_amount: float = Form(0.0)
 ):
     """创建监控记录"""
     try:
         success, message, record_id = MonitorService.create_record(
             name, private_key_id, token_address, threshold,
             sell_percentage, webhook_url, check_interval,
-            execution_mode, minimum_hold_value, pre_sniper_mode
+            execution_mode, minimum_hold_value, pre_sniper_mode,
+            type, max_buy_amount
         )
-
         if success:
             return {
                 "success": True,
@@ -77,20 +79,21 @@ async def update_monitor_record(
     check_interval: int = Form(5),
     execution_mode: str = Form("single"),
     minimum_hold_value: float = Form(50.0),
-    pre_sniper_mode: bool = Form(False)
+    pre_sniper_mode: bool = Form(False),
+    type: str = Form("sell"),
+    max_buy_amount: float = Form(0.0)
 ):
     """更新监控记录"""
     try:
         # 如果监控正在运行，不允许修改
         if _monitor and _monitor.is_monitor_running(record_id):
             return {"success": False, "error": "请先停止监控再修改"}
-
         success, message = MonitorService.update_record(
             record_id, name, private_key_id, token_address,
             threshold, sell_percentage, webhook_url, check_interval,
-            execution_mode, minimum_hold_value, pre_sniper_mode
+            execution_mode, minimum_hold_value, pre_sniper_mode,
+            type, max_buy_amount
         )
-
         if success:
             # 自动修复状态为stopped
             MonitorService.update_record_status(record_id, "stopped")

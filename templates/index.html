@@ -249,6 +249,14 @@
                             </div>
                         </div>
                         <div class="mb-3">
+                            <label class="form-label">监控类型 <span class="text-danger">*</span></label>
+                            <select class="form-select" v-model="recordForm.type" required>
+                                <option value="sell">出售监听（Token变SOL）</option>
+                                <option value="buy">购买监听（SOL变Token）</option>
+                            </select>
+                            <div class="form-text">选择监听类型后，表单内容会动态变化</div>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label">代币地址 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" v-model="recordForm.token_address" 
                                    :class="{ 'is-invalid': tokenAddressError }" 
@@ -263,11 +271,14 @@
                                 <div class="mb-3">
                                     <label class="form-label">市值阈值(USD) <span class="text-danger">*</span></label>
                                     <input type="number" class="form-control" v-model="recordForm.threshold" step="0.01" min="0" required>
+                                    <div class="form-text" v-if="recordForm.type === 'sell'">市值高于此值时出售</div>
+                                    <div class="form-text" v-else>市值低于此值时买入</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">出售比例 <span class="text-danger">*</span></label>
+                                    <label class="form-label" v-if="recordForm.type === 'sell'">出售比例 <span class="text-danger">*</span></label>
+                                    <label class="form-label" v-else>购买比例 <span class="text-danger">*</span></label>
                                     <input type="number" class="form-control" v-model="recordForm.sell_percentage" step="0.01" min="0" max="1" required>
                                     <div class="form-text">0.1 = 10%, 1 = 100%</div>
                                 </div>
@@ -285,19 +296,31 @@
                                         <option value="single">单次执行</option>
                                         <option value="multiple">多次执行</option>
                                     </select>
-                                    <div class="form-text">单次执行：达到阈值后按比例出售并停止监控；多次执行：可部分出售并继续监控</div>
+                                    <div class="form-text" v-if="recordForm.type === 'sell'">单次执行：达到阈值后按比例出售并停止监控；多次执行：可部分出售并继续监控</div>
+                                    <div class="form-text" v-else>单次执行：低于阈值后按比例买入并停止监控；多次执行：可部分买入并继续监控</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-3" v-if="recordForm.type === 'sell'">
                                     <label class="form-label">最低持仓金额(USD)</label>
                                     <input type="number" class="form-control" v-model="recordForm.minimum_hold_value" 
                                            step="0.01" min="0" :disabled="recordForm.execution_mode === 'single'">
                                     <div class="form-text">多次执行模式下，当持仓价值低于此金额时将100%出售</div>
                                 </div>
+                                <div class="mb-3" v-else>
+                                    <label class="form-label">最低SOL保留金额</label>
+                                    <input type="number" class="form-control" v-model="recordForm.minimum_hold_value" 
+                                           step="0.01" min="0" :disabled="recordForm.execution_mode === 'single'">
+                                    <div class="form-text">多次执行模式下，SOL余额低于此值时全部买入</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" v-if="recordForm.type === 'buy'">
+                            <label class="form-label">累计购买上限(USD)</label>
+                            <input type="number" class="form-control" v-model="recordForm.max_buy_amount" step="0.01" min="0">
+                            <div class="form-text">达到此金额后自动停止买入，0表示不限制</div>
+                        </div>
+                        <div class="mb-3" v-if="recordForm.type === 'sell'">
                             <label class="form-label">是否开启预抢购模式</label>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="preSniperMode" v-model="recordForm.pre_sniper_mode">
@@ -454,7 +477,9 @@ createApp({
                 check_interval: 5,
                 execution_mode: 'single',
                 minimum_hold_value: 50.0,
-                pre_sniper_mode: false
+                pre_sniper_mode: false,
+                type: 'sell',
+                max_buy_amount: 0.0
             },
             messages: []
         }
@@ -617,7 +642,9 @@ createApp({
                 check_interval: record.check_interval,
                 execution_mode: record.execution_mode || 'single',
                 minimum_hold_value: record.minimum_hold_value || 50.0,
-                pre_sniper_mode: record.pre_sniper_mode === true
+                pre_sniper_mode: record.pre_sniper_mode === true,
+                type: record.type || 'sell',
+                max_buy_amount: record.max_buy_amount || 0.0
             };
             this.showEditModal = true;
         },
@@ -653,7 +680,9 @@ createApp({
                 check_interval: 5,
                 execution_mode: 'single',
                 minimum_hold_value: 50.0,
-                pre_sniper_mode: false
+                pre_sniper_mode: false,
+                type: 'sell',
+                max_buy_amount: 0.0
             };
         },
         closeLogsModal() {

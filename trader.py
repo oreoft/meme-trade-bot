@@ -329,3 +329,43 @@ class SolanaTrader:
         except Exception as e:
             logging.error(f"出售代币失败: {e}")
             return None
+
+    def buy_token_for_sol(self, token_address: str, buy_percentage: float) -> Optional[str]:
+        """用SOL买入指定代币"""
+        try:
+            # 获取SOL余额
+            sol_balance = self.get_sol_balance()
+            if sol_balance <= 0:
+                logging.warning("SOL余额为0，无法买入")
+                return None
+
+            # 计算买入数量
+            buy_amount = sol_balance * buy_percentage
+
+            # SOL的mint地址
+            sol_mint = "So11111111111111111111111111111111111111112"
+
+            # 转换为最小单位（SOL是9位小数）
+            buy_amount_lamports = int(buy_amount * 1e9)
+
+            logging.info(f"准备用 {buy_amount} SOL 买入代币 {token_address}")
+
+            # 获取报价
+            quote = self.get_quote(sol_mint, token_address, buy_amount_lamports)
+            if not quote:
+                logging.error("无法获取买入交易报价")
+                return None
+
+            # 执行交换
+            tx_hash = self.execute_swap(quote)
+
+            if tx_hash:
+                logging.info(f"成功买入代币，花费 {buy_amount} SOL")
+                return tx_hash
+            else:
+                logging.error("买入交易执行失败")
+                return None
+
+        except Exception as e:
+            logging.error(f"买入代币失败: {e}")
+            return None

@@ -37,7 +37,9 @@ class MonitorService:
                     "created_at": record.created_at.isoformat() if record.created_at else None,
                     "last_check_at": record.last_check_at.isoformat() if record.last_check_at else None,
                     "last_price": record.last_price,
-                    "last_market_cap": record.last_market_cap
+                    "last_market_cap": record.last_market_cap,
+                    "type": record.type,
+                    "max_buy_amount": record.max_buy_amount
                 }
                 for record in records
             ]
@@ -48,48 +50,46 @@ class MonitorService:
     def create_record(name: str, private_key_id: int, token_address: str,
                       threshold: float, sell_percentage: float, webhook_url: str,
                       check_interval: int = 5, execution_mode: str = "single",
-                      minimum_hold_value: float = 50.0, pre_sniper_mode: bool = False) -> tuple[bool, str, Optional[int]]:
-        """创建监控记录"""
-        # 验证输入
-        if sell_percentage <= 0 or sell_percentage > 1:
-            return False, "出售比例必须在0-1之间", None
-
+                      minimum_hold_value: float = 50.0, pre_sniper_mode: bool = False,
+                      type: str = "sell", max_buy_amount: float = 0.0) -> tuple[bool, str, Optional[int]]:
+        """创建监控记录，支持买入/卖出类型"""
+        # 校验type
+        if type not in ["sell", "buy"]:
+            return False, "监控类型必须是 'sell' 或 'buy'", None
+        # 校验比例
+        if type == "sell":
+            if sell_percentage <= 0 or sell_percentage > 1:
+                return False, "出售比例必须在0-1之间", None
+        else:
+            if sell_percentage <= 0 or sell_percentage > 1:
+                return False, "购买比例必须在0-1之间", None
+            if max_buy_amount < 0:
+                return False, "累计购买上限必须大于等于0", None
         if threshold <= 0:
             return False, "阈值必须大于0", None
-
         if check_interval < 1:
             return False, "检查间隔必须大于等于1秒", None
-        
         if execution_mode not in ["single", "multiple"]:
             return False, "执行模式必须是 'single' 或 'multiple'", None
-            
         if minimum_hold_value < 0:
             return False, "最低持仓金额必须大于等于0", None
-
         db = SessionLocal()
         try:
-            # 检查私钥是否存在（只检查未删除的）
-            private_key_obj = db.query(PrivateKey).filter(PrivateKey.id == private_key_id, PrivateKey.deleted == False).first()
+            private_key_obj = db.query(PrivateKey).filter(PrivateKey.id == private_key_id,
+                                                          PrivateKey.deleted == False).first()
             if not private_key_obj:
                 return False, "私钥不存在或已删除", None
-
-            # 获取token元数据
             api = BirdEyeAPI()
             token_meta_data = api.get_token_meta_data(token_address)
-            
-            # 如果获取token信息失败，则不保存记录
             if not token_meta_data:
                 return False, "无法获取Token信息，请检查Token地址是否正确", None
-            
-            # 提取token信息
             token_name = token_meta_data.get('name')
             token_symbol = token_meta_data.get('symbol')
             token_logo_uri = token_meta_data.get('logo_uri')
             token_decimals = token_meta_data.get('decimals')
-
             record = MonitorRecord(
                 name=name,
-                private_key=private_key_obj.private_key,  # 向后兼容
+                private_key=private_key_obj.private_key,
                 private_key_id=private_key_id,
                 token_address=token_address,
                 token_name=token_name,
@@ -102,15 +102,15 @@ class MonitorService:
                 check_interval=check_interval,
                 execution_mode=execution_mode,
                 minimum_hold_value=minimum_hold_value,
-                pre_sniper_mode=pre_sniper_mode,
-                status="stopped"
+                pre_sniper_mode=pre_sniper_mode if type == "sell" else False,
+                status="stopped",
+                type=type,
+                max_buy_amount=max_buy_amount if type == "buy" else 0.0
             )
-
             db.add(record)
             db.commit()
             db.refresh(record)
-
-            success_message = f"监控记录创建成功，已获取Token信息: {token_name or 'Unknown'} ({token_symbol or 'N/A'})"
+            success_message = f"监控记录创建成功，类型: {type}，已获取Token信息: {token_name or 'Unknown'} ({token_symbol or 'N/A'})"
             return True, success_message, record.id
         except Exception as e:
             return False, str(e), None
@@ -121,51 +121,48 @@ class MonitorService:
     def update_record(record_id: int, name: str, private_key_id: int,
                       token_address: str, threshold: float, sell_percentage: float,
                       webhook_url: str, check_interval: int = 5, execution_mode: str = "single",
-                      minimum_hold_value: float = 50.0, pre_sniper_mode: bool = False) -> tuple[bool, str]:
-        """更新监控记录"""
-        # 验证输入
-        if sell_percentage <= 0 or sell_percentage > 1:
-            return False, "出售比例必须在0-1之间"
-
+                      minimum_hold_value: float = 50.0, pre_sniper_mode: bool = False,
+                      type: str = "sell", max_buy_amount: float = 0.0) -> tuple[bool, str]:
+        """更新监控记录，支持买入/卖出类型"""
+        if type not in ["sell", "buy"]:
+            return False, "监控类型必须是 'sell' 或 'buy'"
+        if type == "sell":
+            if sell_percentage <= 0 or sell_percentage > 1:
+                return False, "出售比例必须在0-1之间"
+        else:
+            if sell_percentage <= 0 or sell_percentage > 1:
+                return False, "购买比例必须在0-1之间"
+            if max_buy_amount < 0:
+                return False, "累计购买上限必须大于等于0"
         if threshold <= 0:
             return False, "阈值必须大于0"
-
         if check_interval < 1:
             return False, "检查间隔必须大于等于1秒"
-            
         if execution_mode not in ["single", "multiple"]:
             return False, "执行模式必须是 'single' 或 'multiple'"
-            
         if minimum_hold_value < 0:
             return False, "最低持仓金额必须大于等于0"
-
         db = SessionLocal()
         try:
             record = db.query(MonitorRecord).filter(MonitorRecord.id == record_id).first()
             if not record:
                 return False, "监控记录不存在"
-
-            # 检查私钥是否存在（只检查未删除的）
-            private_key_obj = db.query(PrivateKey).filter(PrivateKey.id == private_key_id, PrivateKey.deleted == False).first()
+            private_key_obj = db.query(PrivateKey).filter(PrivateKey.id == private_key_id,
+                                                          PrivateKey.deleted == False).first()
             if not private_key_obj:
                 return False, "私钥不存在或已删除"
-
-            # 检查token地址是否改变，如果改变则重新获取元数据
             token_address_changed = record.token_address != token_address
             if token_address_changed:
                 api = BirdEyeAPI()
                 token_meta_data = api.get_token_meta_data(token_address)
-                
                 if not token_meta_data:
                     return False, "无法获取新Token信息，请检查Token地址是否正确"
-                
                 record.token_name = token_meta_data.get('name')
                 record.token_symbol = token_meta_data.get('symbol')
                 record.token_logo_uri = token_meta_data.get('logo_uri')
                 record.token_decimals = token_meta_data.get('decimals')
-
             record.name = name
-            record.private_key = private_key_obj.private_key  # 向后兼容
+            record.private_key = private_key_obj.private_key
             record.private_key_id = private_key_id
             record.token_address = token_address
             record.threshold = threshold
@@ -174,15 +171,14 @@ class MonitorService:
             record.check_interval = check_interval
             record.execution_mode = execution_mode
             record.minimum_hold_value = minimum_hold_value
-            record.pre_sniper_mode = pre_sniper_mode
+            record.pre_sniper_mode = pre_sniper_mode if type == "sell" else False
+            record.type = type
+            record.max_buy_amount = max_buy_amount if type == "buy" else 0.0
             record.updated_at = datetime.utcnow()
-
             db.commit()
-            
             success_message = "监控记录更新成功"
             if token_address_changed:
                 success_message += f"，已更新Token信息: {record.token_name or 'Unknown'} ({record.token_symbol or 'N/A'})"
-            
             return True, success_message
         except Exception as e:
             return False, str(e)
@@ -395,7 +391,8 @@ class MonitorService:
                 return False, "私钥昵称已存在", None
 
             # 检查私钥是否已存在（只检查未删除的）
-            existing = db.query(PrivateKey).filter(PrivateKey.private_key == private_key, PrivateKey.deleted == False).first()
+            existing = db.query(PrivateKey).filter(PrivateKey.private_key == private_key,
+                                                   PrivateKey.deleted == False).first()
             if existing:
                 return False, "该私钥已存在", None
 
