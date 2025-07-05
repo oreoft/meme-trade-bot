@@ -339,8 +339,8 @@ class SolanaTrader:
                 logging.warning("SOL余额为0，无法买入")
                 return None
 
-            # 计算买入数量
-            buy_amount = sol_balance * buy_percentage
+            # 计算买入数量, 账号里面需要留一点sol作为token的账户的租费,如果token全部卖了,sol理论上可以全提走
+            buy_amount = (sol_balance * buy_percentage) - (0.0021 if buy_percentage == 1 else 0)
 
             # SOL的mint地址
             sol_mint = "So11111111111111111111111111111111111111112"
