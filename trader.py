@@ -13,6 +13,8 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.transaction import VersionedTransaction
 
+from birdeye_api import BirdEyeAPI
+
 try:
     from spl.token.instructions import get_associated_token_address
     from spl.token.client import Token
@@ -165,8 +167,10 @@ class SolanaTrader:
         try:
             # 获取交易数据
             swap_url = f"{self.jupiter_url}/swap"
+            # 只传quote['quote']部分，确保字段正确
+            quote_response = quote_data.get('quote') if 'quote' in quote_data else quote_data
             swap_data = {
-                'quoteResponse': quote_data,
+                'quoteResponse': quote_response,
                 'userPublicKey': str(self.wallet.pubkey()),
                 'wrapAndUnwrapSol': True
             }
@@ -231,13 +235,19 @@ class SolanaTrader:
             record = db.query(MonitorRecord).filter(
                 MonitorRecord.token_address == token_address
             ).first()
-            
+
             if record and record.token_decimals is not None:
                 logging.info(f"从数据库获取token decimals: {record.token_decimals}")
                 return record.token_decimals
             else:
                 # 如果数据库中没有，默认使用9位小数（大多数Solana代币的标准）
-                logging.warning(f"数据库中未找到token {token_address} 的decimals信息，使用默认值9")
+                api = BirdEyeAPI()
+                token_meta_data = api.get_token_meta_data(token_address)
+                token_decimals = token_meta_data.get('decimals')
+                if token_decimals is not None:
+                    logging.info(f"从API获取token decimals: {token_decimals}")
+                    return token_decimals
+                logging.warning("从api也未找到token decimals，使用默认值9")
                 return 9
         except Exception as e:
             logging.error(f"查询token decimals失败: {e}")
@@ -259,7 +269,7 @@ class SolanaTrader:
 
             # 从数据库获取正确的小数位数
             token_decimals = self.get_token_decimals(token_address)
-            
+
             # 转换为最小单位（使用实际的decimals）
             sell_amount_lamports = int(sell_amount * (10 ** token_decimals))
 

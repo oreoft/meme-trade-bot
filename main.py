@@ -10,7 +10,8 @@ from api import (
     monitor_router,
     records_router,
     logs_router,
-    keys_router
+    keys_router,
+    trade_router
 )
 # 导入拆分后的模块
 from config_manager import ConfigManager
@@ -44,6 +45,7 @@ app.include_router(monitor_router)  # 监控管理API
 app.include_router(records_router)  # 监控记录管理API
 app.include_router(logs_router)  # 日志API
 app.include_router(keys_router)  # 私钥管理API
+app.include_router(trade_router)  # 交易相关API
 
 # 设置监控器实例到需要的路由模块中
 from api import monitor as monitor_api

@@ -43,3 +43,27 @@ class MarketDataFetcher:
         except Exception as e:
             logging.error(f"处理价格信息失败: {e}")
             return None
+
+# ====== 下面是模块级token信息查询函数 ======
+def get_token_market_info(address: str):
+    """
+    查询token市场信息，返回dict: {name, symbol, logo_uri, decimals, price_usd}
+    兼容birdeye_api.BirdEyeAPI.get_token_info_combined返回结构。
+    """
+    try:
+        from birdeye_api import BirdEyeAPI
+        api = BirdEyeAPI()
+        info = api.get_token_info_combined(address)
+        if not info:
+            return None
+        meta = info.get('meta_data', {})
+        market = info.get('market_data', {})
+        return {
+            "name": meta.get("name", "未知"),
+            "symbol": meta.get("symbol", "未知"),
+            "logo_uri": meta.get("logo_uri") or meta.get("logoURI", ""),
+            "decimals": meta.get("decimals", 9),
+            "price_usd": market.get("price", 0)
+        }
+    except Exception:
+        return None

@@ -266,8 +266,14 @@
                                                             <i class="fas fa-coins me-2 text-primary"></i>
                                                             <span v-text="key.nickname"></span> 的Token明细
                                                         </h6>
-                                                        <div class="text-muted">
+                                                        <div class="text-muted d-flex align-items-center gap-2">
                                                             总价值: <span class="text-success fw-bold" v-text="'$' + walletTokensData[key.id].total_usd.toFixed(2)"></span>
+                                                            <button class="btn btn-outline-primary btn-sm ms-2" :disabled="walletTokensLoading[key.id]" @click="refreshWalletTokens(key.id)">
+                                                                <span v-if="walletTokensLoading[key.id]" class="spinner-border spinner-border-sm me-1"></span>
+                                                                <i v-else class="fas fa-refresh me-1"></i>
+                                                                <span v-if="walletTokensLoading[key.id]">刷新中...</span>
+                                                                <span v-else>刷新</span>
+                                                            </button>
                                                         </div>
                                                     </div>
                                                     <div class="table-responsive">
@@ -313,6 +319,11 @@
                                                                               v-text="token.address.substring(0, 6) + '...' + token.address.substring(token.address.length - 6)">
                                                                         </code>
                                                                         <i class="fas fa-copy ms-1 text-muted" style="font-size: 0.7em;"></i>
+                                                                    </td>
+                                                                    <td>
+                                                                        <button class="btn btn-outline-success btn-sm" @click="openConvertModal(key, token)">
+                                                                            <i class="fas fa-exchange-alt me-1"></i>兑换
+                                                                        </button>
                                                                     </td>
                                                                 </tr>
                                                             </tbody>
@@ -458,6 +469,92 @@
             </div>
         </div>
     </div>
+
+    <!-- 兑换Token模态框 -->
+    <div class="modal fade" :class="{ show: showConvertModal }" 
+         :style="{ display: showConvertModal ? 'block' : 'none' }"
+         @click="closeConvertModal">
+        <div class="modal-dialog" @click.stop>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exchange-alt me-2"></i>
+                        Token兑换
+                    </h5>
+                    <button type="button" class="btn-close" @click="closeConvertModal"></button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="getQuote">
+                        <div v-if="convertFromToken">
+                            <div class="mb-3">
+                                <label class="form-label">兑换自 (From)</label>
+                                <div class="d-flex align-items-center">
+                                    <img v-if="convertFromToken.logo_uri" :src="convertFromToken.logo_uri" style="width:24px;height:24px;" class="me-2 rounded-circle">
+                                    <span class="fw-bold me-2" v-text="convertFromToken.name"></span>
+                                    <span class="badge bg-secondary" v-text="convertFromToken.symbol"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">兑换至 (To) Token地址 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" v-model="convertToAddress" @blur="fetchToTokenInfo" required placeholder="请输入目标Token地址">
+                            <div v-if="convertToToken" class="form-text">
+                                <img v-if="convertToToken.logo_uri" :src="convertToToken.logo_uri" style="width:20px;height:20px;" class="me-2 rounded-circle">
+                                <span class="fw-bold me-2" v-text="convertToToken.name"></span>
+                                <span class="badge bg-secondary" v-text="convertToToken.symbol"></span>
+                            </div>
+                            <div v-if="convertToTokenError" class="text-danger small mt-1">
+                                <i class="fas fa-exclamation-triangle me-1"></i>{{ convertToTokenError }}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">兑换数量 <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" v-model.number="convertAmount" :max="convertFromToken ? convertFromToken.amount : null" min="0" step="any" required placeholder="请输入要兑换的数量">
+                            <div class="form-text">可用余额: <span v-text="convertFromToken ? formatAmount(convertFromToken.amount) : '--'"></span></div>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @click="closeConvertModal">取消</button>
+                            <button type="submit" class="btn btn-primary" :disabled="quoteLoading">
+                                <span v-if="quoteLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                <span v-if="quoteLoading">获取报价中...</span>
+                                <span v-else>获取报价</span>
+                            </button>
+                        </div>
+                    </form>
+                    <div v-if="convertQuote" class="alert alert-info mt-3">
+                        <div>
+                            <strong>兑换结果：</strong>
+                            <div>可获得 <span class="fw-bold" v-text="convertQuote.outAmountDisplay"></span> <span v-text="convertToToken ? convertToToken.symbol : ''"></span></div>
+                            <div>预估价值：<span class="fw-bold text-success" v-text="'$ ' + convertQuote.estimatedUsd"></span></div>
+                        </div>
+                        <div class="d-flex justify-content-end mt-2">
+                            <button class="btn btn-success" @click="doSwap" :disabled="swapLoading">
+                                <span v-if="swapLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                <span v-if="swapLoading">交易中...</span>
+                                <span v-else>确认兑换</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div v-if="swapResult" class="alert mt-3" :class="swapResult.success ? 'alert-success' : 'alert-danger'">
+                        <div v-if="swapResult.success">
+                            <i class="fas fa-check-circle me-1"></i>兑换成功！
+                            <div>
+                                交易哈希：
+                                <a :href="'https://solscan.io/tx/' + swapResult.txid" target="_blank"
+                                   :title="swapResult.txid"
+                                   style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;">
+                                    <span v-text="swapResult.txid.substring(0, 8) + '...' + swapResult.txid.substring(swapResult.txid.length-8)"></span>
+                                </a>
+                            </div>
+                        </div>
+                        <div v-else>
+                            <i class="fas fa-times-circle me-1"></i>兑换失败：<span v-text="swapResult.message"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -493,7 +590,18 @@ createApp({
             walletTokensExpanded: {}, // 钱包Token明细展开状态
             walletTokensLoading: {}, // 钱包Token明细加载状态
             walletTokensData: {}, // 钱包Token明细数据
-            isUsingCache: false // 是否正在使用缓存数据
+            isUsingCache: false, // 是否正在使用缓存数据
+            showConvertModal: false,
+            convertFromKey: null,
+            convertFromToken: null,
+            convertToAddress: '',
+            convertToToken: null,
+            convertToTokenError: '',
+            convertAmount: '',
+            quoteLoading: false,
+            convertQuote: null,
+            swapLoading: false,
+            swapResult: null,
         }
     },
     mounted() {
@@ -823,6 +931,119 @@ createApp({
                 this.showMessage('error', '网络错误');
             } finally {
                 this.walletTokensLoading = { ...this.walletTokensLoading, [keyId]: false };
+            }
+        },
+        async refreshWalletTokens(keyId) {
+            // 刷新单个钱包Token明细
+            this.walletTokensLoading = { ...this.walletTokensLoading, [keyId]: true };
+            try {
+                const response = await fetch(`/api/keys/${keyId}/tokens`);
+                const data = await response.json();
+                if (data.success) {
+                    this.walletTokensData = { ...this.walletTokensData, [keyId]: data.data };
+                    this.showMessage('success', 'Token明细已刷新');
+                } else {
+                    this.showMessage('error', data.error || '刷新Token明细失败');
+                }
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.walletTokensLoading = { ...this.walletTokensLoading, [keyId]: false };
+            }
+        },
+        openConvertModal(key, token) {
+            this.convertFromKey = key;
+            this.convertFromToken = token;
+            this.showConvertModal = true;
+            this.convertToAddress = '';
+            this.convertToToken = null;
+            this.convertToTokenError = '';
+            this.convertAmount = '';
+            this.convertQuote = null;
+            this.swapResult = null;
+        },
+        closeConvertModal() {
+            this.showConvertModal = false;
+            this.convertFromKey = null;
+            this.convertFromToken = null;
+            this.convertToAddress = '';
+            this.convertToToken = null;
+            this.convertToTokenError = '';
+            this.convertAmount = '';
+            this.convertQuote = null;
+            this.swapResult = null;
+        },
+        async fetchToTokenInfo() {
+            this.convertToToken = null;
+            this.convertToTokenError = '';
+            if (!this.convertToAddress) return;
+            try {
+                // 这里模拟查询token信息，后续可接后端API
+                // 假设有/api/token_info?address=xxx
+                const resp = await fetch(`/api/token_info?address=${this.convertToAddress}`);
+                const data = await resp.json();
+                if (data.success) {
+                    this.convertToToken = data.data;
+                } else {
+                    this.convertToTokenError = data.error || '未找到Token信息';
+                }
+            } catch (e) {
+                this.convertToTokenError = '查询失败';
+            }
+        },
+        async getQuote() {
+            this.quoteLoading = true;
+            this.convertQuote = null;
+            this.swapResult = null;
+            try {
+                // 这里模拟获取报价，后续可接后端API
+                // 假设有/api/quote?from=xxx&to=xxx&amount=xxx&key_id=xxx
+                const params = new URLSearchParams({
+                    from: this.convertFromToken.address,
+                    to: this.convertToAddress,
+                    amount: this.convertAmount,
+                    key_id: this.convertFromKey.id
+                });
+                const resp = await fetch(`/api/quote?${params.toString()}`);
+                const data = await resp.json();
+                if (data.success) {
+                    this.convertQuote = data.data;
+                } else {
+                    this.showMessage('error', data.error || '获取报价失败');
+                }
+            } catch (e) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.quoteLoading = false;
+            }
+        },
+        async doSwap() {
+            this.swapLoading = true;
+            this.swapResult = null;
+            try {
+                // 这里模拟发起兑换，后续可接后端API
+                // 假设有/api/swap POST
+                const resp = await fetch('/api/swap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: this.convertFromToken.address,
+                        to: this.convertToAddress,
+                        amount: this.convertAmount,
+                        key_id: this.convertFromKey.id,
+                        quote: this.convertQuote
+                    })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    this.swapResult = { success: true, txid: data.data.txid };
+                } else {
+                    this.swapResult = { success: false, message: data.error || '兑换失败' };
+                }
+            } catch (e) {
+                this.swapResult = { success: false, message: '网络错误' };
+            } finally {
+                this.swapLoading = false;
             }
         }
     }
