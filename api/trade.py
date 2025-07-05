@@ -65,7 +65,7 @@ async def quote(
             return {"success": False, "error": "获取报价失败"}
         to_info = get_token_market_info(to)
         out_amount = float(quote["outAmount"]) / (
-                    10 ** (to_info["decimals"] if to_info and "decimals" in to_info else 9))
+                10 ** (to_info["decimals"] if to_info and "decimals" in to_info else 9))
         usd = out_amount * (to_info["price_usd"] if to_info and "price_usd" in to_info else 0)
         return {"success": True, "data": {
             "outAmount": quote["outAmount"],
@@ -92,8 +92,11 @@ async def swap(data: dict = Body(...)):
         trader = SolanaTrader(key["private_key"])
         # 直接用quote数据执行
         txid = trader.execute_swap(quote)
-        if txid:
+        if isinstance(txid, str) and txid:
             return {"success": True, "data": {"txid": txid}}
+        elif isinstance(txid, dict) and "error" in txid:
+            # 透传后端详细错误
+            return {"success": False, "error": txid["error"], "program_logs": txid.get("program_logs")}
         else:
             return {"success": False, "error": "交易失败"}
     except Exception as e:

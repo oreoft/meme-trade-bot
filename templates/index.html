@@ -341,10 +341,10 @@
                                     <div class="form-text">多次执行模式下，当持仓价值低于此金额时将100%出售</div>
                                 </div>
                                 <div class="mb-3" v-else>
-                                    <label class="form-label">最低SOL保留金额</label>
+                                    <label class="form-label">最低SOL保留金额(USD)</label>
                                     <input type="number" class="form-control" v-model="recordForm.minimum_hold_value" 
                                            step="0.01" min="0" :disabled="recordForm.execution_mode === 'single'">
-                                    <div class="form-text">多次执行模式下，SOL余额低于此值时全部买入</div>
+                                    <div class="form-text">多次执行模式下，SOL价值低于此金额时全部买入</div>
                                 </div>
                             </div>
                         </div>

@@ -620,7 +620,7 @@
                     </div>
                     <div v-if="swapResult" class="alert mt-3"
                          :class="swapResult.success ? 'alert-success' : 'alert-danger'">
-                        <div v-if="swapResult.success">
+                        <template v-if="typeof swapResult.txid === 'string'">
                             <i class="fas fa-check-circle me-1"></i>兑换成功！
                             <div>
                                 交易哈希：
@@ -630,10 +630,19 @@
                                     <span v-text="swapResult.txid.substring(0, 8) + '...' + swapResult.txid.substring(swapResult.txid.length-8)"></span>
                                 </a>
                             </div>
-                        </div>
-                        <div v-else>
-                            <i class="fas fa-times-circle me-1"></i>兑换失败：<span v-text="swapResult.message"></span>
-                        </div>
+                        </template>
+                        <template v-else-if="swapResult.message">
+                            <i class="fas fa-times-circle me-1 text-danger"></i>
+                            <span class="text-danger">链上交易失败：</span>
+                            <pre class="text-danger small" style="white-space: pre-wrap;" v-text="swapResult.message"></pre>
+                            <div v-if="swapResult.program_logs && swapResult.program_logs.length" class="mt-2">
+                                <span class="fw-bold">链上日志：</span>
+                                <pre class="small bg-light border p-2" style="white-space: pre-wrap;max-height:200px;overflow:auto;" v-text="swapResult.program_logs.join('\n')"></pre>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <span class="text-danger">未知结果</span>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -1151,7 +1160,11 @@
                     if (data.success) {
                         this.swapResult = {success: true, txid: data.data.txid};
                     } else {
-                        this.swapResult = {success: false, message: data.error || '兑换失败'};
+                        this.swapResult = {
+                            success: false,
+                            message: data.error || '兑换失败',
+                            program_logs: data.program_logs || null
+                        };
                     }
                 } catch (e) {
                     this.swapResult = {success: false, message: '网络错误'};

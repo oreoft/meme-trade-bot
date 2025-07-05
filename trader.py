@@ -198,11 +198,8 @@ class SolanaTrader:
                 logging.error("响应中未找到swapTransaction字段")
                 return None
 
-            swp = response['swapTransaction']
-            swap_transaction_buf = base64.b64decode(swp)
-
             # 使用VersionedTransaction处理交易
-            swap_transaction = VersionedTransaction.from_bytes(base64.b64decode(swp))
+            swap_transaction = VersionedTransaction.from_bytes(base64.b64decode(response['swapTransaction']))
 
             # 获取最新的blockhash
             blockhash_response = self.client.get_latest_blockhash()
@@ -212,7 +209,6 @@ class SolanaTrader:
             # 签名交易
             signature = self.wallet.sign_message(solders.message.to_bytes_versioned(swap_transaction.message))
             signed_tx = VersionedTransaction.populate(swap_transaction.message, [signature])
-            encoded_tx = base64.b64encode(bytes(signed_tx)).decode('utf-8')
 
             # 使用重试机制发送交易
             for attempts in range(5):
@@ -225,39 +221,34 @@ class SolanaTrader:
                     logging.info(f"交易成功发送，ID: {txid}")
                     return str(txid)  # 转换为字符串
                 except Exception as e:
+                    err_str = str(e)
+                    # 如果包含insufficient lamports错误，直接返回失败
+                    if "insufficient lamports" in err_str:
+                        program_logs = self.extract_program_logs(err_str)
+                        logging.error(f"交易失败: {err_str}")
+                        return {"error": f"交易失败: {err_str}", "program_logs": program_logs}
                     print(f"Attempt {attempts + 1} failed due to timeout. Retrying in 5 seconds... [ reason: {e}]")
                     logging.warning(f"第{attempts + 1}次尝试失败: {e}")
                     if attempts < 4:  # 如果不是最后一次尝试
                         time.sleep(5)
                     else:
-                        # 提取Program log详细信息
-                        err_str = str(e)
-                        program_logs = []
-                        for line in err_str.splitlines():
-                            if "Program log:" in line:
-                                log_msg = line.split("Program log:", 1)[-1].strip()
-                                program_logs.append(log_msg)
+                        program_logs = self.extract_program_logs(err_str)
                         if program_logs:
                             error_detail = "\n".join(program_logs)
                             logging.error(f"所有重试尝试都失败了，链上日志：{error_detail}")
-                            return {"error": f"交易失败，链上日志：\n{error_detail}"}
+                            return {"error": f"交易失败，链上日志：\n{error_detail}", "program_logs": program_logs}
                         logging.error("所有重试尝试都失败了")
-                        return {"error": f"交易失败: {err_str}"}
+                        return {"error": f"交易失败: {err_str}", "program_logs": program_logs}
 
         except Exception as e:
-            # 提取Program log详细信息
             err_str = str(e)
-            program_logs = []
-            for line in err_str.splitlines():
-                if "Program log:" in line:
-                    log_msg = line.split("Program log:", 1)[-1].strip()
-                    program_logs.append(log_msg)
+            program_logs = self.extract_program_logs(err_str)
             if program_logs:
                 error_detail = "\n".join(program_logs)
                 logging.error(f"执行交易失败，链上日志：{error_detail}")
-                return {"error": f"交易失败，链上日志：\n{error_detail}"}
+                return {"error": f"交易失败，链上日志：\n{error_detail}", "program_logs": program_logs}
             logging.error(f"执行交易失败: {e}")
-            return {"error": f"交易失败: {err_str}"}
+            return {"error": f"交易失败: {err_str}", "program_logs": program_logs}
 
     def get_token_decimals(self, token_address: str) -> int:
         """从数据库获取token的小数位数"""
@@ -319,10 +310,14 @@ class SolanaTrader:
             # 执行交换
             tx_hash = self.execute_swap(quote)
 
-            if tx_hash:
+            if isinstance(tx_hash, str) and tx_hash:
                 logging.info(f"成功出售代币，获得 {float(quote['outAmount']) / 1e9:.4f} SOL")
                 return tx_hash
             else:
+                # 透传错误内容
+                if isinstance(tx_hash, dict) and "error" in tx_hash:
+                    logging.error(f"交易执行失败: {tx_hash['error']}")
+                    return tx_hash
                 logging.error("交易执行失败")
                 return None
 
@@ -359,13 +354,26 @@ class SolanaTrader:
             # 执行交换
             tx_hash = self.execute_swap(quote)
 
-            if tx_hash:
+            if isinstance(tx_hash, str) and tx_hash:
                 logging.info(f"成功买入代币，花费 {buy_amount} SOL")
                 return tx_hash
             else:
+                # 透传错误内容
+                if isinstance(tx_hash, dict) and "error" in tx_hash:
+                    logging.error(f"买入交易执行失败: {tx_hash['error']}")
+                    return tx_hash
                 logging.error("买入交易执行失败")
                 return None
 
         except Exception as e:
             logging.error(f"买入代币失败: {e}")
             return None
+
+    def extract_program_logs(self, err_str: str) -> list:
+        """从错误字符串中提取所有Program log信息"""
+        program_logs = []
+        for line in err_str.splitlines():
+            if "Program log:" in line:
+                log_msg = line.split("Program log:", 1)[-1].strip()
+                program_logs.append(log_msg)
+        return program_logs
