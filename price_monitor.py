@@ -341,8 +341,8 @@ class PriceMonitor:
                                 record._accumulated_buy_usd = 0.0
                             sol_balance = trader.get_sol_balance()
                             # 计算买入数量, 账号里面需要留一点sol作为token的账户的租费,如果token全部卖了,sol理论上可以全提走
-                            buy_amount = (sol_balance * record.buy_percentage) - (
-                                0.0021 if record.buy_percentage == 1 else 0)
+                            buy_amount = (sol_balance * record.sell_percentage) - (
+                                0.0021 if record.sell_percentage == 1 else 0)
                             if sol_balance <= 0 or buy_amount <= 0:
                                 self._complete_monitor_task(
                                     record_id, record, notifier, db,
