@@ -59,6 +59,7 @@ class MonitorRecord(Base):
     pre_sniper_mode = Column(Boolean, default=False)  # 是否开启预抢购模式
     type = Column(String, default="sell")  # 监控类型：sell(出售监听), buy(购买监听)
     max_buy_amount = Column(Float, default=0.0)  # 累计购买上限(USD)，仅买入监听用，0表示不限制
+    accumulated_buy_usd = Column(Float, default=0.0)  # 累计已购买金额(USD)，持久化
     
     # 关系
     private_key_obj = relationship("PrivateKey", lazy="joined", foreign_keys=[private_key_id])

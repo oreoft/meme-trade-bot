@@ -252,12 +252,9 @@
                                                 <span v-else>$--</span>
                                             </td>
                                             <td>
-                                                <span class="badge" :class="log.threshold_reached ? 'bg-danger' : 'bg-success'">
-                                                    <span v-if="log.threshold_reached">达到阈值</span>
-                                                    <span v-else>正常</span>
-                                                </span>
+                                                <span class="badge" :class="log.type === 'buy' ? 'bg-primary' : 'bg-warning'" v-text="log.type === 'buy' ? '买入' : '卖出'"></span>
+                                                <span v-text="log.action_taken || '--'"></span>
                                             </td>
-                                            <td v-text="log.action_taken || '--'"></td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -303,7 +300,7 @@
         <div class="modal-backdrop fade show" v-if="showEditModal" @click="closeEditModal"></div>
 
         <!-- 消息提示 -->
-        <div class="toast-container">
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
             <div v-for="message in messages" :key="message.id" 
                  class="toast align-items-center border-0 show"
                  :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">

@@ -81,10 +81,10 @@
     <!-- 监控列表 -->
     <div class="row">
         <div class="col-12">
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-eye me-2"></i>监控列表
+                        <i class="fas fa-eye me-2"></i>出售监听列表
                     </h5>
                 </div>
                 <div class="card-body">
@@ -92,13 +92,10 @@
                         <div class="spinner-border text-primary" role="status"></div>
                         <p class="mt-2 text-muted">加载中...</p>
                     </div>
-                    
-                    <div v-else-if="monitorRecords.length === 0" class="text-center py-5">
+                    <div v-else-if="sellRecords.length === 0" class="text-center py-5">
                         <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">暂无监控记录</h5>
-                        <p class="text-muted">点击"添加监控"按钮创建第一个监控记录</p>
+                        <h5 class="text-muted">暂无出售监听记录</h5>
                     </div>
-
                     <div v-else class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -118,25 +115,20 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="record in monitorRecords" :key="record.id">
+                                <tr v-for="record in sellRecords" :key="record.id">
                                     <td>
+                                        <span class="badge" :class="record.type === 'buy' ? 'bg-primary' : 'bg-warning'" v-text="record.type === 'buy' ? '买入' : '卖出'"></span>
                                         <strong v-text="record.name"></strong>
                                     </td>
                                     <td style="max-width: 160px;">
-                                        <a :href="'https://dexscreener.com/solana/' + record.token_address" 
-                                           target="_blank" 
-                                           class="text-decoration-none text-truncate d-inline-block"
-                                           style="max-width: 140px; vertical-align: middle;"
-                                           :title="record.token_address">
+                                        <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank" class="text-decoration-none text-truncate d-inline-block" style="max-width: 140px; vertical-align: middle;" :title="record.token_address">
                                             <code class="small text-primary">
                                               <span v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></span>
                                               <span v-if="record.token_symbol">(<span v-text="record.token_symbol"></span>)</span>
                                             </code>
                                         </a>
                                     </td>
-                                    <td>
-                                        <strong v-text="'$' + record.threshold.toLocaleString()"></strong>
-                                    </td>
+                                    <td><strong v-text="'$' + record.threshold.toLocaleString()"></strong></td>
                                     <td>
                                         <span v-if="record.last_market_cap" class="fw-bold" v-text="'$' + record.last_market_cap.toLocaleString(undefined, {maximumFractionDigits: 2})"></span>
                                         <span v-else class="text-muted">--</span>
@@ -145,68 +137,109 @@
                                         <span v-if="record.last_market_cap && record.threshold" v-html="getThresholdDiffHtml(record)"></span>
                                         <span v-else class="text-muted">--</span>
                                     </td>
-                                    <td>
-                                        <span class="badge bg-info" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" />
-                                    </td>
-                                    <td>
-                                        <span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" 
-                                              v-text="record.execution_mode === 'single' ? '单次' : '多次'"></span>
-                                    </td>
+                                    <td><span class="badge bg-info" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
+                                    <td><span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" v-text="record.execution_mode === 'single' ? '单次' : '多次'"></span></td>
                                     <td>
                                         <span v-if="record.execution_mode === 'multiple'" v-text="'$' + record.minimum_hold_value.toFixed(2)"></span>
                                         <span v-else class="text-muted">--</span>
                                     </td>
+                                    <td><span v-text="record.check_interval + '秒'"></span></td>
+                                    <td><span class="badge" :class="getStatusClass(record.status)"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
+                                    <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted">--</span></td>
                                     <td>
-                                        <span v-text="record.check_interval + '秒'"></span>
+                                        <div class="btn-group btn-group-sm" style="gap: 6px;">
+                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success" @click="startMonitor(record.id)" :disabled="operationLoading[record.id]" title="启动监控"><i class="fas fa-play"></i></button>
+                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger" @click="stopMonitor(record.id)" :disabled="operationLoading[record.id]" title="停止监控"><i class="fas fa-stop"></i></button>
+                                            <button class="btn btn-outline-primary" @click="editRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-outline-info" @click="viewLogs(record.id)" title="查看日志"><i class="fas fa-history"></i></button>
+                                            <button class="btn btn-outline-danger" @click="deleteRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
+                                        </div>
                                     </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-arrow-up me-2"></i>购买监听列表
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div v-if="loading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted">加载中...</p>
+                    </div>
+                    <div v-else-if="buyRecords.length === 0" class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无购买监听记录</h5>
+                    </div>
+                    <div v-else class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>名称</th>
+                                    <th>代币地址</th>
+                                    <th>阈值</th>
+                                    <th>当前市值</th>
+                                    <th>距离阈值</th>
+                                    <th>购买比例</th>
+                                    <th>执行</th>
+                                    <th>累计购买(USD)</th>
+                                    <th>间隔</th>
+                                    <th>状态</th>
+                                    <th>最后检查</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="record in buyRecords" :key="record.id">
                                     <td>
-                                        <span class="badge" :class="getStatusClass(record.status)">
-                                            <i class="fas" :class="getStatusIcon(record.status)"></i>
-                                            <span v-text="getStatusText(record.status)"></span>
-                                        </span>
+                                        <span class="badge" :class="record.type === 'buy' ? 'bg-primary' : 'bg-warning'" v-text="record.type === 'buy' ? '买入' : '卖出'"></span>
+                                        <strong v-text="record.name"></strong>
                                     </td>
+                                    <td style="max-width: 160px;">
+                                        <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank" class="text-decoration-none text-truncate d-inline-block" style="max-width: 140px; vertical-align: middle;" :title="record.token_address">
+                                            <code class="small text-primary">
+                                              <span v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></span>
+                                              <span v-if="record.token_symbol">(<span v-text="record.token_symbol"></span>)</span>
+                                            </code>
+                                        </a>
+                                    </td>
+                                    <td><strong v-text="'$' + record.threshold.toLocaleString()"></strong></td>
                                     <td>
-                                        <small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small>
+                                        <span v-if="record.last_market_cap" class="fw-bold" v-text="'$' + record.last_market_cap.toLocaleString(undefined, {maximumFractionDigits: 2})"></span>
                                         <span v-else class="text-muted">--</span>
                                     </td>
                                     <td>
+                                        <span v-if="record.last_market_cap && record.threshold && record.last_market_cap > record.threshold"
+                                              class="fw-bold text-success"
+                                              v-text="'还需跌 $' + (record.last_market_cap - record.threshold).toLocaleString(undefined, {maximumFractionDigits: 2})"></span>
+                                        <span v-else-if="record.last_market_cap && record.threshold"
+                                              class="fw-bold text-danger"
+                                              v-text="'已低于阈值'"></span>
+                                        <span v-else class="text-muted">--</span>
+                                    </td>
+                                    <td><span class="badge bg-info" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
+                                    <td><span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" v-text="record.execution_mode === 'single' ? '单次' : '多次'"/></td>
+                                    <td>
+                                        <span v-if="record.max_buy_amount && record.max_buy_amount > 0">
+                                            <span v-text="(typeof record.accumulated_buy_usd !== 'undefined' ? ('$' + record.accumulated_buy_usd.toFixed(2)) : (record._accumulated_buy_usd ? ('$' + record._accumulated_buy_usd.toFixed(2)) : '$0.00')) + ' / $' + record.max_buy_amount.toFixed(2)"></span>
+                                        </span>
+                                        <span v-else class="text-muted">--</span>
+                                    </td>
+                                    <td><span v-text="record.check_interval + '秒'"></span></td>
+                                    <td><span class="badge" :class="getStatusClass(record.status)"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
+                                    <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted">--</span></td>
+                                    <td>
                                         <div class="btn-group btn-group-sm" style="gap: 6px;">
-                                            <button 
-                                                v-if="record.status === 'stopped'" 
-                                                class="btn btn-outline-success"
-                                                @click="startMonitor(record.id)"
-                                                :disabled="operationLoading[record.id]"
-                                                title="启动监控">
-                                                <i class="fas fa-play"></i>
-                                            </button>
-                                            <button 
-                                                v-if="record.status === 'monitoring'" 
-                                                class="btn btn-outline-danger"
-                                                @click="stopMonitor(record.id)"
-                                                :disabled="operationLoading[record.id]"
-                                                title="停止监控">
-                                                <i class="fas fa-stop"></i>
-                                            </button>
-                                            <button 
-                                                class="btn btn-outline-primary"
-                                                @click="editRecord(record)"
-                                                :disabled="record.status === 'monitoring'"
-                                                title="编辑">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button 
-                                                class="btn btn-outline-info"
-                                                @click="viewLogs(record.id)"
-                                                title="查看日志">
-                                                <i class="fas fa-history"></i>
-                                            </button>
-                                            <button 
-                                                class="btn btn-outline-danger"
-                                                @click="deleteRecord(record.id)"
-                                                :disabled="record.status === 'monitoring'"
-                                                title="删除">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
+                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success" @click="startMonitor(record.id)" :disabled="operationLoading[record.id]" title="启动监控"><i class="fas fa-play"></i></button>
+                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger" @click="stopMonitor(record.id)" :disabled="operationLoading[record.id]" title="停止监控"><i class="fas fa-stop"></i></button>
+                                            <button class="btn btn-outline-primary" @click="editRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-outline-info" @click="viewLogs(record.id)" title="查看日志"><i class="fas fa-history"></i></button>
+                                            <button class="btn btn-outline-danger" @click="deleteRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -433,7 +466,7 @@
     <div v-if="showAddModal || showEditModal || showLogsModal" class="modal-backdrop fade show"></div>
 
     <!-- 消息提示 -->
-    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
         <div v-for="message in messages" :key="message.id" 
              class="toast align-items-center border-0 show mb-2" 
              :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
@@ -485,6 +518,12 @@ createApp({
         }
     },
     computed: {
+        sellRecords() {
+            return this.monitorRecords.filter(r => r.type === 'sell');
+        },
+        buyRecords() {
+            return this.monitorRecords.filter(r => r.type === 'buy');
+        },
         runningCount() {
             return this.monitorRecords.filter(r => r.status === 'monitoring').length;
         },

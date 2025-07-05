@@ -39,7 +39,8 @@ class MonitorService:
                     "last_price": record.last_price,
                     "last_market_cap": record.last_market_cap,
                     "type": record.type,
-                    "max_buy_amount": record.max_buy_amount
+                    "max_buy_amount": record.max_buy_amount,
+                    "accumulated_buy_usd": record.accumulated_buy_usd or 0.0
                 }
                 for record in records
             ]
@@ -250,7 +251,6 @@ class MonitorService:
             record = db.query(MonitorRecord).filter(MonitorRecord.id == record_id).first()
             if not record:
                 return None
-
             return {
                 "id": record.id,
                 "name": record.name,
@@ -271,7 +271,10 @@ class MonitorService:
                 "created_at": record.created_at.isoformat() if record.created_at else None,
                 "last_check_at": record.last_check_at.isoformat() if record.last_check_at else None,
                 "last_price": record.last_price,
-                "last_market_cap": record.last_market_cap
+                "last_market_cap": record.last_market_cap,
+                "type": record.type,
+                "max_buy_amount": record.max_buy_amount,
+                "accumulated_buy_usd": record.accumulated_buy_usd or 0.0
             }
         finally:
             db.close()

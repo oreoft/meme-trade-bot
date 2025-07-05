@@ -167,6 +167,7 @@
                                         <small v-text="formatTime(log.timestamp)"></small>
                                     </td>
                                     <td>
+                                        <span class="badge" :class="getMonitorType(log.monitor_record_id) === 'buy' ? 'bg-primary' : 'bg-warning'" v-text="getMonitorType(log.monitor_record_id) === 'buy' ? '买入' : '卖出'"></span>
                                         <span v-if="getMonitorName(log.monitor_record_id)" class="badge bg-light text-dark" v-text="getMonitorName(log.monitor_record_id)"></span>
                                         <span v-else class="text-muted">ID: <span v-text="log.monitor_record_id"></span></span>
                                     </td>
@@ -384,6 +385,10 @@ createApp({
         getMonitorName(recordId) {
             const monitor = this.monitors.find(m => m.id === recordId);
             return monitor ? monitor.name : '';
+        },
+        getMonitorType(recordId) {
+            const monitor = this.monitors.find(m => m.id === recordId);
+            return monitor ? monitor.type : '';
         },
         getLogRowClass(log) {
             if (log.tx_hash) {

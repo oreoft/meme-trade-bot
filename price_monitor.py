@@ -229,7 +229,9 @@ class PriceMonitor:
             notifier.send_trade_notification(
                 tx_hash, buy_amount, estimated_usd_value, record.name, record.token_symbol, action_type='buy'
             )
-            record._accumulated_buy_usd = getattr(record, '_accumulated_buy_usd', 0.0) + estimated_usd_value
+            # 累计金额持久化
+            record.accumulated_buy_usd = (record.accumulated_buy_usd or 0.0) + estimated_usd_value
+            db.commit()
             if record.execution_mode == "single" or actual_buy_percentage >= 1.0:
                 self._complete_monitor_task(
                     record_id, record, notifier, db,
