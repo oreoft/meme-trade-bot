@@ -155,23 +155,25 @@ class PriceMonitor:
 
         return True, "监控已停止"
 
-    def _should_send_price_update(self, token_address: str, current_mc: float) -> bool:
-        """检查是否应该发送价格更新通知（基于token地址的市值变化）"""
+    def _should_send_price_update(self, token_address: str, current_mc: float) -> tuple:
+        """检查是否应该发送价格更新通知（基于token地址的市值变化），返回(是否通知, 百分比变化)"""
         if token_address not in self.last_market_caps:
             # 第一次检查，记录市值但不发送通知
             self.last_market_caps[token_address] = current_mc
-            return False
+            return False, None
 
         last_mc = self.last_market_caps[token_address]
-
-        # 计算变化百分比
+        percent_change = None
         if last_mc > 0:
+            try:
+                percent_change = (current_mc - last_mc) / last_mc * 100
+            except Exception:
+                percent_change = None
             change_percent = abs((current_mc - last_mc) / last_mc)
             if change_percent >= self.market_cap_change_threshold:
                 self.last_market_caps[token_address] = current_mc
-                return True
-
-        return False
+                return True, percent_change
+        return False, percent_change
 
     def _complete_monitor_task(self, record_id: int, record, notifier, db, reason: str, message_title: str,
                                message_content: str):
@@ -223,7 +225,11 @@ class PriceMonitor:
             )
             db.add(log)
             db.commit()
-            notifier.send_trade_notification(tx_hash, buy_amount, estimated_usd_value, record.name, record.token_symbol)
+            # 买入专用通知
+            notifier.send_message(
+                title=f"✅ 【{record.name}】买入成功",
+                content=f"已用 {buy_amount:.6f} SOL（约 ${estimated_usd_value:.2f}）买入 {record.token_symbol or ''}，交易哈希：{tx_hash}"
+            )
             record._accumulated_buy_usd = getattr(record, '_accumulated_buy_usd', 0.0) + estimated_usd_value
             if record.execution_mode == "single" or actual_buy_percentage >= 1.0:
                 self._complete_monitor_task(
@@ -265,8 +271,11 @@ class PriceMonitor:
             )
             db.add(log)
             db.commit()
-            notifier.send_trade_notification(tx_hash, actual_sell_amount, estimated_usd_value, record.name,
-                                             record.token_symbol)
+            # 卖出专用通知
+            notifier.send_message(
+                title=f"✅ 【{record.name}】卖出成功",
+                content=f"已卖出 {actual_sell_amount:.6f} {record.token_symbol or ''}，获得约 ${estimated_usd_value:.2f}，交易哈希：{tx_hash}"
+            )
             if record.execution_mode == "single":
                 sell_percentage_text = f"{(actual_sell_percentage * 100):.1f}%"
                 self._complete_monitor_task(
@@ -319,11 +328,16 @@ class PriceMonitor:
 
                     self._log_monitor_data(record_id, price_info, record.threshold)
 
-                    if getattr(record, 'type', 'sell') == 'buy':
+                    is_buy = getattr(record, 'type', 'sell') == 'buy'
+                    action_type = 'buy' if is_buy else 'sell'
+
+                    if is_buy:
                         if price_info['market_cap'] < record.threshold:
                             print(
                                 f"监控 {record.name} 市值低于阈值，尝试买入。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
-                            notifier.send_price_alert(price_info, record.name, threshold_reached=True)
+                            notifier.send_price_alert(
+                                {**price_info, 'threshold': record.threshold, 'token_symbol': record.token_symbol},
+                                record.name, True, 'buy')
                             if not hasattr(record, '_accumulated_buy_usd'):
                                 record._accumulated_buy_usd = 0.0
                             sol_balance = trader.get_sol_balance()
@@ -346,15 +360,21 @@ class PriceMonitor:
                         else:
                             print(
                                 f"监控 {record.name} 市值未低于阈值。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
-                            if self._should_send_price_update(record.token_address, price_info['market_cap']):
-                                notifier.send_price_alert(price_info, record.name, threshold_reached=False)
+                            notify, percent_change = self._should_send_price_update(record.token_address,
+                                                                                    price_info['market_cap'])
+                            if notify:
+                                notifier.send_price_alert(
+                                    {**price_info, 'threshold': record.threshold, 'token_symbol': record.token_symbol},
+                                    record.name, False, 'buy', percent_change)
                         time.sleep(record.check_interval)
                         continue
                     # 卖出监听
                     if price_info['market_cap'] >= record.threshold:
                         print(
                             f"监控 {record.name} 市值达到阈值！当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
-                        notifier.send_price_alert(price_info, record.name, threshold_reached=True)
+                        notifier.send_price_alert(
+                            {**price_info, 'threshold': record.threshold, 'token_symbol': record.token_symbol},
+                            record.name, True, 'sell')
                         try:
                             token_balance_before = trader.get_token_balance(record.token_address)
                             if token_balance_before <= 0:
@@ -380,8 +400,12 @@ class PriceMonitor:
                     else:
                         print(
                             f"监控 {record.name} 市值未达到阈值。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
-                        if self._should_send_price_update(record.token_address, price_info['market_cap']):
-                            notifier.send_price_alert(price_info, record.name, threshold_reached=False)
+                        notify, percent_change = self._should_send_price_update(record.token_address,
+                                                                                price_info['market_cap'])
+                        if notify:
+                            notifier.send_price_alert(
+                                {**price_info, 'threshold': record.threshold, 'token_symbol': record.token_symbol},
+                                record.name, False, 'sell', percent_change)
                     time.sleep(record.check_interval)
 
                 except Exception as e:

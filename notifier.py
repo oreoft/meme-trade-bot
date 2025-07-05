@@ -53,24 +53,26 @@ class Notifier:
             logging.error(f"发送通知时出错: {e}")
             return False
 
-    def send_price_alert(self, price_info: Dict, meme_name: str, threshold_reached: bool = False) -> bool:
-        """发送价格预警"""
+    def send_price_alert(self, price_info: Dict, meme_name: str, threshold_reached: bool = False,
+                         action_type: str = 'sell', percent_change: float = None) -> bool:
+        """发送价格预警，action_type: 'buy' or 'sell'，支持百分比变化"""
         try:
             if threshold_reached:
-                title = f"🚨 【{meme_name}】市值阈值达到警告"
-                content = f"""【{meme_name}】市值阈值已达到！
-当前价格: ${price_info['price']:.8f}
-当前市值: ${price_info['market_cap']:,.2f}
-
-系统准备执行自动出售操作..."""
+                if action_type == 'buy':
+                    title = f"⚠️ 【{meme_name}】市值低于阈值，准备自动买入"
+                    content = f"当前市值：${price_info['market_cap']:,.2f}，阈值：${price_info['threshold']:,.2f}\n系统即将自动买入 {price_info.get('token_symbol', '')}"
+                else:
+                    title = f"⚠️ 【{meme_name}】市值达到阈值，准备自动卖出"
+                    content = f"当前市值：${price_info['market_cap']:,.2f}，阈值：${price_info['threshold']:,.2f}\n系统即将自动卖出 {price_info.get('token_symbol', '')}"
             else:
-                title = f"📊 【{meme_name}】价格监控报告"
-                content = f"""【{meme_name}】价格更新:
-当前价格: ${price_info['price']:.8f}
-当前市值: ${price_info['market_cap']:,.2f}"""
-
+                if percent_change is not None:
+                    direction = "激增" if percent_change > 0 else "骤降"
+                    title = f"📈 【{meme_name}】市值{direction}{abs(percent_change):.2f}%" if percent_change > 0 else f"📉 【{meme_name}】市值{direction}{abs(percent_change):.2f}%"
+                    content = f"当前市值：${price_info['market_cap']:,.2f}，与上次相比{direction}{abs(percent_change):.2f}%"
+                else:
+                    title = f"【{meme_name}】市值变化通知"
+                    content = f"当前市值：${price_info['market_cap']:,.2f}"
             return self.send_message(title, content)
-
         except Exception as e:
             logging.error(f"发送价格预警失败: {e}")
             return False
