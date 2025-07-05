@@ -226,9 +226,8 @@ class PriceMonitor:
             db.add(log)
             db.commit()
             # 买入专用通知
-            notifier.send_message(
-                title=f"✅ 【{record.name}】买入成功",
-                content=f"已用 {buy_amount:.6f} SOL（约 ${estimated_usd_value:.2f}）买入 {record.token_symbol or ''}，交易哈希：{tx_hash}"
+            notifier.send_trade_notification(
+                tx_hash, buy_amount, estimated_usd_value, record.name, record.token_symbol, action_type='buy'
             )
             record._accumulated_buy_usd = getattr(record, '_accumulated_buy_usd', 0.0) + estimated_usd_value
             if record.execution_mode == "single" or actual_buy_percentage >= 1.0:
@@ -272,9 +271,8 @@ class PriceMonitor:
             db.add(log)
             db.commit()
             # 卖出专用通知
-            notifier.send_message(
-                title=f"✅ 【{record.name}】卖出成功",
-                content=f"已卖出 {actual_sell_amount:.6f} {record.token_symbol or ''}，获得约 ${estimated_usd_value:.2f}，交易哈希：{tx_hash}"
+            notifier.send_trade_notification(
+                tx_hash, actual_sell_amount, estimated_usd_value, record.name, record.token_symbol, action_type='sell'
             )
             if record.execution_mode == "single":
                 sell_percentage_text = f"{(actual_sell_percentage * 100):.1f}%"

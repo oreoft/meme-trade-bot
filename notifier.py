@@ -55,41 +55,39 @@ class Notifier:
 
     def send_price_alert(self, price_info: Dict, meme_name: str, threshold_reached: bool = False,
                          action_type: str = 'sell', percent_change: float = None) -> bool:
-        """发送价格预警，action_type: 'buy' or 'sell'，支持百分比变化"""
+        """发送价格预警，action_type: 'buy' or 'sell'，支持百分比变化，格式为多行详细说明"""
         try:
             if threshold_reached:
                 if action_type == 'buy':
-                    title = f"⚠️ 【{meme_name}】市值低于阈值，准备自动买入"
-                    content = f"当前市值：${price_info['market_cap']:,.2f}，阈值：${price_info['threshold']:,.2f}\n系统即将自动买入 {price_info.get('token_symbol', '')}"
+                    title = f"【{meme_name}】市值阈值已达到！"
+                    content = f"""【{meme_name}】市值阈值已达到！\n当前价格: ${price_info['price']:.8f}\n当前市值: ${price_info['market_cap']:,.2f}\n\n系统准备执行自动买入操作..."""
                 else:
-                    title = f"⚠️ 【{meme_name}】市值达到阈值，准备自动卖出"
-                    content = f"当前市值：${price_info['market_cap']:,.2f}，阈值：${price_info['threshold']:,.2f}\n系统即将自动卖出 {price_info.get('token_symbol', '')}"
+                    title = f"【{meme_name}】市值阈值已达到！"
+                    content = f"""【{meme_name}】市值阈值已达到！\n当前价格: ${price_info['price']:.8f}\n当前市值: ${price_info['market_cap']:,.2f}\n\n系统准备执行自动出售操作..."""
             else:
                 if percent_change is not None:
                     direction = "激增" if percent_change > 0 else "骤降"
-                    title = f"📈 【{meme_name}】市值{direction}{abs(percent_change):.2f}%" if percent_change > 0 else f"📉 【{meme_name}】市值{direction}{abs(percent_change):.2f}%"
-                    content = f"当前市值：${price_info['market_cap']:,.2f}，与上次相比{direction}{abs(percent_change):.2f}%"
+                    title = f"【{meme_name}】市值{direction}{abs(percent_change):.2f}%"
+                    content = f"当前价格: ${price_info['price']:.8f}\n当前市值: ${price_info['market_cap']:,.2f}\n与上次相比{direction}{abs(percent_change):.2f}%"
                 else:
                     title = f"【{meme_name}】市值变化通知"
-                    content = f"当前市值：${price_info['market_cap']:,.2f}"
+                    content = f"当前价格: ${price_info['price']:.8f}\n当前市值: ${price_info['market_cap']:,.2f}"
             return self.send_message(title, content)
         except Exception as e:
             logging.error(f"发送价格预警失败: {e}")
             return False
 
-    def send_trade_notification(self, tx_hash: str, sell_amount: float, estimated_usd_value: float,
-                                meme_name: str, token_symbol: str = None) -> bool:
-        """发送交易通知"""
+    def send_trade_notification(self, tx_hash: str, amount: float, estimated_usd_value: float,
+                                meme_name: str, token_symbol: str = None, action_type: str = 'sell') -> bool:
+        """发送交易通知，action_type: 'buy' or 'sell'，格式为多行详细说明"""
         try:
-            title = f"✅ 【{meme_name}】交易执行完成"
-            content = f"""【{meme_name}】自动出售交易已完成！
-出售数量: {sell_amount:.4f} {token_symbol or '代币'}
-估算价值: ${estimated_usd_value:.2f} USD
-交易哈希: {tx_hash}
-查看交易: https://solscan.io/tx/{tx_hash}"""
-
+            if action_type == 'buy':
+                title = f"【{meme_name}】自动买入交易已完成！"
+                content = f"""【{meme_name}】自动买入交易已完成！\n买入数量: {amount:.6f} {token_symbol or '代币'}\n估算价值: ${estimated_usd_value:.2f} USD\n交易哈希: {tx_hash}\n查看交易: https://solscan.io/tx/{tx_hash}"""
+            else:
+                title = f"【{meme_name}】自动出售交易已完成！"
+                content = f"""【{meme_name}】自动出售交易已完成！\n出售数量: {amount:.6f} {token_symbol or '代币'}\n估算价值: ${estimated_usd_value:.2f} USD\n交易哈希: {tx_hash}\n查看交易: https://solscan.io/tx/{tx_hash}"""
             return self.send_message(title, content)
-
         except Exception as e:
             logging.error(f"发送交易通知失败: {e}")
             return False
