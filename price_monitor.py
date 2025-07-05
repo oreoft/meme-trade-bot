@@ -329,7 +329,6 @@ class PriceMonitor:
                     self._log_monitor_data(record_id, price_info, record.threshold)
 
                     is_buy = getattr(record, 'type', 'sell') == 'buy'
-                    action_type = 'buy' if is_buy else 'sell'
 
                     if is_buy:
                         if price_info['market_cap'] < record.threshold:
@@ -341,10 +340,13 @@ class PriceMonitor:
                             if not hasattr(record, '_accumulated_buy_usd'):
                                 record._accumulated_buy_usd = 0.0
                             sol_balance = trader.get_sol_balance()
-                            if sol_balance <= 0:
+                            # 计算买入数量, 账号里面需要留一点sol作为token的账户的租费,如果token全部卖了,sol理论上可以全提走
+                            buy_amount = (sol_balance * record.buy_percentage) - (
+                                0.0021 if record.buy_percentage == 1 else 0)
+                            if sol_balance <= 0 or buy_amount <= 0:
                                 self._complete_monitor_task(
                                     record_id, record, notifier, db,
-                                    reason="SOL余额为0，停止买入监控任务",
+                                    reason="SOL余额不足，停止买入监控任务",
                                     message_title=f"⚠️ 【{record.name}】SOL余额不足",
                                     message_content=f"【{record.name}】SOL余额为0，监控任务自动停止。"
                                 )

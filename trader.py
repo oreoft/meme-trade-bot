@@ -337,8 +337,6 @@ class SolanaTrader:
                 print("SOL余额不足，无法买入")
                 return None
 
-
-
             # SOL的mint地址
             sol_mint = "So11111111111111111111111111111111111111112"
 
