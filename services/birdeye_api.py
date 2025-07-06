@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from typing import Dict, Optional
@@ -5,6 +6,7 @@ from typing import Dict, Optional
 import requests
 
 from config.config_manager import ConfigManager
+from database.models import TokenMetaData, SessionLocal
 
 
 class BirdEyeAPI:
@@ -49,15 +51,15 @@ class BirdEyeAPI:
         return self._headers_cache
 
     def get_token_meta_data(self, address: str) -> Optional[Dict]:
-        """获取token元数据
-
-        Args:
-            address: token地址
-
-        Returns:
-            token元数据字典，包含address, name, symbol, decimals, extensions, logo_uri等字段
-        """
+        """获取token元数据，带数据库缓存（永久有效）"""
+        db = SessionLocal()
         try:
+            # 1. 先查数据库缓存（只要有就直接返回）
+            cache = db.query(TokenMetaData).filter_by(address=address).first()
+            if cache:
+                return cache.to_dict()
+
+            # 2. 没有缓存，请求API
             url = f'{self.base_url}/defi/v3/token/meta-data/single'
             params = {'address': address}
 
@@ -71,6 +73,12 @@ class BirdEyeAPI:
 
             data = json_response.get('data', {})
             logging.info(f"成功获取token元数据: {address}")
+
+            # 3. 写入数据库缓存
+            data_str = json.dumps(data, ensure_ascii=False)
+            cache = TokenMetaData(address=address, data=data_str, updated_at=time.time())
+            db.add(cache)
+            db.commit()
             return data
 
         except requests.exceptions.RequestException as e:
@@ -79,6 +87,8 @@ class BirdEyeAPI:
         except Exception as e:
             logging.error(f"解析token元数据失败 [{address}]: {e}")
             return None
+        finally:
+            db.close()
 
     def get_market_data(self, address: str) -> Optional[Dict]:
         """获取token市场数据
