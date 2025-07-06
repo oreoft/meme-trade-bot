@@ -52,7 +52,6 @@ def get_token_market_info(address: str):
     兼容birdeye_api.BirdEyeAPI.get_token_info_combined返回结构。
     """
     try:
-        from birdeye_api import BirdEyeAPI
         api = BirdEyeAPI()
         info = api.get_token_info_combined(address)
         if not info:
@@ -67,4 +66,5 @@ def get_token_market_info(address: str):
             "price_usd": market.get("price", 0)
         }
     except Exception:
+        logging.error(f"获取Token市场信息失败 [{address}]")
         return None
