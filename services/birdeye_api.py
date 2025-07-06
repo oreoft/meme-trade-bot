@@ -8,16 +8,28 @@ from config.config_manager import ConfigManager
 
 
 class BirdEyeAPI:
+    _instance = None
+    _initialized = False
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     """BirdEye API 工具类"""
 
     def __init__(self):
+        if self._initialized:
+            return
         self.base_url = 'https://public-api.birdeye.so/defi/v3'
         self._headers_cache = None
         self._last_config_update = 0
         # 初始化时加载配置
         self.refresh_config()
         # 注册到配置管理器，支持统一刷新
+        from config.config_manager import ConfigManager
         ConfigManager.register_service(self)
+        self._initialized = True
 
     def refresh_config(self):
         """刷新配置缓存 - 可通过Web界面的刷新按钮调用"""
