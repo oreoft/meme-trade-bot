@@ -1031,13 +1031,15 @@
             async loadWalletTokens(keyId) {
                 this.walletTokensLoading = {...this.walletTokensLoading, [keyId]: true};
                 try {
-                    const response = await fetch(`/api/keys/${keyId}/tokens`);
-                    const data = await response.json();
-                    if (data.success) {
-                        this.walletTokensData = {...this.walletTokensData, [keyId]: data.data};
-                    } else {
-                        this.showMessage('error', data.error || '加载Token明细失败');
-                    }
+                    const response = await ApiClient.get(`/api/keys/${keyId}/tokens`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.walletTokensData = {...this.walletTokensData, [keyId]: data};
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '加载Token明细失败');
+                        }
+                    );
                 } catch (error) {
                     this.showMessage('error', '网络错误');
                 } finally {
@@ -1048,14 +1050,16 @@
                 // 刷新单个钱包Token明细
                 this.walletTokensLoading = {...this.walletTokensLoading, [keyId]: true};
                 try {
-                    const response = await fetch(`/api/keys/${keyId}/tokens`);
-                    const data = await response.json();
-                    if (data.success) {
-                        this.walletTokensData = {...this.walletTokensData, [keyId]: data.data};
-                        this.showMessage('success', 'Token明细已刷新');
-                    } else {
-                        this.showMessage('error', data.error || '刷新Token明细失败');
-                    }
+                    const response = await ApiClient.get(`/api/keys/${keyId}/tokens`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.walletTokensData = {...this.walletTokensData, [keyId]: data};
+                            this.showMessage('success', 'Token明细已刷新');
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '刷新Token明细失败');
+                        }
+                    );
                 } catch (error) {
                     this.showMessage('error', '网络错误');
                 } finally {

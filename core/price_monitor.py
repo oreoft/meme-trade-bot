@@ -213,8 +213,9 @@ class PriceMonitor:
                 message_content=f"【{record.name}】累计买入金额已达上限（{max_buy} USD），监控任务自动停止。"
             )
             return False
-        tx_hash = trader.buy_token_for_sol(record.token_address, actual_buy_percentage)
-        if tx_hash:
+        result = trader.buy_token_for_sol(record.token_address, actual_buy_percentage)
+        if result["success"]:
+            tx_hash = result["tx_hash"]
             logging.info(f"买入交易成功: {tx_hash}")
             log = MonitorLog(
                 monitor_record_id=record_id,
@@ -246,8 +247,9 @@ class PriceMonitor:
                 time.sleep(60)
                 return True
         else:
-            logging.error(f"买入交易失败")
-            notifier.send_error_notification(f"买入交易失败", record.name)
+            error_msg = result["error"]
+            logging.error(f"买入交易失败: {error_msg}")
+            notifier.send_error_notification(f"买入交易失败: {error_msg}", record.name)
             return True
 
     def _handle_sell_monitor(self, record, trader, notifier, price_info, db, record_id, token_balance_before):
@@ -260,8 +262,9 @@ class PriceMonitor:
                 actual_sell_percentage = 1.0
         actual_sell_amount = token_balance_before * actual_sell_percentage
         estimated_usd_value = actual_sell_amount * price_info['price']
-        tx_hash = trader.sell_token_for_sol(record.token_address, actual_sell_percentage)
-        if tx_hash:
+        result = trader.sell_token_for_sol(record.token_address, actual_sell_percentage)
+        if result["success"]:
+            tx_hash = result["tx_hash"]
             logging.info(f"交易成功: {tx_hash}")
             log = MonitorLog(
                 monitor_record_id=record_id,
@@ -299,8 +302,9 @@ class PriceMonitor:
                 time.sleep(60)
                 return True
         else:
-            logging.error(f"交易执行失败")
-            notifier.send_error_notification(f"交易执行失败", record.name)
+            error_msg = result["error"]
+            logging.error(f"交易执行失败: {error_msg}")
+            notifier.send_error_notification(f"交易执行失败: {error_msg}", record.name)
             return True
 
     def _monitor_loop(self, record_id: int):

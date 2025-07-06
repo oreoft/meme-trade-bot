@@ -275,14 +275,22 @@ class SolanaTrader:
         finally:
             db.close()
 
-    def sell_token_for_sol(self, token_address: str, sell_percentage: float) -> Optional[str]:
-        """将代币换成SOL"""
+    def sell_token_for_sol(self, token_address: str, sell_percentage: float) -> Dict:
+        """将代币换成SOL
+        
+        Returns:
+            Dict: 包含以下字段的字典
+                - success (bool): 是否成功
+                - tx_hash (str): 成功时的交易哈希，失败时为None
+                - error (str): 失败时的错误信息，成功时为None
+        """
         try:
             # 获取代币余额
             token_balance = self.get_token_balance(token_address)
             if token_balance <= 0:
-                logging.warning("代币余额为0，无法出售")
-                return None
+                error_msg = "代币余额为0，无法出售"
+                logging.warning(error_msg)
+                return {"success": False, "tx_hash": None, "error": error_msg}
 
             # 计算出售数量
             sell_amount = token_balance * sell_percentage
@@ -300,38 +308,57 @@ class SolanaTrader:
 
             # 获取报价
             quote = self.get_quote(token_address, sol_mint, sell_amount_lamports)
-            if not quote:
-                logging.error("无法获取交易报价")
-                return None
+            if not quote or "error" in quote:
+                if quote and "error" in quote:
+                    error_msg = f"获取交易报价失败: {quote['error']}"
+                    logging.error(error_msg)
+                    return {"success": False, "tx_hash": None, "error": error_msg}
+                else:
+                    error_msg = "无法获取交易报价"
+                    logging.error(error_msg)
+                    return {"success": False, "tx_hash": None, "error": error_msg}
 
             # 执行交换
             tx_hash = self.execute_swap(quote)
 
+            # 只有当返回值是字符串类型的交易哈希时才算成功
             if isinstance(tx_hash, str) and tx_hash:
-                logging.info(f"成功出售代币，获得 {float(quote['outAmount']) / 1e9:.4f} SOL")
-                return tx_hash
+                logging.info(f"成功出售代币，获得 {float(quote['outAmount']) / 1e9:.4f} SOL，交易哈希: {tx_hash}")
+                return {"success": True, "tx_hash": tx_hash, "error": None}
             else:
-                # 透传错误内容
+                # 失败情况：记录错误并返回错误信息
                 if isinstance(tx_hash, dict) and "error" in tx_hash:
-                    logging.error(f"交易执行失败: {tx_hash['error']}")
-                    return tx_hash
-                logging.error("交易执行失败")
-                return None
+                    error_msg = f"交易执行失败: {tx_hash['error']}"
+                    logging.error(error_msg)
+                    return {"success": False, "tx_hash": None, "error": error_msg}
+                else:
+                    error_msg = "交易执行失败"
+                    logging.error(error_msg)
+                    return {"success": False, "tx_hash": None, "error": error_msg}
 
         except Exception as e:
-            logging.error(f"出售代币失败: {e}")
-            return None
+            error_msg = f"出售代币失败: {str(e)}"
+            logging.error(error_msg)
+            return {"success": False, "tx_hash": None, "error": error_msg}
 
-    def buy_token_for_sol(self, token_address: str, buy_percentage: float) -> Optional[str]:
-        """用SOL买入指定代币"""
+    def buy_token_for_sol(self, token_address: str, buy_percentage: float) -> Dict:
+        """用SOL买入指定代币
+        
+        Returns:
+            Dict: 包含以下字段的字典
+                - success (bool): 是否成功
+                - tx_hash (str): 成功时的交易哈希，失败时为None
+                - error (str): 失败时的错误信息，成功时为None
+        """
         try:
             # 获取SOL余额
             sol_balance = self.get_sol_balance()
             # 计算买入数量, 账号里面需要留一点sol作为token的账户的租费,如果token全部卖了,sol理论上可以全提走
             buy_amount = (sol_balance * buy_percentage) - (0.0021 if buy_percentage == 1 else 0)
             if sol_balance <= 0 or buy_amount <= 0:
-                logging.warning("SOL余额不足，无法买入")
-                return None
+                error_msg = "SOL余额不足，无法买入"
+                logging.warning(error_msg)
+                return {"success": False, "tx_hash": None, "error": error_msg}
 
             # SOL的mint地址
             sol_mint = "So11111111111111111111111111111111111111112"
@@ -343,27 +370,38 @@ class SolanaTrader:
 
             # 获取报价
             quote = self.get_quote(sol_mint, token_address, buy_amount_lamports)
-            if not quote:
-                logging.error("无法获取买入交易报价")
-                return None
+            if not quote or "error" in quote:
+                if quote and "error" in quote:
+                    error_msg = f"获取买入交易报价失败: {quote['error']}"
+                    logging.error(error_msg)
+                    return {"success": False, "tx_hash": None, "error": error_msg}
+                else:
+                    error_msg = "无法获取买入交易报价"
+                    logging.error(error_msg)
+                    return {"success": False, "tx_hash": None, "error": error_msg}
 
             # 执行交换
             tx_hash = self.execute_swap(quote)
 
+            # 只有当返回值是字符串类型的交易哈希时才算成功
             if isinstance(tx_hash, str) and tx_hash:
-                logging.info(f"成功买入代币，花费 {buy_amount} SOL")
-                return tx_hash
+                logging.info(f"成功买入代币，花费 {buy_amount} SOL，交易哈希: {tx_hash}")
+                return {"success": True, "tx_hash": tx_hash, "error": None}
             else:
-                # 透传错误内容
+                # 失败情况：记录错误并返回错误信息
                 if isinstance(tx_hash, dict) and "error" in tx_hash:
-                    logging.error(f"买入交易执行失败: {tx_hash['error']}")
-                    return tx_hash
-                logging.error("买入交易执行失败")
-                return None
+                    error_msg = f"买入交易执行失败: {tx_hash['error']}"
+                    logging.error(error_msg)
+                    return {"success": False, "tx_hash": None, "error": error_msg}
+                else:
+                    error_msg = "买入交易执行失败"
+                    logging.error(error_msg)
+                    return {"success": False, "tx_hash": None, "error": error_msg}
 
         except Exception as e:
-            logging.error(f"买入代币失败: {e}")
-            return None
+            error_msg = f"买入代币失败: {str(e)}"
+            logging.error(error_msg)
+            return {"success": False, "tx_hash": None, "error": error_msg}
 
     def extract_program_logs(self, err_str: str) -> list:
         """从错误字符串中提取所有Program log信息"""
