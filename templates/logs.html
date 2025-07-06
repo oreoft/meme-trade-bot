@@ -226,6 +226,19 @@
             </div>
         </div>
     </div>
+
+    <!-- 消息提示 -->
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
+        <div v-for="message in messages" :key="message.id" 
+             class="toast align-items-center border-0 show mb-2" 
+             :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
+            <div class="d-flex">
+                <div class="toast-body" v-text="message.text"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" 
+                        @click="removeMessage(message.id)"></button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -245,7 +258,8 @@ createApp({
             totalLogs: 0,
             totalPages: 0,
             filterType: '',
-            autoRefreshInterval: null
+            autoRefreshInterval: null,
+            messages: []
         }
     },
     computed: {
@@ -360,18 +374,18 @@ createApp({
                 const response = await ApiClient.delete(url);
                 ApiResponse.handle(response,
                     (data) => {
-                        alert(response.message || '日志清空成功');
+                        this.showMessage('success', response.message || '日志清空成功');
                         // 重新加载日志
                         this.currentPage = 1;
                         this.loadLogs();
                     },
                     (error) => {
-                        alert(`清空日志失败: ${error}`);
+                        this.showMessage('error', `清空日志失败: ${error}`);
                     }
                 );
             } catch (error) {
                 console.error('清空日志失败:', error);
-                alert('清空日志失败，请检查网络连接');
+                this.showMessage('error', '清空日志失败，请检查网络连接');
             } finally {
                 this.loading = false;
             }
@@ -422,6 +436,16 @@ createApp({
                 minute: '2-digit',
                 second: '2-digit'
             });
+        },
+        showMessage(type, text) {
+            const id = Date.now() + Math.random();
+            this.messages.push({ id, type, text });
+            setTimeout(() => {
+                this.removeMessage(id);
+            }, 5000);
+        },
+        removeMessage(id) {
+            this.messages = this.messages.filter(m => m.id !== id);
         }
     }
 }).mount('#app');

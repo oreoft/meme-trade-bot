@@ -149,7 +149,7 @@
          @click="closeModal"></div>
 
     <!-- 消息提示 -->
-    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
         <div v-for="message in messages" :key="message.id" 
              class="toast align-items-center border-0 show" 
              :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
