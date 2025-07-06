@@ -14,8 +14,13 @@ from api import (
     trade_router
 )
 # 导入拆分后的模块
-from config_manager import ConfigManager
-from price_monitor import PriceMonitor
+from config.config_manager import ConfigManager
+# 导入日志配置模块
+from config.log_config import setup_logging
+from core.price_monitor import PriceMonitor
+
+# 初始化日志系统
+setup_logging()
 
 # 创建FastAPI应用
 app = FastAPI(title="币价监控系统", description="实时监控代币价格，智能触发交易策略")

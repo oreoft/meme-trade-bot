@@ -3,8 +3,8 @@ from typing import List, Dict, Optional
 
 from solders.keypair import Keypair
 
-from birdeye_api import BirdEyeAPI
-from models import MonitorRecord, MonitorLog, PrivateKey, SessionLocal
+from database.models import MonitorRecord, MonitorLog, PrivateKey, SessionLocal
+from services.birdeye_api import BirdEyeAPI
 
 
 class MonitorService:

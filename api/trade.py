@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Query, Body
 
-from market_data import get_token_market_info
-from monitor_service import MonitorService
-from trader import SolanaTrader
+from core.trader import SolanaTrader
+from services.market_data import get_token_market_info
+from services.monitor_service import MonitorService
 
 router = APIRouter(prefix="/api", tags=["交易相关"])
 

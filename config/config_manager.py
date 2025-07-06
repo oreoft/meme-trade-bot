@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from models import Config, SessionLocal
+from database.models import Config, SessionLocal
 
 
 class ConfigManager:

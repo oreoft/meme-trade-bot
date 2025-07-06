@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from monitor_service import MonitorService
+from services.monitor_service import MonitorService
 
 # 创建路由器
 router = APIRouter(prefix="/api", tags=["日志管理"])

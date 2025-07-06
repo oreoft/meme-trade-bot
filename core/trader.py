@@ -13,7 +13,7 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.transaction import VersionedTransaction
 
-from birdeye_api import BirdEyeAPI
+from services.birdeye_api import BirdEyeAPI
 
 try:
     from spl.token.instructions import get_associated_token_address
@@ -21,8 +21,8 @@ try:
 except ImportError:
     # 如果spl包导入失败，我们稍后会手动实现相关功能
     pass
-from config_manager import ConfigManager
-from models import MonitorRecord, SessionLocal
+from config.config_manager import ConfigManager
+from database.models import MonitorRecord, SessionLocal
 
 
 class SolanaTrader:

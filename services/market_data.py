@@ -2,8 +2,8 @@ import logging
 import time
 from typing import Dict, Optional
 
-from birdeye_api import BirdEyeAPI
-from config_manager import ConfigManager
+from config.config_manager import ConfigManager
+from services.birdeye_api import BirdEyeAPI
 
 
 class MarketDataFetcher:

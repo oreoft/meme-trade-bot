@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from config_manager import ConfigManager
+from config.config_manager import ConfigManager
 
 # 创建路由器
 router = APIRouter(prefix="/api", tags=["配置管理"])

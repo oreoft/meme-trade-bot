@@ -3,10 +3,10 @@ import time
 from datetime import datetime
 from typing import Dict, List
 
-from market_data import MarketDataFetcher
-from models import MonitorRecord, MonitorLog, SessionLocal
-from notifier import Notifier
-from trader import SolanaTrader
+from core.trader import SolanaTrader
+from database.models import MonitorRecord, MonitorLog, SessionLocal
+from services.market_data import MarketDataFetcher
+from services.notifier import Notifier
 
 
 class PriceMonitor:

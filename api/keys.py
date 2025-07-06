@@ -2,8 +2,8 @@ import base58
 from fastapi import APIRouter, Form
 from solders.keypair import Keypair
 
-from birdeye_api import BirdEyeAPI
-from monitor_service import MonitorService
+from services.birdeye_api import BirdEyeAPI
+from services.monitor_service import MonitorService
 
 # 创建路由器
 router = APIRouter(prefix="/api/keys", tags=["私钥管理"])
