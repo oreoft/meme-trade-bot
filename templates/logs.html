@@ -295,11 +295,15 @@ createApp({
     methods: {
         async loadMonitors() {
             try {
-                const response = await fetch('/api/monitor/records');
-                const data = await response.json();
-                if (data.success) {
-                    this.monitors = data.data;
-                }
+                const response = await ApiClient.get('/api/monitor/records');
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.monitors = data;
+                    },
+                    (error) => {
+                        console.error('加载监控记录失败:', error);
+                    }
+                );
             } catch (error) {
                 console.error('加载监控记录失败:', error);
             }
@@ -313,16 +317,17 @@ createApp({
                     url += `&monitor_record_id=${this.selectedMonitorId}`;
                 }
                 
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                if (data.success) {
-                    this.logs = data.data.logs;
-                    this.totalLogs = data.data.total;
-                    this.totalPages = Math.ceil(this.totalLogs / this.perPage);
-                } else {
-                    console.error('加载日志失败:', data.error);
-                }
+                const response = await ApiClient.get(url);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.logs = data.logs;
+                        this.totalLogs = data.total;
+                        this.totalPages = Math.ceil(this.totalLogs / this.perPage);
+                    },
+                    (error) => {
+                        console.error('加载日志失败:', error);
+                    }
+                );
             } catch (error) {
                 console.error('网络错误:', error);
             } finally {
@@ -352,23 +357,18 @@ createApp({
                     url += `?monitor_record_id=${this.selectedMonitorId}`;
                 }
                 
-                const response = await fetch(url, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
+                const response = await ApiClient.delete(url);
+                ApiResponse.handle(response,
+                    (data) => {
+                        alert(response.message || '日志清空成功');
+                        // 重新加载日志
+                        this.currentPage = 1;
+                        this.loadLogs();
+                    },
+                    (error) => {
+                        alert(`清空日志失败: ${error}`);
                     }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert(`${data.message}`);
-                    // 重新加载日志
-                    this.currentPage = 1;
-                    await this.loadLogs();
-                } else {
-                    alert(`清空日志失败: ${data.error}`);
-                }
+                );
             } catch (error) {
                 console.error('清空日志失败:', error);
                 alert('清空日志失败，请检查网络连接');

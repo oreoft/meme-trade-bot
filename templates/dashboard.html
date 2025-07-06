@@ -363,10 +363,15 @@
 
                 async loadStatus() {
                     try {
-                        const response = await axios.get('/api/monitor/status');
-                        if (response.data.success) {
-                            this.status = response.data.data;
-                        }
+                        const response = await ApiClient.get('/api/monitor/status');
+                        ApiResponse.handle(response,
+                            (data) => {
+                                this.status = data;
+                            },
+                            (error) => {
+                                console.error('获取状态失败:', error);
+                            }
+                        );
                     } catch (error) {
                         console.error('获取状态失败:', error);
                     }
@@ -374,10 +379,15 @@
 
                 async loadConfigs() {
                     try {
-                        const response = await axios.get('/api/configs');
-                        if (response.data.success) {
-                            this.configs = response.data.data;
-                        }
+                        const response = await ApiClient.get('/api/configs');
+                        ApiResponse.handle(response,
+                            (data) => {
+                                this.configs = data;
+                            },
+                            (error) => {
+                                console.error('加载配置失败:', error);
+                            }
+                        );
                     } catch (error) {
                         console.error('加载配置失败:', error);
                     }
@@ -385,10 +395,15 @@
 
                 async loadLogs() {
                     try {
-                        const response = await axios.get('/api/logs?per_page=10');
-                        if (response.data.success) {
-                            this.logs = response.data.data.logs;
-                        }
+                        const response = await ApiClient.get('/api/logs?per_page=10');
+                        ApiResponse.handle(response,
+                            (data) => {
+                                this.logs = data.logs;
+                            },
+                            (error) => {
+                                console.error('加载日志失败:', error);
+                            }
+                        );
                     } catch (error) {
                         console.error('加载日志失败:', error);
                     }
@@ -475,12 +490,17 @@
                         formData.append('value', this.editForm.value);
                         formData.append('description', this.editForm.description);
                         
-                        const response = await axios.post('/api/configs', formData);
-                        if (response.data.success) {
-                            this.showMessage('配置更新成功', 'success');
-                            this.closeEditModal();
-                            await this.loadConfigs();
-                        }
+                        const response = await ApiClient.post('/api/configs', formData);
+                        ApiResponse.handle(response,
+                            (data) => {
+                                this.showMessage('配置更新成功', 'success');
+                                this.closeEditModal();
+                                this.loadConfigs();
+                            },
+                            (error) => {
+                                this.showMessage('更新失败: ' + error, 'error');
+                            }
+                        );
                     } catch (error) {
                         this.showMessage('更新失败: ' + error.message, 'error');
                     }

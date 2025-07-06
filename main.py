@@ -20,12 +20,17 @@ from config.config_manager import ConfigManager
 # 导入日志配置模块
 from config.log_config import setup_logging
 from core.price_monitor import PriceMonitor
+# 导入全局异常处理
+from utils.exception_handler import GlobalExceptionHandler, setup_exception_handlers
 
 # 初始化日志系统
 setup_logging()
 
 # 创建FastAPI应用
 app = FastAPI(title="币价监控系统", description="实时监控代币价格，智能触发交易策略")
+
+# 添加全局异常处理中间件
+app.add_middleware(GlobalExceptionHandler)
 
 # 添加CORS中间件
 app.add_middleware(
@@ -35,6 +40,9 @@ app.add_middleware(
     allow_methods=["*"],  # 允许所有HTTP方法，包括DELETE
     allow_headers=["*"],
 )
+
+# 设置异常处理器
+setup_exception_handlers(app)
 
 # 全局监控器实例（单例模式，多次调用返回同一实例）
 monitor = PriceMonitor()

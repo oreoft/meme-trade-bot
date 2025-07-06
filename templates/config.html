@@ -194,12 +194,15 @@ createApp({
         async loadConfigs() {
             this.loading = true;
             try {
-                const response = await axios.get('/api/configs');
-                if (response.data.success) {
-                    this.configs = response.data.data;
-                } else {
-                    this.showMessage('加载配置失败: ' + response.data.error, 'error');
-                }
+                const response = await ApiClient.get('/api/configs');
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.configs = data;
+                    },
+                    (error) => {
+                        this.showMessage('加载配置失败: ' + error, 'error');
+                    }
+                );
             } catch (error) {
                 this.showMessage('网络错误: ' + error.message, 'error');
             } finally {
@@ -210,12 +213,15 @@ createApp({
         async refreshConfigs() {
             this.refreshing = true;
             try {
-                const response = await axios.post('/api/refresh-configs');
-                if (response.data.success) {
-                    this.showMessage(`配置刷新成功，已更新 ${response.data.count} 个服务的配置`, 'success');
-                } else {
-                    this.showMessage('配置刷新失败: ' + response.data.error, 'error');
-                }
+                const response = await ApiClient.post('/api/refresh-configs');
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.showMessage(`配置刷新成功，已更新 ${data.count} 个服务的配置`, 'success');
+                    },
+                    (error) => {
+                        this.showMessage('配置刷新失败: ' + error, 'error');
+                    }
+                );
             } catch (error) {
                 this.showMessage('网络错误: ' + error.message, 'error');
             } finally {
@@ -242,14 +248,17 @@ createApp({
             
             this.saving = true;
             try {
-                const response = await axios.post('/api/configs', this.form);
-                if (response.data.success) {
-                    this.showMessage(response.data.message, 'success');
-                    this.closeModal();
-                    this.loadConfigs();
-                } else {
-                    this.showMessage('保存失败: ' + response.data.error, 'error');
-                }
+                const response = await ApiClient.post('/api/configs', this.form);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.showMessage(response.message || '保存成功', 'success');
+                        this.closeModal();
+                        this.loadConfigs();
+                    },
+                    (error) => {
+                        this.showMessage('保存失败: ' + error, 'error');
+                    }
+                );
             } catch (error) {
                 this.showMessage('网络错误: ' + error.message, 'error');
             } finally {
@@ -263,13 +272,16 @@ createApp({
             }
             
             try {
-                const response = await axios.delete(`/api/configs/${config.key}`);
-                if (response.data.success) {
-                    this.showMessage('删除成功', 'success');
-                    this.loadConfigs();
-                } else {
-                    this.showMessage('删除失败: ' + response.data.error, 'error');
-                }
+                const response = await ApiClient.delete(`/api/configs/${config.key}`);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.showMessage('删除成功', 'success');
+                        this.loadConfigs();
+                    },
+                    (error) => {
+                        this.showMessage('删除失败: ' + error, 'error');
+                    }
+                );
             } catch (error) {
                 this.showMessage('网络错误: ' + error.message, 'error');
             }

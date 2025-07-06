@@ -4,6 +4,7 @@ from solders.keypair import Keypair
 
 from services.birdeye_api import BirdEyeAPI
 from services.monitor_service import MonitorService
+from utils.response import ApiResponse
 
 # 创建路由器
 router = APIRouter(prefix="/api/keys", tags=["私钥管理"])
@@ -14,12 +15,9 @@ async def get_private_keys():
     """获取所有私钥列表"""
     try:
         keys = MonitorService.get_all_private_keys()
-        return {
-            "success": True,
-            "data": keys
-        }
+        return ApiResponse.success(data=keys)
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return ApiResponse.error(message=str(e))
 
 
 @router.post("")
@@ -32,15 +30,14 @@ async def create_private_key(
         success, message, key_id = MonitorService.create_private_key(nickname, private_key)
 
         if success:
-            return {
-                "success": True,
-                "message": message,
-                "data": {"id": key_id}
-            }
+            return ApiResponse.success(
+                data={"id": key_id},
+                message=message
+            )
         else:
-            return {"success": False, "error": message}
+            return ApiResponse.error(message=message)
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return ApiResponse.error(message=str(e))
 
 
 @router.put("/{key_id}")
@@ -54,11 +51,11 @@ async def update_private_key(
         success, message = MonitorService.update_private_key(key_id, nickname, private_key)
 
         if success:
-            return {"success": True, "message": message}
+            return ApiResponse.success(message=message)
         else:
-            return {"success": False, "error": message}
+            return ApiResponse.error(message=message)
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return ApiResponse.error(message=str(e))
 
 
 @router.post("/generate")
@@ -75,16 +72,15 @@ async def generate_private_key():
         # 获取公钥
         public_key = str(keypair.pubkey())
 
-        return {
-            "success": True,
-            "data": {
+        return ApiResponse.success(
+            data={
                 "private_key": private_key_base58,
                 "public_key": public_key
             },
-            "message": "私钥生成成功"
-        }
+            message="私钥生成成功"
+        )
     except Exception as e:
-        return {"success": False, "error": f"生成私钥失败: {str(e)}"}
+        return ApiResponse.error(message=f"生成私钥失败: {str(e)}")
 
 
 @router.post("/export")
@@ -93,7 +89,7 @@ async def export_private_keys(token: str = Form(...)):
     try:
         # 验证token
         if token != "5Rx&FBclzfs^9HFF":
-            return {"success": False, "error": "Token验证失败"}
+            return ApiResponse.error(message="Token验证失败")
 
         # 获取所有私钥的完整信息
         keys = MonitorService.get_all_private_keys_with_secrets()
@@ -110,13 +106,12 @@ async def export_private_keys(token: str = Form(...)):
             "private_keys_combined": private_keys_combined
         }
 
-        return {
-            "success": True,
-            "data": export_data,
-            "message": "私钥导出成功"
-        }
+        return ApiResponse.success(
+            data=export_data,
+            message="私钥导出成功"
+        )
     except Exception as e:
-        return {"success": False, "error": f"导出失败: {str(e)}"}
+        return ApiResponse.error(message=f"导出失败: {str(e)}")
 
 
 @router.delete("/{key_id}")
@@ -126,11 +121,11 @@ async def delete_private_key(key_id: int):
         success, message = MonitorService.delete_private_key(key_id)
 
         if success:
-            return {"success": True, "message": message}
+            return ApiResponse.success(message=message)
         else:
-            return {"success": False, "error": message}
+            return ApiResponse.error(message=message)
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return ApiResponse.error(message=str(e))
 
 
 @router.get("/{key_id}")
@@ -139,14 +134,11 @@ async def get_private_key_detail(key_id: int):
     try:
         key_detail = MonitorService.get_private_key_by_id(key_id)
         if key_detail:
-            return {
-                "success": True,
-                "data": key_detail
-            }
+            return ApiResponse.success(data=key_detail)
         else:
-            return {"success": False, "error": "私钥不存在"}
+            return ApiResponse.error(message="私钥不存在")
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return ApiResponse.error(message=str(e))
 
 
 @router.get("/summary/tokens")
@@ -157,15 +149,14 @@ async def get_private_keys_token_summary():
         private_keys = MonitorService.get_all_private_keys_with_secrets()
         
         if not private_keys:
-            return {
-                "success": True,
-                "data": {
+            return ApiResponse.success(
+                data={
                     "total_wallets": 0,
                     "total_sol": 0,
                     "total_usd": 0,
                     "tokens": []
                 }
-            }
+            )
         
         # 初始化BirdEye API
         api = BirdEyeAPI()
@@ -232,18 +223,17 @@ async def get_private_keys_token_summary():
         # 按总价值降序排序
         tokens_list.sort(key=lambda x: x['total_value'], reverse=True)
         
-        return {
-            "success": True,
-            "data": {
+        return ApiResponse.success(
+            data={
                 "total_wallets": len(private_keys),
                 "total_sol": total_sol,
                 "total_usd": total_usd,
                 "tokens": tokens_list
             }
-        }
+        )
     
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return ApiResponse.error(message=str(e))
 
 @router.get("/{key_id}/tokens")
 async def get_private_key_tokens(key_id: int):
@@ -252,11 +242,11 @@ async def get_private_key_tokens(key_id: int):
         # 获取私钥详情
         key_detail = MonitorService.get_private_key_by_id(key_id)
         if not key_detail:
-            return {"success": False, "error": "私钥不存在"}
+            return ApiResponse.error(message="私钥不存在")
         
         public_key = key_detail.get('public_key')
         if not public_key:
-            return {"success": False, "error": "公钥地址不存在"}
+            return ApiResponse.error(message="公钥地址不存在")
         
         # 初始化BirdEye API
         api = BirdEyeAPI()
@@ -264,14 +254,13 @@ async def get_private_key_tokens(key_id: int):
         # 获取钱包token列表
         wallet_data = api.get_wallet_token_list(public_key)
         if not wallet_data:
-            return {
-                "success": True,
-                "data": {
+            return ApiResponse.success(
+                data={
                     "wallet": public_key,
                     "total_usd": 0,
                     "tokens": []
                 }
-            }
+            )
         
         # 处理token数据
         items = wallet_data.get('items', [])
@@ -291,14 +280,13 @@ async def get_private_key_tokens(key_id: int):
         # 按价值降序排序
         tokens_list.sort(key=lambda x: x['value_usd'], reverse=True)
         
-        return {
-            "success": True,
-            "data": {
+        return ApiResponse.success(
+            data={
                 "wallet": wallet_data.get('wallet', public_key),
                 "total_usd": wallet_data.get('totalUsd', 0),
                 "tokens": tokens_list
             }
-        }
+        )
     
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return ApiResponse.error(message=str(e))

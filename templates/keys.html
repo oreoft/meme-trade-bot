@@ -725,13 +725,15 @@
         methods: {
             async loadPrivateKeys() {
                 try {
-                    const response = await fetch('/api/keys');
-                    const data = await response.json();
-                    if (data.success) {
-                        this.privateKeys = data.data;
-                    } else {
-                        this.showMessage('error', data.error || '加载私钥失败');
-                    }
+                    const response = await ApiClient.get('/api/keys');
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.privateKeys = data;
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '加载私钥失败');
+                        }
+                    );
                 } catch (error) {
                     this.showMessage('error', '网络错误');
                 } finally {
@@ -765,21 +767,23 @@
                 // 缓存无效或不存在，从服务器获取
                 this.summaryLoading = true;
                 try {
-                    const response = await fetch('/api/keys/summary/tokens');
-                    const data = await response.json();
-                    if (data.success) {
-                        this.tokenSummary = data.data;
-                        this.isUsingCache = false;
+                    const response = await ApiClient.get('/api/keys/summary/tokens');
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.tokenSummary = data;
+                            this.isUsingCache = false;
 
-                        // 保存到本地缓存
-                        const cacheData = {
-                            data: data.data,
-                            timestamp: Date.now()
-                        };
-                        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-                    } else {
-                        this.showMessage('error', data.error || '加载Token汇总失败');
-                    }
+                            // 保存到本地缓存
+                            const cacheData = {
+                                data: data,
+                                timestamp: Date.now()
+                            };
+                            localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '加载Token汇总失败');
+                        }
+                    );
                 } catch (error) {
                     this.showMessage('error', '网络错误');
                 } finally {
@@ -807,27 +811,25 @@
 
                     const method = this.showEditModal ? 'PUT' : 'POST';
 
-                    const response = await fetch(url, {
-                        method: method,
-                        body: formData
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        this.showMessage('success', data.message);
-                        this.closeModal();
-                        // 清理所有展开状态，因为钱包列表可能会改变
-                        this.walletTokensExpanded = {};
-                        this.walletTokensLoading = {};
-                        this.walletTokensData = {};
-                        // 清除缓存，因为私钥发生了变化
-                        localStorage.removeItem('token_summary_cache');
-                        this.isUsingCache = false;
-                        this.loadPrivateKeys();
-                        this.loadTokenSummary();
-                    } else {
-                        this.showMessage('error', data.error || '保存失败');
-                    }
+                    const response = await ApiClient[method.toLowerCase()](url, formData);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.showMessage('success', response.message || '保存成功');
+                            this.closeModal();
+                            // 清理所有展开状态，因为钱包列表可能会改变
+                            this.walletTokensExpanded = {};
+                            this.walletTokensLoading = {};
+                            this.walletTokensData = {};
+                            // 清除缓存，因为私钥发生了变化
+                            localStorage.removeItem('token_summary_cache');
+                            this.isUsingCache = false;
+                            this.loadPrivateKeys();
+                            this.loadTokenSummary();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '保存失败');
+                        }
+                    );
                 } catch (error) {
                     this.showMessage('error', '网络错误');
                 } finally {
@@ -941,17 +943,16 @@
             async generatePrivateKey() {
                 this.generateLoading = true;
                 try {
-                    const response = await fetch('/api/keys/generate', {
-                        method: 'POST'
-                    });
-                    const data = await response.json();
-
-                    if (data.success) {
-                        this.keyForm.private_key = data.data.private_key;
-                        this.showMessage('success', '私钥生成成功！公钥地址：' + data.data.public_key.substring(0, 8) + '...' + data.data.public_key.substring(data.data.public_key.length - 8));
-                    } else {
-                        this.showMessage('error', data.error || '生成私钥失败');
-                    }
+                    const response = await ApiClient.post('/api/keys/generate');
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.keyForm.private_key = data.private_key;
+                            this.showMessage('success', '私钥生成成功！公钥地址：' + data.public_key.substring(0, 8) + '...' + data.public_key.substring(data.public_key.length - 8));
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '生成私钥失败');
+                        }
+                    );
                 } catch (error) {
                     this.showMessage('error', '网络错误');
                 } finally {
@@ -968,32 +969,30 @@
                     const formData = new FormData();
                     formData.append('token', this.exportToken);
 
-                    const response = await fetch('/api/keys/export', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const data = await response.json();
+                    const response = await ApiClient.post('/api/keys/export', formData);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            // 创建下载文件
+                            const jsonData = JSON.stringify(data, null, 2);
+                            const blob = new Blob([jsonData], {type: 'application/json'});
+                            const url = URL.createObjectURL(blob);
 
-                    if (data.success) {
-                        // 创建下载文件
-                        const jsonData = JSON.stringify(data.data, null, 2);
-                        const blob = new Blob([jsonData], {type: 'application/json'});
-                        const url = URL.createObjectURL(blob);
+                            // 创建临时下载链接
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `private_keys_export_${new Date().toISOString().split('T')[0]}.json`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
 
-                        // 创建临时下载链接
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `private_keys_export_${new Date().toISOString().split('T')[0]}.json`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-
-                        this.showMessage('success', `导出成功！共导出 ${data.data.total_count} 个私钥`);
-                        this.closeExportModal();
-                    } else {
-                        this.showMessage('error', data.error || '导出失败');
-                    }
+                            this.showMessage('success', `导出成功！共导出 ${data.total_count} 个私钥`);
+                            this.closeExportModal();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '导出失败');
+                        }
+                    );
                 } catch (error) {
                     this.showMessage('error', '网络错误');
                 } finally {
@@ -1144,28 +1143,25 @@
                 this.swapLoading = true;
                 this.swapResult = null;
                 try {
-                    // 假设有/api/swap POST
-                    const resp = await fetch('/api/swap', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            from: this.convertFromToken.address,
-                            to: this.convertToAddress,
-                            amount: this.convertAmount,
-                            key_id: this.convertFromKey.id,
-                            quote: this.convertQuote
-                        })
+                    const response = await ApiClient.post('/api/swap', {
+                        from: this.convertFromToken.address,
+                        to: this.convertToAddress,
+                        amount: this.convertAmount,
+                        key_id: this.convertFromKey.id,
+                        quote: this.convertQuote
                     });
-                    const data = await resp.json();
-                    if (data.success) {
-                        this.swapResult = {success: true, txid: data.data.txid};
-                    } else {
-                        this.swapResult = {
-                            success: false,
-                            message: data.error || '兑换失败',
-                            program_logs: data.program_logs || null
-                        };
-                    }
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.swapResult = {success: true, txid: data.txid};
+                        },
+                        (error) => {
+                            this.swapResult = {
+                                success: false,
+                                message: error || '兑换失败',
+                                program_logs: null
+                            };
+                        }
+                    );
                 } catch (e) {
                     this.swapResult = {success: false, message: '网络错误'};
                 } finally {

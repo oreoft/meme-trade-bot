@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Form
 
 from services.monitor_service import MonitorService
+from utils.response import ApiResponse
 
 # 创建路由器
 router = APIRouter(prefix="/api/monitor/records", tags=["监控记录管理"])
@@ -26,12 +27,9 @@ async def get_monitor_records():
             for record in records:
                 record["is_running"] = False
 
-        return {
-            "success": True,
-            "data": records
-        }
+        return ApiResponse.success(data=records)
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return ApiResponse.error(message=str(e))
 
 @router.post("")
 async def create_monitor_record(
@@ -57,15 +55,14 @@ async def create_monitor_record(
             type, max_buy_amount
         )
         if success:
-            return {
-                "success": True,
-                "message": message,
-                "data": {"id": record_id}
-            }
+            return ApiResponse.success(
+                data={"id": record_id},
+                message=message
+            )
         else:
-            return {"success": False, "error": message}
+            return ApiResponse.error(message=message)
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return ApiResponse.error(message=str(e))
 
 @router.put("/{record_id}")
 async def update_monitor_record(
@@ -87,7 +84,7 @@ async def update_monitor_record(
     try:
         # 如果监控正在运行，不允许修改
         if _monitor and _monitor.is_monitor_running(record_id):
-            return {"success": False, "error": "请先停止监控再修改"}
+            return ApiResponse.error(message="请先停止监控再修改")
         success, message = MonitorService.update_record(
             record_id, name, private_key_id, token_address,
             threshold, sell_percentage, webhook_url, check_interval,
@@ -97,11 +94,11 @@ async def update_monitor_record(
         if success:
             # 自动修复状态为stopped
             MonitorService.update_record_status(record_id, "stopped")
-            return {"success": True, "message": message}
+            return ApiResponse.success(message=message)
         else:
-            return {"success": False, "error": message}
+            return ApiResponse.error(message=message)
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return ApiResponse.error(message=str(e))
 
 @router.delete("/{record_id}")
 async def delete_monitor_record(record_id: int):
@@ -114,8 +111,8 @@ async def delete_monitor_record(record_id: int):
         success, message = MonitorService.delete_record(record_id)
 
         if success:
-            return {"success": True, "message": message}
+            return ApiResponse.success(message=message)
         else:
-            return {"success": False, "error": message}
+            return ApiResponse.error(message=message)
     except Exception as e:
-        return {"success": False, "error": str(e)} 
+        return ApiResponse.error(message=str(e)) 

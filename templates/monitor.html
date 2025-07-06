@@ -254,13 +254,15 @@ createApp({
     methods: {
         async loadMonitors() {
             try {
-                const response = await fetch('/api/monitor/records');
-                const data = await response.json();
-                if (data.success) {
-                    this.monitors = data.data;
-                } else {
-                    this.showMessage('error', data.error || '加载监控记录失败');
-                }
+                const response = await ApiClient.get('/api/monitor/records');
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.monitors = data;
+                    },
+                    (error) => {
+                        this.showMessage('error', error || '加载监控记录失败');
+                    }
+                );
             } catch (error) {
                 this.showMessage('error', '网络错误');
             } finally {
@@ -274,16 +276,16 @@ createApp({
         async startMonitor(recordId) {
             this.$set(this.operationLoading, recordId, true);
             try {
-                const response = await fetch(`/api/monitor/start?record_id=${recordId}`, {
-                    method: 'POST'
-                });
-                const data = await response.json();
-                if (data.success) {
-                    this.showMessage('success', data.message);
-                    this.loadMonitors();
-                } else {
-                    this.showMessage('error', data.message || '启动失败');
-                }
+                const response = await ApiClient.post(`/api/monitor/start?record_id=${recordId}`);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.showMessage('success', response.message || '启动成功');
+                        this.loadMonitors();
+                    },
+                    (error) => {
+                        this.showMessage('error', error || '启动失败');
+                    }
+                );
             } catch (error) {
                 this.showMessage('error', '网络错误');
             } finally {
@@ -293,16 +295,16 @@ createApp({
         async stopMonitor(recordId) {
             this.$set(this.operationLoading, recordId, true);
             try {
-                const response = await fetch(`/api/monitor/stop?record_id=${recordId}`, {
-                    method: 'POST'
-                });
-                const data = await response.json();
-                if (data.success) {
-                    this.showMessage('success', data.message);
-                    this.loadMonitors();
-                } else {
-                    this.showMessage('error', data.message || '停止失败');
-                }
+                const response = await ApiClient.post(`/api/monitor/stop?record_id=${recordId}`);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.showMessage('success', response.message || '停止成功');
+                        this.loadMonitors();
+                    },
+                    (error) => {
+                        this.showMessage('error', error || '停止失败');
+                    }
+                );
             } catch (error) {
                 this.showMessage('error', '网络错误');
             } finally {
