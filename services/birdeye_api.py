@@ -21,7 +21,7 @@ class BirdEyeAPI:
     def __init__(self):
         if self._initialized:
             return
-        self.base_url = 'https://public-api.birdeye.so/defi/v3'
+        self.base_url = 'https://public-api.birdeye.so'
         self._headers_cache = None
         self._last_config_update = 0
         # 初始化时加载配置
@@ -58,7 +58,7 @@ class BirdEyeAPI:
             token元数据字典，包含address, name, symbol, decimals, extensions, logo_uri等字段
         """
         try:
-            url = f'{self.base_url}/token/meta-data/single'
+            url = f'{self.base_url}/defi/v3/token/meta-data/single'
             params = {'address': address}
 
             response = requests.get(url, headers=self.headers, params=params)
@@ -90,7 +90,7 @@ class BirdEyeAPI:
             市场数据字典，包含price, market_cap, liquidity等字段
         """
         try:
-            url = f'{self.base_url}/token/market-data'
+            url = f'{self.base_url}/defi/v3/token/market-data'
             params = {'address': address}
 
             response = requests.get(url, headers=self.headers, params=params)
@@ -111,46 +111,6 @@ class BirdEyeAPI:
         except Exception as e:
             logging.error(f"解析市场数据失败 [{address}]: {e}")
             return None
-
-    def format_token_meta_data(self, meta_data: Dict) -> str:
-        """格式化token元数据为可读字符串"""
-        if not meta_data:
-            return "无法获取token元数据"
-
-        formatted_info = f"""
-Token地址: {meta_data.get('address', '未知')}
-Token名称: {meta_data.get('name', '未知')}
-Token符号: {meta_data.get('symbol', '未知')}
-小数位数: {meta_data.get('decimals', 0)}
-        """.strip()
-
-        # 添加描述信息（如果存在）
-        extensions = meta_data.get('extensions', {})
-        if extensions.get('description'):
-            formatted_info += f"\n描述: {extensions['description']}"
-
-        # 添加Logo URI（如果存在）
-        if meta_data.get('logo_uri'):
-            formatted_info += f"\nLogo: {meta_data['logo_uri']}"
-
-        return formatted_info
-
-    def format_market_data(self, market_data: Dict) -> str:
-        """格式化市场数据为可读字符串"""
-        if not market_data:
-            return "无法获取市场数据"
-
-        formatted_info = f"""
-价格: ${market_data.get('price', 0):.8f}
-市值: ${market_data.get('market_cap', 0):,.2f}
-流动性: ${market_data.get('liquidity', 0):,.2f}
-总供应量: {market_data.get('total_supply', 0):,.0f}
-流通供应量: {market_data.get('circulating_supply', 0):,.0f}
-完全稀释估值: ${market_data.get('fdv', 0):,.2f}
-更新时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}
-        """.strip()
-
-        return formatted_info
 
     def get_token_info_combined(self, address: str) -> Optional[Dict]:
         """获取token的完整信息（元数据 + 市场数据）
@@ -175,25 +135,6 @@ Token符号: {meta_data.get('symbol', '未知')}
 
         return combined_info
 
-    def format_token_info_combined(self, combined_info: Dict) -> str:
-        """格式化组合token信息为可读字符串"""
-        if not combined_info:
-            return "无法获取token信息"
-
-        meta_data = combined_info.get('meta_data', {})
-        market_data = combined_info.get('market_data', {})
-
-        formatted_info = "=== Token信息 ===\n"
-
-        if meta_data:
-            formatted_info += self.format_token_meta_data(meta_data) + "\n\n"
-
-        if market_data:
-            formatted_info += "=== 市场数据 ===\n"
-            formatted_info += self.format_market_data(market_data)
-
-        return formatted_info
-
     def get_wallet_token_list(self, wallet_address: str) -> Optional[Dict]:
         """获取钱包的token列表
 
@@ -205,7 +146,7 @@ Token符号: {meta_data.get('symbol', '未知')}
         """
         try:
             # 使用v1版本的钱包API
-            url = 'https://public-api.birdeye.so/v1/wallet/token_list'
+            url = f'{self.base_url}/v1/wallet/token_list'
             params = {'wallet': wallet_address}
 
             response = requests.get(url, headers=self.headers, params=params)
@@ -226,38 +167,3 @@ Token符号: {meta_data.get('symbol', '未知')}
         except Exception as e:
             logging.error(f"解析钱包token列表失败 [{wallet_address}]: {e}")
             return None
-
-    def format_wallet_token_list(self, wallet_data: Dict) -> str:
-        """格式化钱包token列表为可读字符串"""
-        if not wallet_data:
-            return "无法获取钱包token列表"
-
-        wallet_address = wallet_data.get('wallet', '未知')
-        total_usd = wallet_data.get('totalUsd', 0)
-        items = wallet_data.get('items', [])
-
-        formatted_info = f"""
-钱包地址: {wallet_address}
-总价值: ${total_usd:.2f}
-Token数量: {len(items)}
-
-=== Token列表 ===
-        """.strip()
-
-        if items:
-            formatted_info += "\n"
-            for item in items:
-                name = item.get('name', '未知')
-                symbol = item.get('symbol', '未知')
-                ui_amount = item.get('uiAmount', 0)
-                price_usd = item.get('priceUsd', 0)
-                value_usd = item.get('valueUsd', 0)
-
-                formatted_info += f"""
-{name} ({symbol})
-  数量: {ui_amount:.6f}
-  价格: ${price_usd:.6f}
-  价值: ${value_usd:.2f}
-                """.strip() + "\n"
-
-        return formatted_info

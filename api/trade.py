@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, Body
 
 from core.trader import SolanaTrader
-from services.market_data import get_token_market_info
+from services import BirdEyeAPI
 from services.monitor_service import MonitorService
 from utils.response import ApiResponse
 
@@ -20,9 +20,11 @@ async def token_info(address: str = Query(...)):
     """根据token地址查询token基本信息（名称、symbol、logo等）"""
     try:
         address = normalize_sol_address(address)
-        info = get_token_market_info(address)
+        info = BirdEyeAPI().get_token_info_combined(address)
         if info:
-            return ApiResponse.success(data=info)
+            res = info.get('meta_data', {})
+            res["price_usd"] = info.get('market_data', {}).get("price", 0)
+            return ApiResponse.success(data=res)
         else:
             return ApiResponse.error(message="未找到Token信息")
     except Exception as e:
@@ -50,7 +52,7 @@ async def quote(
         # 新增：支持按USD金额输入
         if amount_in_usd is not None:
             # 获取Token价格
-            from_info = get_token_market_info(from_)
+            from_info = BirdEyeAPI().get_market_data(from_)
             if not from_info or "price_usd" not in from_info or not from_info["price_usd"]:
                 return ApiResponse.error(message="无法获取Token价格")
             amount = float(amount_in_usd) / float(from_info["price_usd"])
@@ -64,10 +66,12 @@ async def quote(
             if isinstance(quote, dict) and "error" in quote:
                 return ApiResponse.error(message=quote["error"])
             return ApiResponse.error(message="获取报价失败")
-        to_info = get_token_market_info(to)
+        to_info = BirdEyeAPI().get_token_info_combined(to)
+        meta_data = to_info.get("meta_data", {})
+        market_data = to_info.get("market_data", {})
         out_amount = float(quote["outAmount"]) / (
-                10 ** (to_info["decimals"] if to_info and "decimals" in to_info else 9))
-        usd = out_amount * (to_info["price_usd"] if to_info and "price_usd" in to_info else 0)
+                10 ** (meta_data["decimals"] if to_info and "decimals" in meta_data else 9))
+        usd = out_amount * (market_data["price"] if to_info and "price" in market_data else 0)
         return ApiResponse.success(data={
             "outAmount": quote["outAmount"],
             "outAmountDisplay": f"{out_amount:.6f}",

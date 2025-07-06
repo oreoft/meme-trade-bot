@@ -6,7 +6,7 @@ from typing import Dict, List
 
 from core.trader import SolanaTrader
 from database.models import MonitorRecord, MonitorLog, SessionLocal
-from services.market_data import MarketDataFetcher
+from services import BirdEyeAPI
 from services.notifier import Notifier
 
 
@@ -37,7 +37,6 @@ class PriceMonitor:
 
             self.running_monitors: Dict[int, threading.Thread] = {}
             self.monitor_states: Dict[int, bool] = {}
-            self.market_fetcher = MarketDataFetcher()
             # 为每个token地址维护上一次的市值（而不是按record_id）
             self.last_market_caps: Dict[str, float] = {}
             # 市值变化阈值（百分比）
@@ -194,7 +193,7 @@ class PriceMonitor:
         """处理买入监听逻辑"""
         # 获取SOL的美元价格
         sol_mint = "So11111111111111111111111111111111111111112"
-        sol_info = self.market_fetcher.get_price_info(sol_mint)
+        sol_info = BirdEyeAPI().get_market_data(sol_mint)
         sol_usd_price = sol_info['price'] if sol_info and sol_info['price'] else 0.0
         actual_buy_percentage = record.sell_percentage
         if record.execution_mode != "single":
@@ -321,7 +320,7 @@ class PriceMonitor:
 
             while self.monitor_states.get(record_id, False):
                 try:
-                    price_info = self.market_fetcher.get_price_info(record.token_address)
+                    price_info = BirdEyeAPI().get_market_data(record.token_address)
                     if not price_info:
                         time.sleep(record.check_interval)
                         continue
@@ -438,7 +437,7 @@ class PriceMonitor:
                     record.status = "stopped"
                     db.commit()
             except:
-                pass
+                logging.error(f"更新监控记录状态失败: {record_id}")
             finally:
                 db.close()
 
