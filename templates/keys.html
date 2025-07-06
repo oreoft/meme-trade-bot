@@ -842,30 +842,30 @@
                 }
 
                 try {
-                    const response = await fetch(`/api/keys/${keyId}`, {
-                        method: 'DELETE'
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        this.showMessage('success', data.message);
-                        // 清理钱包Token相关状态
-                        const newExpanded = {...this.walletTokensExpanded};
-                        const newLoading = {...this.walletTokensLoading};
-                        const newData = {...this.walletTokensData};
-                        delete newExpanded[keyId];
-                        delete newLoading[keyId];
-                        delete newData[keyId];
-                        this.walletTokensExpanded = newExpanded;
-                        this.walletTokensLoading = newLoading;
-                        this.walletTokensData = newData;
-                        // 清除缓存，因为私钥发生了变化
-                        localStorage.removeItem('token_summary_cache');
-                        this.isUsingCache = false;
-                        this.loadPrivateKeys();
-                        this.loadTokenSummary();
-                    } else {
-                        this.showMessage('error', data.error || '删除失败');
-                    }
+                    const response = await ApiClient.delete(`/api/keys/${keyId}`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.showMessage('success', response.message || '删除成功');
+                            // 清理钱包Token相关状态
+                            const newExpanded = {...this.walletTokensExpanded};
+                            const newLoading = {...this.walletTokensLoading};
+                            const newData = {...this.walletTokensData};
+                            delete newExpanded[keyId];
+                            delete newLoading[keyId];
+                            delete newData[keyId];
+                            this.walletTokensExpanded = newExpanded;
+                            this.walletTokensLoading = newLoading;
+                            this.walletTokensData = newData;
+                            // 清除缓存，因为私钥发生了变化
+                            localStorage.removeItem('token_summary_cache');
+                            this.isUsingCache = false;
+                            this.loadPrivateKeys();
+                            this.loadTokenSummary();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '删除失败');
+                        }
+                    );
                 } catch (error) {
                     this.showMessage('error', '网络错误');
                 }
@@ -1099,14 +1099,15 @@
                 this.convertToTokenError = '';
                 if (!this.convertToAddress) return;
                 try {
-                    // 假设有/api/token_info?address=xxx
-                    const resp = await fetch(`/api/token_info?address=${this.convertToAddress}`);
-                    const data = await resp.json();
-                    if (data.success) {
-                        this.convertToToken = data.data;
-                    } else {
-                        this.convertToTokenError = data.error || '未找到Token信息';
-                    }
+                    const response = await ApiClient.get(`/api/token_info?address=${this.convertToAddress}`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.convertToToken = data;
+                        },
+                        (error) => {
+                            this.convertToTokenError = error || '未找到Token信息';
+                        }
+                    );
                 } catch (e) {
                     this.convertToTokenError = '查询失败';
                 }
@@ -1130,13 +1131,15 @@
                     } else {
                         params.append('amount', this.convertAmount);
                     }
-                    const resp = await fetch(`/api/quote?${params.toString()}`);
-                    const data = await resp.json();
-                    if (data.success) {
-                        this.convertQuote = data.data;
-                    } else {
-                        this.showMessage('error', data.error || '获取报价失败');
-                    }
+                    const response = await ApiClient.get(`/api/quote?${params.toString()}`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.convertQuote = data;
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '获取报价失败');
+                        }
+                    );
                 } catch (e) {
                     this.showMessage('error', '网络错误');
                 } finally {
