@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 from datetime import datetime
@@ -26,12 +27,12 @@ class PriceMonitor:
     def __init__(self):
         # 防止重复初始化
         if self._initialized:
-            print("PriceMonitor 已经初始化，跳过重复初始化")
+            logging.debug("PriceMonitor 已经初始化，跳过重复初始化")
             return
 
         with self._lock:
             if self._initialized:
-                print("PriceMonitor 已经初始化，跳过重复初始化")
+                logging.debug("PriceMonitor 已经初始化，跳过重复初始化")
                 return
 
             self.running_monitors: Dict[int, threading.Thread] = {}
@@ -54,10 +55,10 @@ class PriceMonitor:
         """启动时自动恢复所有状态为monitoring的监控任务"""
         # 防重复执行
         if self._auto_recovery_done:
-            print("自动恢复已完成，跳过重复执行")
+            logging.debug("自动恢复已完成，跳过重复执行")
             return
 
-        print("正在自动恢复监控任务...")
+        logging.info("正在自动恢复监控任务...")
         db = SessionLocal()
         try:
             # 查找所有状态为monitoring的记录
@@ -82,23 +83,23 @@ class PriceMonitor:
                     thread.start()
                     self.running_monitors[record.id] = thread
                     recovered_count += 1
-                    print(f"已恢复监控任务: {record.name} (ID: {record.id})")
+                    logging.info(f"已恢复监控任务: {record.name} (ID: {record.id})")
                 except Exception as e:
-                    print(f"恢复监控任务失败 {record.name} (ID: {record.id}): {e}")
+                    logging.error(f"恢复监控任务失败 {record.name} (ID: {record.id}): {e}")
                     # 将失败的任务状态设为stopped
                     record.status = "stopped"
                     db.commit()
 
             if recovered_count > 0:
-                print(f"成功恢复 {recovered_count} 个监控任务")
+                logging.info(f"成功恢复 {recovered_count} 个监控任务")
             else:
-                print("没有需要恢复的监控任务")
+                logging.info("没有需要恢复的监控任务")
 
             # 标记为已完成
             self._auto_recovery_done = True
 
         except Exception as e:
-            print(f"自动恢复监控任务时出错: {e}")
+            logging.error(f"自动恢复监控任务时出错: {e}")
         finally:
             db.close()
 
@@ -178,7 +179,7 @@ class PriceMonitor:
     def _complete_monitor_task(self, record_id: int, record, notifier, db, reason: str, message_title: str,
                                message_content: str):
         """完成监控任务的通用方法"""
-        print(f"{reason}: {record.name}")
+        logging.info(f"{reason}: {record.name}")
         # 更新状态为已完成
         record.status = "completed"
         db.commit()
@@ -214,7 +215,7 @@ class PriceMonitor:
             return False
         tx_hash = trader.buy_token_for_sol(record.token_address, actual_buy_percentage)
         if tx_hash:
-            print(f"买入交易成功: {tx_hash}")
+            logging.info(f"买入交易成功: {tx_hash}")
             log = MonitorLog(
                 monitor_record_id=record_id,
                 price=price_info['price'],
@@ -241,11 +242,11 @@ class PriceMonitor:
                 )
                 return False
             else:
-                print(f"买入完成，继续监控等待下一次低于阈值...")
+                logging.info(f"买入完成，继续监控等待下一次低于阈值...")
                 time.sleep(60)
                 return True
         else:
-            print(f"买入交易失败")
+            logging.error(f"买入交易失败")
             notifier.send_error_notification(f"买入交易失败", record.name)
             return True
 
@@ -261,7 +262,7 @@ class PriceMonitor:
         estimated_usd_value = actual_sell_amount * price_info['price']
         tx_hash = trader.sell_token_for_sol(record.token_address, actual_sell_percentage)
         if tx_hash:
-            print(f"交易成功: {tx_hash}")
+            logging.info(f"交易成功: {tx_hash}")
             log = MonitorLog(
                 monitor_record_id=record_id,
                 price=price_info['price'],
@@ -294,11 +295,11 @@ class PriceMonitor:
                 )
                 return False
             else:
-                print(f"交易完成，继续监控等待下一次达到阈值...")
+                logging.info(f"交易完成，继续监控等待下一次达到阈值...")
                 time.sleep(60)
                 return True
         else:
-            print(f"交易执行失败")
+            logging.error(f"交易执行失败")
             notifier.send_error_notification(f"交易执行失败", record.name)
             return True
 
@@ -332,7 +333,7 @@ class PriceMonitor:
 
                     if is_buy:
                         if price_info['market_cap'] < record.threshold:
-                            print(
+                            logging.info(
                                 f"监控 {record.name} 市值低于阈值，尝试买入。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
                             notifier.send_price_alert(
                                 {**price_info, 'threshold': record.threshold, 'token_symbol': record.token_symbol},
@@ -357,10 +358,10 @@ class PriceMonitor:
                                 if not should_continue:
                                     break
                             except Exception as e:
-                                print(f"买入执行失败: {e}")
+                                logging.error(f"买入执行失败: {e}")
                                 notifier.send_error_notification(f"买入执行失败: {e}", record.name)
                         else:
-                            print(
+                            logging.debug(
                                 f"监控 {record.name} 市值未低于阈值。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
                             notify, percent_change = self._should_send_price_update(record.token_address,
                                                                                     price_info['market_cap'])
@@ -372,7 +373,7 @@ class PriceMonitor:
                         continue
                     # 卖出监听
                     if price_info['market_cap'] >= record.threshold:
-                        print(
+                        logging.info(
                             f"监控 {record.name} 市值达到阈值！当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
                         notifier.send_price_alert(
                             {**price_info, 'threshold': record.threshold, 'token_symbol': record.token_symbol},
@@ -381,7 +382,7 @@ class PriceMonitor:
                             token_balance_before = trader.get_token_balance(record.token_address)
                             if token_balance_before <= 0:
                                 if getattr(record, 'pre_sniper_mode', False):
-                                    print(f"余额不足，预抢购模式开启，跳过本次监控: {record.name}")
+                                    logging.info(f"余额不足，预抢购模式开启，跳过本次监控: {record.name}")
                                     time.sleep(record.check_interval)
                                     continue
                                 else:
@@ -397,10 +398,10 @@ class PriceMonitor:
                             if not should_continue:
                                 break
                         except Exception as e:
-                            print(f"交易执行失败: {e}")
+                            logging.error(f"交易执行失败: {e}")
                             notifier.send_error_notification(f"交易执行失败: {e}", record.name)
                     else:
-                        print(
+                        logging.debug(
                             f"监控 {record.name} 市值未达到阈值。当前: ${price_info['market_cap']:,.2f}, 阈值: ${record.threshold:,.2f}")
                         notify, percent_change = self._should_send_price_update(record.token_address,
                                                                                 price_info['market_cap'])
@@ -411,13 +412,13 @@ class PriceMonitor:
                     time.sleep(record.check_interval)
 
                 except Exception as e:
-                    print(f"监控 {record.name} 过程中出错: {e}")
+                    logging.error(f"监控 {record.name} 过程中出错: {e}")
                     record.status = "error"
                     db.commit()
                     time.sleep(record.check_interval)
 
         except Exception as e:
-            print(f"监控线程异常: {e}")
+            logging.error(f"监控线程异常: {e}")
         finally:
             # 清理状态
             if record_id in self.monitor_states:

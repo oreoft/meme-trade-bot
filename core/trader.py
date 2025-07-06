@@ -190,11 +190,10 @@ class SolanaTrader:
             }
 
             response = requests.request("POST", swap_url, headers=headers, json=swap_data)
-            print(response.json())
+            logging.debug(f"Jupiter API响应: {response.json()}")
             response = response.json()
 
             if 'swapTransaction' not in response:
-                print("No swap transaction found in the response.")
                 logging.error("响应中未找到swapTransaction字段")
                 return None
 
@@ -204,7 +203,7 @@ class SolanaTrader:
             # 获取最新的blockhash
             blockhash_response = self.client.get_latest_blockhash()
             recent_blockhash = blockhash_response.value.blockhash
-            print(f"Recent blockhash: {recent_blockhash}")
+            logging.debug(f"Recent blockhash: {recent_blockhash}")
 
             # 签名交易
             signature = self.wallet.sign_message(solders.message.to_bytes_versioned(swap_transaction.message))
@@ -217,7 +216,6 @@ class SolanaTrader:
                         signed_tx,
                         opts=TxOpts(skip_confirmation=False, preflight_commitment=Processed)
                     ).value
-                    print("Your transaction Id is: ", txid)
                     logging.info(f"交易成功发送，ID: {txid}")
                     return str(txid)  # 转换为字符串
                 except Exception as e:
@@ -227,8 +225,7 @@ class SolanaTrader:
                         program_logs = self.extract_program_logs(err_str)
                         logging.error(f"交易失败: {err_str}")
                         return {"error": f"交易失败: {err_str}", "program_logs": program_logs}
-                    print(f"Attempt {attempts + 1} failed due to timeout. Retrying in 5 seconds... [ reason: {e}]")
-                    logging.warning(f"第{attempts + 1}次尝试失败: {e}")
+                    logging.warning(f"第{attempts + 1}次尝试失败，5秒后重试... [原因: {e}]")
                     if attempts < 4:  # 如果不是最后一次尝试
                         time.sleep(5)
                     else:
@@ -334,7 +331,6 @@ class SolanaTrader:
             buy_amount = (sol_balance * buy_percentage) - (0.0021 if buy_percentage == 1 else 0)
             if sol_balance <= 0 or buy_amount <= 0:
                 logging.warning("SOL余额不足，无法买入")
-                print("SOL余额不足，无法买入")
                 return None
 
             # SOL的mint地址

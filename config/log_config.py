@@ -9,6 +9,7 @@ def setup_logging():
     logs_dir = "logs"
     if not os.path.exists(logs_dir):
         os.makedirs(logs_dir)
+        # 使用基础的print，因为日志系统还未完全初始化
         print(f"📁 创建日志目录: {logs_dir}")
 
     # 创建根日志记录器

@@ -1,3 +1,5 @@
+import logging
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,9 +62,9 @@ monitor_api.set_monitor(monitor)
 records_api.set_monitor(monitor)
 
 if __name__ == "__main__":
-    print("🚀 币价监控系统启动中...")
-    print("📝 访问 http://localhost:8000 打开管理界面")
-    print("📚 访问 http://localhost:8000/docs 查看API文档")
+    logging.info("🚀 币价监控系统启动中...")
+    logging.info("📝 访问 http://localhost:8000 打开管理界面")
+    logging.info("📚 访问 http://localhost:8000/docs 查看API文档")
 
     uvicorn.run(
         "main:app",
