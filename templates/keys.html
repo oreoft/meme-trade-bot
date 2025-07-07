@@ -1220,7 +1220,7 @@
                 this.isAmountInUsd = false;
                 // 对于SOL兑换，需要扣除交易费
                 if (token.address === 'So11111111111111111111111111111111111111112') {
-                    const maxConvertAmount = Math.max(0, token.amount - 0.00006);
+                    const maxConvertAmount = Math.max(0, token.amount - 0.000078);
                     this.maxConvertUsd = maxConvertAmount * token.price_usd;
                 } else {
                     this.maxConvertUsd = token.amount * token.price_usd;
@@ -1369,9 +1369,9 @@
                     // 计算实际可用的最大金额（SOL需要扣除交易费）
                     let maxAmount = this.convertFromToken.amount;
                     if (this.convertFromToken.address === 'So11111111111111111111111111111111111111112') {
-                        maxAmount = Math.max(0, this.convertFromToken.amount - 0.00006);
+                        maxAmount = Math.max(0, this.convertFromToken.amount - 0.000078);
                     }
-                    
+
                     // 对于100%的情况，直接使用最大可用金额，避免浮点数精度问题
                     if (percent === 1) {
                         this.convertAmount = maxAmount;
@@ -1404,7 +1404,7 @@
                 this.transferAmountUsd = '';
                 // 对于SOL转账，需要扣除交易费
                 if (token.address === 'So11111111111111111111111111111111111111112') {
-                    this.maxTransferAmount = Math.max(0, token.amount - 0.00006);
+                    this.maxTransferAmount = Math.max(0, token.amount - 0.000078);
                 } else {
                     this.maxTransferAmount = token.amount;
                 }
