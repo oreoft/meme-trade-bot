@@ -32,7 +32,7 @@ from config.config_manager import ConfigManager
 from database.models import MonitorRecord, SessionLocal
 
 
-service_fee= 0.00008  # 默认服务费，单位为SOL
+service_fee= 0.000896  # 默认服务费，单位为SOL
 class SolanaTrader:
     """Solana交易器"""
 
