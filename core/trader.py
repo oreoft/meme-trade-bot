@@ -434,6 +434,135 @@ class SolanaTrader:
                 program_logs.append(log_msg)
         return program_logs
 
+    def _validate_balance(self, token_address: str, amount: float) -> None:
+        """验证余额是否足够"""
+        if token_address == str(WRAPPED_SOL_MINT):
+            current_balance = self.get_sol_balance()
+            token_name = "SOL"
+        else:
+            current_balance = self.get_token_balance(token_address)
+            token_name = "Token"
+
+        if amount > current_balance:
+            raise Exception(f"{token_name}余额不足，当前余额: {current_balance}")
+
+    def _build_sol_transfer_transaction(self, to_address: str, amount: float, recent_blockhash):
+        """构建SOL转账交易"""
+        receiver_pubkey = Pubkey.from_string(to_address)
+        transfer_params = TransferParams(
+            from_pubkey=self.wallet.pubkey(),
+            to_pubkey=receiver_pubkey,
+            lamports=int(amount * 10 ** 9)
+        )
+
+        message = Message.new_with_blockhash(
+            [system_transfer(transfer_params)],
+            self.wallet.pubkey(),
+            recent_blockhash
+        )
+
+        return Transaction(
+            from_keypairs=[self.wallet],
+            recent_blockhash=recent_blockhash,
+            message=message
+        )
+
+    def _build_token_transfer_transaction(self, token_address: str, to_address: str, amount: float, recent_blockhash):
+        """构建Token转账交易"""
+        token_decimals = self.get_token_decimals(token_address)
+        owner = self.wallet.pubkey()
+        mint = Pubkey.from_string(token_address)
+        dest_owner = Pubkey.from_string(to_address)
+
+        # 获取关联token账户地址
+        mint_program_id = self.client.get_account_info(mint).value.owner
+        source_ata = get_associated_token_address(owner, mint, mint_program_id)
+        dest_ata = get_associated_token_address(dest_owner, mint, mint_program_id)
+
+        instructions = []
+        # 检查目标ATA是否存在，如果不存在则创建
+        dest_ata_info = self.client.get_account_info(dest_ata)
+        if dest_ata_info.value is None:
+            # 创建目标ATA指令
+            create_ata_ix = create_idempotent_associated_token_account(
+                payer=owner,
+                owner=dest_owner,
+                mint=mint,
+                token_program_id=mint_program_id,
+            )
+            instructions.append(create_ata_ix)
+
+        # 添加转账指令
+        instructions.append(transfer(
+            TokenTransferParams(
+                program_id=mint_program_id,
+                source=source_ata,
+                dest=dest_ata,
+                owner=owner,
+                amount=int(amount * (10 ** token_decimals)),
+                signers=[]
+            )
+        ))
+
+        # 构建消息
+        message = Message.new_with_blockhash(
+            instructions,
+            self.wallet.pubkey(),
+            recent_blockhash
+        )
+
+        return Transaction(
+            from_keypairs=[self.wallet],
+            recent_blockhash=recent_blockhash,
+            message=message
+        )
+
+    def _calculate_transfer_result(self, token_address: str, amount: float, fee: float, tx_hash: str = None) -> dict:
+        """计算转账结果"""
+        price = BirdEyeAPI().get_market_data(token_address).get('price', 0)
+        amount_usd = amount * price
+
+        if token_address == str(WRAPPED_SOL_MINT):
+            current_balance = self.get_sol_balance()
+            after_balance = current_balance - amount - fee
+        else:
+            current_balance = self.get_sol_balance()
+            after_balance = current_balance - fee
+
+        result = {
+            "amount": amount,
+            "amount_usd": amount_usd,
+            "fee": fee,
+            "after_balance": after_balance,
+        }
+
+        if tx_hash:
+            result["actual_amount"] = amount
+            result["tx_hash"] = tx_hash
+
+        return result
+
+    def _simulate_transaction(self, transaction) -> dict:
+        """模拟交易并返回结果"""
+        sim_result = self.client.simulate_transaction(transaction)
+
+        # 处理模拟结果
+        value = getattr(sim_result, 'value', sim_result)
+        fee = getattr(value, 'fee', 5000) / 1e9 if hasattr(value, 'fee') else 0.0005
+        err = getattr(value, 'err', None)
+        logs = getattr(value, 'logs', None)
+
+        if err is not None and not isinstance(err, str):
+            err = str(err)
+        if logs is not None:
+            logs = [str(l) for l in logs]
+
+        return {
+            "fee": fee,
+            "err": err,
+            "logs": logs
+        }
+
     def _ensure_ata_ix(self, owner_pubkey, mint_pubkey, payer_pubkey):
         """如果目标ATA不存在，返回创建ATA的指令，否则返回None"""
         ata = get_associated_token_address(owner_pubkey, mint_pubkey, TOKEN_PROGRAM_ID)
@@ -450,327 +579,82 @@ class SolanaTrader:
         return None
 
     def transfer_preview(self, token_address: str, to_address: str, amount: float) -> dict:
+        """转账预览"""
         try:
-            sender = self.wallet
-            client = self.client
+            # 验证余额
+            self._validate_balance(token_address, amount)
 
             # 获取最新区块哈希
-            recent_blockhash = client.get_latest_blockhash().value.blockhash
+            recent_blockhash = self.client.get_latest_blockhash().value.blockhash
 
+            # 构建交易
             if token_address == str(WRAPPED_SOL_MINT):
-                # SOL转账预览
-                sol_balance = self.get_sol_balance()
-                if amount > sol_balance:
-                    raise Exception(f"SOL余额不足，当前余额: {sol_balance}")
-
-                receiver_pubkey = Pubkey.from_string(to_address)
-
-                # 创建转账交易
-                transfer_params = TransferParams(
-                    from_pubkey=sender.pubkey(),
-                    to_pubkey=receiver_pubkey,
-                    lamports=int(amount * 10 ** 9)
-                )
-
-                message = Message.new_with_blockhash(
-                    [system_transfer(transfer_params)],
-                    sender.pubkey(),
-                    recent_blockhash
-                )
-
-                transaction = Transaction(
-                    from_keypairs=[sender],
-                    recent_blockhash=recent_blockhash,
-                    message=message
-                )
-
-                # 模拟交易
-                sim_result = client.simulate_transaction(transaction)
-
-                # 处理模拟结果
-                value = getattr(sim_result, 'value', sim_result)
-                fee = getattr(value, 'fee', 5000) / 1e9 if hasattr(value, 'fee') else 0.005  # 默认费用
-                err = getattr(value, 'err', None)
-                logs = getattr(value, 'logs', None)
-
-                if err is not None and not isinstance(err, str):
-                    err = str(err)
-                if logs is not None:
-                    logs = [str(l) for l in logs]
-
-                after_balance = sol_balance - amount - fee
-                price = BirdEyeAPI().get_market_data(str(WRAPPED_SOL_MINT)).get('price_usd', 0)
-                amount_usd = amount * price
-
-                return {
-                    "amount": amount,
-                    "amount_usd": amount_usd,
-                    "to": to_address,
-                    "fee": fee,
-                    "after_balance": after_balance,
-                    "err": err,
-                    "logs": logs
-                }
+                transaction = self._build_sol_transfer_transaction(to_address, amount, recent_blockhash)
             else:
-                # SPL Token转账预览
-                token_balance = self.get_token_balance(token_address)
-                if amount > token_balance:
-                    raise Exception(f"Token余额不足，当前余额: {token_balance}")
+                transaction = self._build_token_transfer_transaction(token_address, to_address, amount,
+                                                                     recent_blockhash)
+            # 模拟交易
+            sim_result = self._simulate_transaction(transaction)
 
-                token_decimals = self.get_token_decimals(token_address)
-                owner = sender.pubkey()
-                mint = Pubkey.from_string(token_address)
-                dest_owner = Pubkey.from_string(to_address)
-
-                # 获取关联token账户地址
-                mint_program_id = self.client.get_account_info(mint).value.owner
-                source_ata = get_associated_token_address(owner, mint, mint_program_id)
-                dest_ata = get_associated_token_address(dest_owner, mint, mint_program_id)
-
-                instructions = []
-
-                # 检查目标ATA是否存在，如果不存在则创建
-                dest_ata_info = client.get_account_info(dest_ata)
-                if dest_ata_info.value is None:
-                    # 创建目标ATA指令
-                    create_ata_ix = create_idempotent_associated_token_account(
-                        payer=owner,
-                        owner=dest_owner,
-                        mint=mint,
-                        token_program_id=mint_program_id,
-                    )
-                    instructions.append(create_ata_ix)
-
-                # 检查源ATA是否存在
-                source_ata_info = client.get_account_info(source_ata)
-                if source_ata_info.value is None:
-                    # 如果源ATA不存在，检查是否有token余额
-                    if token_balance <= 0:
-                        raise Exception(f"没有足够的token余额进行转账，当前余额: {token_balance}")
-                    # 如果有余额但ATA不存在，创建源ATA指令
-                    create_source_ata_ix = create_idempotent_associated_token_account(
-                        payer=owner,
-                        owner=owner,
-                        mint=mint,
-                        token_program_id=mint_program_id,
-                    )
-                    instructions.append(create_source_ata_ix)
-
-                # 添加转账指令
-                instructions.append(transfer(
-                    TokenTransferParams(
-                        program_id=mint_program_id,
-                        source=source_ata,
-                        dest=dest_ata,
-                        owner=owner,
-                        amount=int(amount * (10 ** token_decimals)),
-                        signers=[]
-                    )
-                ))
-
-                # 构建消息
-                message = Message.new_with_blockhash(
-                    instructions,
-                    sender.pubkey(),
-                    recent_blockhash
-                )
-
-                transaction = Transaction(
-                    from_keypairs=[sender],
-                    recent_blockhash=recent_blockhash,
-                    message=message
-                )
-
-                # 模拟交易
-                sim_result = client.simulate_transaction(transaction)
-                # 处理模拟结果
-                value = getattr(sim_result, 'value', sim_result)
-                fee = getattr(value, 'fee', 5000) / 1e9 if hasattr(value, 'fee') else 0.0005
-                err = getattr(value, 'err', None)
-                logs = getattr(value, 'logs', None)
-
-                if err is not None and not isinstance(err, str):
-                    err = str(err)
-                if logs is not None:
-                    logs = [str(l) for l in logs]
-
-                sol_balance = self.get_sol_balance()
-                after_balance = sol_balance - fee
-                price = BirdEyeAPI().get_market_data(token_address).get('price_usd', 0)
-                amount_usd = amount * price
-
+            # 如果模拟失败，返回错误
+            if sim_result["err"]:
                 return {
-                    "amount": amount,
-                    "amount_usd": amount_usd,
-                    "to": to_address,
-                    "fee": fee,
-                    "after_balance": after_balance,
-                    "err": err,
-                    "logs": logs
+                    "err": sim_result["err"],
+                    "logs": sim_result["logs"]
                 }
+
+            # 计算结果
+            result = self._calculate_transfer_result(token_address, amount, sim_result["fee"] or 0.0005)
+            result.update({
+                "to": to_address,
+                "err": sim_result["err"],
+                "logs": sim_result["logs"]
+            })
+
+            return result
 
         except Exception as e:
             err_str = str(e)
+            logging.error(f"转账预览失败: {err_str}")
             if hasattr(e, 'args') and e.args and not isinstance(e.args[0], str):
                 err_str = str(e.args[0])
             program_logs = self.extract_program_logs(err_str)
             return {"err": err_str, "program_logs": program_logs}
 
     def transfer(self, token_address: str, to_address: str, amount: float) -> dict:
+        """执行转账"""
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                sender = self.wallet
-                client = self.client
+                # 验证余额
+                self._validate_balance(token_address, amount)
 
                 # 获取最新区块哈希
-                recent_blockhash = client.get_latest_blockhash().value.blockhash
+                recent_blockhash = self.client.get_latest_blockhash().value.blockhash
 
+                # 构建交易
                 if token_address == str(WRAPPED_SOL_MINT):
-                    # SOL转账
-                    sol_balance = self.get_sol_balance()
-                    if amount > sol_balance:
-                        raise Exception(f"SOL余额不足，当前余额: {sol_balance}")
-
-                    receiver_pubkey = Pubkey.from_string(to_address)
-
-                    # 创建转账交易
-                    transfer_params = TransferParams(
-                        from_pubkey=sender.pubkey(),
-                        to_pubkey=receiver_pubkey,
-                        lamports=int(amount * 10 ** 9)
-                    )
-
-                    message = Message.new_with_blockhash(
-                        [system_transfer(transfer_params)],
-                        sender.pubkey(),
-                        recent_blockhash
-                    )
-
-                    transaction = Transaction(
-                        from_keypairs=[sender],
-                        recent_blockhash=recent_blockhash,
-                        message=message
-                    )
-
-                    # 发送交易
-                    result = client.send_transaction(
-                        transaction,
-                        opts=TxOpts(skip_preflight=True)
-                    )
-
-                    tx_hash = result.value
-                    logging.info(f"SOL转账成功，交易哈希: {tx_hash}")
-
-                    # 计算费用和余额
-                    fee = 0.005  # SOL转账的大概费用
-                    after_balance = sol_balance - amount - fee
-                    price = BirdEyeAPI().get_market_data(str(WRAPPED_SOL_MINT)).get('price_usd', 0)
-                    amount_usd = amount * price
-
-                    return {
-                        "fee": fee,
-                        "after_balance": after_balance,
-                        "actual_amount": amount,
-                        "amount_usd": amount_usd,
-                        "tx_hash": str(tx_hash)
-                    }
+                    transaction = self._build_sol_transfer_transaction(to_address, amount, recent_blockhash)
                 else:
-                    # SPL Token转账
-                    token_balance = self.get_token_balance(token_address)
-                    if amount > token_balance:
-                        raise Exception(f"Token余额不足，当前余额: {token_balance}")
+                    transaction = self._build_token_transfer_transaction(token_address, to_address, amount,
+                                                                         recent_blockhash)
 
-                    token_decimals = self.get_token_decimals(token_address)
-                    owner = sender.pubkey()
-                    mint = Pubkey.from_string(token_address)
-                    dest_owner = Pubkey.from_string(to_address)
+                # 发送交易
+                result = self.client.send_transaction(
+                    transaction,
+                    opts=TxOpts(skip_preflight=True)
+                )
 
-                    # 获取关联token账户地址
-                    mint_program_id = self.client.get_account_info(mint).value.owner
-                    source_ata = get_associated_token_address(owner, mint, mint_program_id)
-                    dest_ata = get_associated_token_address(dest_owner, mint, mint_program_id)
+                tx_hash = str(result.value)
+                token_name = "SOL" if token_address == str(WRAPPED_SOL_MINT) else "Token"
+                logging.info(f"{token_name}转账成功，交易哈希: {tx_hash}")
 
-                    instructions = []
-
-                    # 检查目标ATA是否存在，如果不存在则创建
-                    dest_ata_info = client.get_account_info(dest_ata)
-                    if dest_ata_info.value is None:
-                        # 创建目标ATA指令
-                        create_ata_ix = create_idempotent_associated_token_account(
-                            payer=owner,
-                            owner=dest_owner,
-                            mint=mint,
-                            token_program_id=mint_program_id,
-                        )
-                        instructions.append(create_ata_ix)
-
-                    # 检查源ATA是否存在
-                    source_ata_info = client.get_account_info(source_ata)
-                    if source_ata_info.value is None:
-                        # 如果源ATA不存在，检查是否有token余额
-                        if token_balance <= 0:
-                            raise Exception(f"没有足够的token余额进行转账，当前余额: {token_balance}")
-                        # 如果有余额但ATA不存在，创建源ATA指令
-                        create_source_ata_ix = create_idempotent_associated_token_account(
-                            payer=owner,
-                            owner=owner,
-                            mint=mint,
-                            token_program_id=mint_program_id,
-                        )
-                        instructions.append(create_source_ata_ix)
-
-                    # 添加转账指令
-                    instructions.append(transfer(
-                        TokenTransferParams(
-                            program_id=mint_program_id,
-                            source=source_ata,
-                            dest=dest_ata,
-                            owner=owner,
-                            amount=int(amount * (10 ** token_decimals)),
-                            signers=[]
-                        )
-                    ))
-
-                    # 构建消息
-                    message = Message.new_with_blockhash(
-                        instructions,
-                        sender.pubkey(),
-                        recent_blockhash
-                    )
-
-                    transaction = Transaction(
-                        from_keypairs=[sender],
-                        recent_blockhash=recent_blockhash,
-                        message=message
-                    )
-
-                    # 发送交易
-                    result = client.send_transaction(
-                        transaction,
-                        opts=TxOpts(skip_preflight=True)
-                    )
-
-                    tx_hash = result.value
-                    logging.info(f"Token转账成功，交易哈希: {tx_hash}")
-
-                    # 计算费用和余额
-                    fee = 0.01  # Token转账的大概费用（可能包含ATA创建）
-                    sol_balance = self.get_sol_balance()
-                    after_balance = sol_balance - fee
-                    price = BirdEyeAPI().get_market_data(token_address).get('price_usd', 0)
-                    amount_usd = amount * price
-
-                    return {
-                        "fee": fee,
-                        "after_balance": after_balance,
-                        "actual_amount": amount,
-                        "amount_usd": amount_usd,
-                        "tx_hash": str(tx_hash)
-                    }
+                # 计算并返回结果
+                return self._calculate_transfer_result(token_address, amount, 0.0005, tx_hash)
 
             except Exception as e:
                 err_str = str(e)
+                logging.error(f"转账失败: {err_str}")
                 if hasattr(e, 'args') and e.args and not isinstance(e.args[0], str):
                     err_str = str(e.args[0])
 
