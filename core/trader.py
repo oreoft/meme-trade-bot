@@ -32,6 +32,7 @@ from config.config_manager import ConfigManager
 from database.models import MonitorRecord, SessionLocal
 
 
+service_fee= 0.00008  # 默认服务费，单位为SOL
 class SolanaTrader:
     """Solana交易器"""
 
@@ -548,7 +549,7 @@ class SolanaTrader:
 
         # 处理模拟结果
         value = getattr(sim_result, 'value', sim_result)
-        fee = getattr(value, 'fee', 5000) / 1e9 if hasattr(value, 'fee') else 0.000078
+        fee = getattr(value, 'fee', 5000) / 1e9 if hasattr(value, 'fee') else service_fee
         err = getattr(value, 'err', None)
         logs = getattr(value, 'logs', None)
 
@@ -604,7 +605,7 @@ class SolanaTrader:
                 }
 
             # 计算结果
-            result = self._calculate_transfer_result(token_address, amount, sim_result["fee"] or 0.000078)
+            result = self._calculate_transfer_result(token_address, amount, sim_result["fee"] or service_fee)
             result.update({
                 "to": to_address,
                 "err": sim_result["err"],
@@ -650,7 +651,7 @@ class SolanaTrader:
                 logging.info(f"{token_name}转账成功，交易哈希: {tx_hash}")
 
                 # 计算并返回结果
-                return self._calculate_transfer_result(token_address, amount, 0.000078, tx_hash)
+                return self._calculate_transfer_result(token_address, amount, service_fee, tx_hash)
 
             except Exception as e:
                 err_str = str(e)

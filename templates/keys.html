@@ -639,10 +639,13 @@
                         <template v-else-if="swapResult.message">
                             <i class="fas fa-times-circle me-1 text-danger"></i>
                             <span class="text-danger">链上交易失败：</span>
-                            <pre class="text-danger small" style="white-space: pre-wrap;" v-text="swapResult.message"></pre>
+                            <pre class="text-danger small" style="white-space: pre-wrap;"
+                                 v-text="swapResult.message"></pre>
                             <div v-if="swapResult.program_logs && swapResult.program_logs.length" class="mt-2">
                                 <span class="fw-bold">链上日志：</span>
-                                <pre class="small bg-light border p-2" style="white-space: pre-wrap;max-height:200px;overflow:auto;" v-text="swapResult.program_logs.join('\n')"></pre>
+                                <pre class="small bg-light border p-2"
+                                     style="white-space: pre-wrap;max-height:200px;overflow:auto;"
+                                     v-text="swapResult.program_logs.join('\n')"></pre>
                             </div>
                         </template>
                         <template v-else>
@@ -653,7 +656,7 @@
             </div>
         </div>
     </div>
-{% raw %}
+    {% raw %}
     <!-- 转账Token模态框 -->
     <div class="modal fade" :class="{ show: showTransferModal }"
          :style="{ display: showTransferModal ? 'block' : 'none' }"
@@ -673,16 +676,20 @@
                             <div class="mb-3">
                                 <label class="form-label">转账Token</label>
                                 <div class="d-flex align-items-center">
-                                    <img v-if="transferFromToken && transferFromToken.logo_uri" :src="transferFromToken.logo_uri"
+                                    <img v-if="transferFromToken && transferFromToken.logo_uri"
+                                         :src="transferFromToken.logo_uri"
                                          style="width:24px;height:24px;" class="me-2 rounded-circle">
-                                    <span class="fw-bold me-2" v-if="transferFromToken" v-text="transferFromToken.name"></span>
-                                    <span class="badge bg-secondary" v-if="transferFromToken" v-text="transferFromToken.symbol"></span>
+                                    <span class="fw-bold me-2" v-if="transferFromToken"
+                                          v-text="transferFromToken.name"></span>
+                                    <span class="badge bg-secondary" v-if="transferFromToken"
+                                          v-text="transferFromToken.symbol"></span>
                                 </div>
                             </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">接收地址 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" v-model="transferToAddress" required placeholder="请输入接收方链上地址">
+                            <input type="text" class="form-control" v-model="transferToAddress" required
+                                   placeholder="请输入接收方链上地址">
                         </div>
                         <div class="mb-3">
                             <label class="form-label d-flex align-items-center justify-content-between">
@@ -694,7 +701,8 @@
                                 <div>
                                     <button v-for="p in [0.25,0.5,0.75,1]" :key="p" type="button"
                                             class="btn btn-sm btn-outline-primary ms-1"
-                                            @click="setTransferQuickAmount(p)">{{ (p*100).toFixed(0) }}%</button>
+                                            @click="setTransferQuickAmount(p)">{{ (p*100).toFixed(0) }}%
+                                    </button>
                                 </div>
                             </label>
                             <div class="input-group">
@@ -707,7 +715,8 @@
                                 <span class="input-group-text"
                                       v-if="!isTransferAmountInUsd && transferFromToken">{{ transferFromToken ? transferFromToken.symbol : '' }}</span>
                                 <span class="input-group-text" v-else>$</span>
-                                <button class="btn btn-outline-secondary" type="button" @click="toggleTransferAmountInputMode"
+                                <button class="btn btn-outline-secondary" type="button"
+                                        @click="toggleTransferAmountInputMode"
                                         :title="isTransferAmountInUsd ? '切换为按Token数量输入' : '切换为按USD金额输入'">
                                     <i v-if="isTransferAmountInUsd" class="fas fa-hashtag"></i>
                                     <i v-else class="fas fa-dollar-sign"></i>
@@ -715,7 +724,8 @@
                             </div>
                             <div class="form-text">
                                 <template v-if="!isTransferAmountInUsd">
-                                    可用余额: <span v-text="formatAmount(maxTransferAmount)"></span> <span v-text="transferFromToken ? transferFromToken.symbol : ''"></span>
+                                    可用余额: <span v-text="formatAmount(maxTransferAmount)"></span> <span
+                                            v-text="transferFromToken ? transferFromToken.symbol : ''"></span>
                                 </template>
                                 <template v-else>
                                     最大可转金额: $<span v-text="formatAmount(maxTransferUsd)"></span>
@@ -735,13 +745,22 @@
                     <div v-if="showTransferConfirm" class="alert alert-info mt-3">
                         <div>
                             <strong>请确认转账信息：</strong>
-                            <div>Token数量：<span class="fw-bold" v-text="formatAmount(transferPreview.amount)"></span> <span v-text="transferFromToken ? transferFromToken.symbol : ''"></span></div>
-                            <div>≈ <span class="fw-bold text-info" v-text="'$' + formatAmount(transferPreview.amount_usd)"></span></div>
-                            <div>收款地址：<span class="fw-bold" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;">{{ transferPreview.to ? (transferPreview.to.substring(0,8) + '...' + transferPreview.to.substring(transferPreview.to.length-8)) : '' }}</span>
-                                <button class="btn btn-link btn-sm p-0 ms-1" @click="copyToClipboard(transferPreview.to, '收款地址')"><i class="fas fa-copy"></i></button>
+                            <div>Token数量：<span class="fw-bold" v-text="formatAmount(transferPreview.amount)"></span>
+                                <span v-text="transferFromToken ? transferFromToken.symbol : ''"></span></div>
+                            <div>≈ <span class="fw-bold text-info"
+                                         v-text="'$' + formatAmount(transferPreview.amount_usd)"></span></div>
+                            <div>收款地址：<span class="fw-bold"
+                                                style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;">{{ transferPreview.to ? (transferPreview.to.substring(0,8) + '...' + transferPreview.to.substring(transferPreview.to.length-8)) : '' }}</span>
+                                <button class="btn btn-link btn-sm p-0 ms-1"
+                                        @click="copyToClipboard(transferPreview.to, '收款地址')"><i
+                                            class="fas fa-copy"></i></button>
                             </div>
-                            <div>手续费：<span class="fw-bold text-danger" v-text="formatAmount(transferPreview.fee)"></span> SOL</div>
-                            <div>转账后余额：<span class="fw-bold text-success" v-text="formatAmount(transferPreview.after_balance)"></span> <span v-text="transferFromToken ? transferFromToken.symbol : ''"></span></div>
+                            <div>手续费：<span class="fw-bold text-danger"
+                                              v-text="formatAmount(transferPreview.fee)"></span> SOL
+                            </div>
+                            <div>转账后余额：<span class="fw-bold text-success"
+                                                  v-text="formatAmount(transferPreview.after_balance)"></span> <span
+                                        v-text="transferFromToken ? transferFromToken.symbol : ''"></span></div>
                         </div>
                         <div class="d-flex justify-content-end mt-2">
                             <button class="btn btn-secondary me-2" @click="showTransferConfirm = false">取消</button>
@@ -774,7 +793,7 @@
             </div>
         </div>
     </div>
-{% endraw %}
+    {% endraw %}
 </div>
 {% endblock %}
 
@@ -854,6 +873,7 @@
                 transferAmountUsd: '',
                 maxTransferAmount: 0,
                 maxTransferUsd: 0,
+                service_feed: 0.00008, // 服务费率
             }
         },
         mounted() {
@@ -1220,7 +1240,7 @@
                 this.isAmountInUsd = false;
                 // 对于SOL兑换，需要扣除交易费
                 if (token.address === 'So11111111111111111111111111111111111111111') {
-                    const maxConvertAmount = Math.max(0, token.amount - 0.000078);
+                    const maxConvertAmount = Math.max(0, token.amount - this.service_feed);
                     this.maxConvertUsd = maxConvertAmount * token.price_usd;
                 } else {
                     this.maxConvertUsd = token.amount * token.price_usd;
@@ -1369,7 +1389,7 @@
                     // 计算实际可用的最大金额（SOL需要扣除交易费）
                     let maxAmount = this.convertFromToken.amount;
                     if (this.convertFromToken.address === 'So11111111111111111111111111111111111111111') {
-                        maxAmount = Math.max(0, this.convertFromToken.amount - 0.000078);
+                        maxAmount = Math.max(0, this.convertFromToken.amount - this.service_feed);
                     }
 
                     // 对于100%的情况，直接使用最大可用金额，避免浮点数精度问题
@@ -1404,7 +1424,7 @@
                 this.transferAmountUsd = '';
                 // 对于SOL转账，需要扣除交易费
                 if (token.address === 'So11111111111111111111111111111111111111111') {
-                    this.maxTransferAmount = Math.max(0, token.amount - 0.000078);
+                    this.maxTransferAmount = Math.max(0, token.amount - this.service_feed);
                 } else {
                     this.maxTransferAmount = token.amount;
                 }
