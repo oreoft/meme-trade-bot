@@ -294,6 +294,7 @@
                                                             <th>价格</th>
                                                             <th>价值</th>
                                                             <th>Token地址</th>
+                                                            <th>操作</th>
                                                         </tr>
                                                         </thead>
                                                         <tbody>
@@ -336,6 +337,10 @@
                                                                 <button class="btn btn-outline-success btn-sm"
                                                                         @click="openConvertModal(key, token)">
                                                                     <i class="fas fa-exchange-alt me-1"></i>兑换
+                                                                </button>
+                                                                <button class="btn btn-outline-warning btn-sm ms-1"
+                                                                        @click="openTransferModal(key, token)">
+                                                                    <i class="fas fa-paper-plane me-1"></i>转账
                                                                 </button>
                                                             </td>
                                                         </tr>
@@ -648,6 +653,128 @@
             </div>
         </div>
     </div>
+{% raw %}
+    <!-- 转账Token模态框 -->
+    <div class="modal fade" :class="{ show: showTransferModal }"
+         :style="{ display: showTransferModal ? 'block' : 'none' }"
+         @click="closeTransferModal">
+        <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 500px; width: 95vw;" @click.stop>
+            <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Token转账
+                    </h5>
+                    <button type="button" class="btn-close" @click="closeTransferModal"></button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="previewTransfer">
+                        <div v-if="transferFromToken">
+                            <div class="mb-3">
+                                <label class="form-label">转账Token</label>
+                                <div class="d-flex align-items-center">
+                                    <img v-if="transferFromToken && transferFromToken.logo_uri" :src="transferFromToken.logo_uri"
+                                         style="width:24px;height:24px;" class="me-2 rounded-circle">
+                                    <span class="fw-bold me-2" v-if="transferFromToken" v-text="transferFromToken.name"></span>
+                                    <span class="badge bg-secondary" v-if="transferFromToken" v-text="transferFromToken.symbol"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">接收地址 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" v-model="transferToAddress" required placeholder="请输入接收方链上地址">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label d-flex align-items-center justify-content-between">
+                                <div>
+                                    <span v-if="!isTransferAmountInUsd">转账数量</span>
+                                    <span v-else>转账金额</span>
+                                    <span class="text-danger">*</span>
+                                </div>
+                                <div>
+                                    <button v-for="p in [0.25,0.5,0.75,1]" :key="p" type="button"
+                                            class="btn btn-sm btn-outline-primary ms-1"
+                                            @click="setTransferQuickAmount(p)">{{ (p*100).toFixed(0) }}%</button>
+                                </div>
+                            </label>
+                            <div class="input-group">
+                                <input v-if="!isTransferAmountInUsd" type="number" class="form-control"
+                                       v-model.number="transferAmount"
+                                       :max="maxTransferAmount" min="0" step="any"
+                                       required placeholder="请输入要转账的数量">
+                                <input v-else type="number" class="form-control" v-model.number="transferAmountUsd"
+                                       min="0" step="any" required placeholder="请输入要转账的USD金额">
+                                <span class="input-group-text"
+                                      v-if="!isTransferAmountInUsd && transferFromToken">{{ transferFromToken ? transferFromToken.symbol : '' }}</span>
+                                <span class="input-group-text" v-else>$</span>
+                                <button class="btn btn-outline-secondary" type="button" @click="toggleTransferAmountInputMode"
+                                        :title="isTransferAmountInUsd ? '切换为按Token数量输入' : '切换为按USD金额输入'">
+                                    <i v-if="isTransferAmountInUsd" class="fas fa-hashtag"></i>
+                                    <i v-else class="fas fa-dollar-sign"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                <template v-if="!isTransferAmountInUsd">
+                                    可用余额: <span v-text="formatAmount(maxTransferAmount)"></span> <span v-text="transferFromToken ? transferFromToken.symbol : ''"></span>
+                                </template>
+                                <template v-else>
+                                    最大可转金额: $<span v-text="formatAmount(maxTransferUsd)"></span>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @click="closeTransferModal">取消</button>
+                            <button type="submit" class="btn btn-warning" :disabled="transferLoading">
+                                <span v-if="transferLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                <span v-if="transferLoading">预览中...</span>
+                                <span v-else>下一步</span>
+                            </button>
+                        </div>
+                    </form>
+                    <!-- 二次确认 -->
+                    <div v-if="showTransferConfirm" class="alert alert-info mt-3">
+                        <div>
+                            <strong>请确认转账信息：</strong>
+                            <div>Token数量：<span class="fw-bold" v-text="formatAmount(transferPreview.amount)"></span> <span v-text="transferFromToken ? transferFromToken.symbol : ''"></span></div>
+                            <div>≈ <span class="fw-bold text-info" v-text="'$' + formatAmount(transferPreview.amount_usd)"></span></div>
+                            <div>收款地址：<span class="fw-bold" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;">{{ transferPreview.to ? (transferPreview.to.substring(0,8) + '...' + transferPreview.to.substring(transferPreview.to.length-8)) : '' }}</span>
+                                <button class="btn btn-link btn-sm p-0 ms-1" @click="copyToClipboard(transferPreview.to, '收款地址')"><i class="fas fa-copy"></i></button>
+                            </div>
+                            <div>手续费：<span class="fw-bold text-danger" v-text="formatAmount(transferPreview.fee)"></span> SOL</div>
+                            <div>转账后余额：<span class="fw-bold text-success" v-text="formatAmount(transferPreview.after_balance)"></span> <span v-text="transferFromToken ? transferFromToken.symbol : ''"></span></div>
+                        </div>
+                        <div class="d-flex justify-content-end mt-2">
+                            <button class="btn btn-secondary me-2" @click="showTransferConfirm = false">取消</button>
+                            <button class="btn btn-success" @click="doTransfer" :disabled="transferLoading">
+                                <span v-if="transferLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                <span v-if="transferLoading">转账中...</span>
+                                <span v-else>确认转账</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 结果提示 -->
+                    <div v-if="transferResult" class="alert mt-3"
+                         :class="transferResult.success ? 'alert-success' : 'alert-danger'">
+                        <template v-if="transferResult.success">
+                            <i class="fas fa-check-circle me-1"></i>转账成功！
+                            <div>
+                                交易哈希：
+                                <a :href="'https://solscan.io/tx/' + transferResult.tx_hash" target="_blank"
+                                   :title="transferResult.tx_hash"
+                                   style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;">
+                                    <span v-text="transferResult.tx_hash ? (transferResult.tx_hash.substring(0, 8) + '...' + transferResult.tx_hash.substring(transferResult.tx_hash.length-8)) : ''"></span>
+                                </a>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <span class="text-danger">转账失败：{{ transferResult.message }}</span>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endraw %}
 </div>
 {% endblock %}
 
@@ -714,6 +841,19 @@
                 isAmountInUsd: false,
                 convertAmountUsd: '',
                 maxConvertUsd: 0,
+                showTransferModal: false,
+                transferFromKey: null,
+                transferFromToken: null,
+                transferToAddress: '',
+                transferAmount: '',
+                transferLoading: false,
+                transferPreview: null,
+                showTransferConfirm: false,
+                transferResult: null,
+                isTransferAmountInUsd: false,
+                transferAmountUsd: '',
+                maxTransferAmount: 0,
+                maxTransferUsd: 0,
             }
         },
         mounted() {
@@ -1234,7 +1374,121 @@
                         this.convertAmount = (this.convertAmountUsd / this.convertFromToken.price_usd).toFixed(6);
                     }
                 }
-            }
+            },
+            openTransferModal(key, token) {
+                this.transferFromKey = key;
+                this.transferFromToken = token;
+                this.transferToAddress = '';
+                this.transferAmount = '';
+                this.transferAmountUsd = '';
+                this.maxTransferAmount = token.amount;
+                this.maxTransferUsd = token.amount * token.price_usd;
+                this.transferLoading = false;
+                this.transferPreview = null;
+                this.showTransferModal = true;
+                this.showTransferConfirm = false;
+                this.transferResult = null;
+                this.isTransferAmountInUsd = false;
+            },
+            closeTransferModal() {
+                this.showTransferModal = false;
+                this.transferFromKey = null;
+                this.transferFromToken = null;
+                this.transferToAddress = '';
+                this.transferAmount = '';
+                this.transferPreview = null;
+                this.showTransferConfirm = false;
+                this.transferResult = null;
+                this.isTransferAmountInUsd = false;
+                this.transferAmountUsd = '';
+            },
+            async previewTransfer() {
+                if (!this.transferToAddress || (!this.transferAmount && !this.transferAmountUsd)) {
+                    this.showMessage('error', '请输入完整信息');
+                    return;
+                }
+                // 自动换算
+                if (this.isTransferAmountInUsd && this.transferFromToken && this.transferFromToken.price_usd) {
+                    this.transferAmount = (this.transferAmountUsd / this.transferFromToken.price_usd).toFixed(6);
+                }
+                this.transferLoading = true;
+                try {
+                    const formData = new FormData();
+                    formData.append('key_id', this.transferFromKey.id);
+                    formData.append('token_address', this.transferFromToken.address);
+                    formData.append('to_address', this.transferToAddress);
+                    formData.append('amount', this.transferAmount);
+                    const response = await ApiClient.post('/api/transfer_preview', formData);
+                    ApiResponse.handle(response, (data) => {
+                        this.transferPreview = data;
+                        this.showTransferConfirm = true;
+                    }, (error) => {
+                        this.showMessage('error', error || '获取预览失败');
+                    });
+                } finally {
+                    this.transferLoading = false;
+                }
+            },
+            async doTransfer() {
+                this.transferLoading = true;
+                try {
+                    const formData = new FormData();
+                    formData.append('key_id', this.transferFromKey.id);
+                    formData.append('token_address', this.transferFromToken.address);
+                    formData.append('to_address', this.transferToAddress);
+                    formData.append('amount', this.transferAmount);
+                    const response = await ApiClient.post('/api/transfer', formData);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.transferResult = {
+                                success: true,
+                                tx_hash: data.tx_hash,
+                                fee: data.fee,
+                                after_balance: data.after_balance,
+                                actual_amount: data.actual_amount,
+                                amount_usd: data.amount_usd
+                            };
+                            this.showMessage('success', '转账成功！');
+                            this.showTransferConfirm = false;
+                            this.showTransferModal = false;
+                            this.refreshWalletTokens(this.transferFromKey.id);
+                        },
+                        (error) => {
+                            this.transferResult = {success: false, message: error || '转账失败'};
+                            this.showMessage('error', error || '转账失败');
+                        }
+                    );
+                } finally {
+                    this.transferLoading = false;
+                }
+            },
+            toggleTransferAmountInputMode() {
+                this.isTransferAmountInUsd = !this.isTransferAmountInUsd;
+                if (this.isTransferAmountInUsd) {
+                    if (this.transferAmount && this.transferFromToken && this.transferFromToken.price_usd) {
+                        this.transferAmountUsd = (this.transferAmount * this.transferFromToken.price_usd).toFixed(2);
+                    } else {
+                        this.transferAmountUsd = '';
+                    }
+                } else {
+                    if (this.transferAmountUsd && this.transferFromToken && this.transferFromToken.price_usd) {
+                        this.transferAmount = (this.transferAmountUsd / this.transferFromToken.price_usd).toFixed(6);
+                    } else {
+                        this.transferAmount = '';
+                    }
+                }
+            },
+            setTransferQuickAmount(percent) {
+                if (this.transferFromToken) {
+                    if (this.isTransferAmountInUsd && this.transferFromToken.price_usd) {
+                        this.transferAmountUsd = (this.maxTransferUsd * percent).toFixed(2);
+                        this.transferAmount = (this.transferAmountUsd / this.transferFromToken.price_usd).toFixed(6);
+                    } else {
+                        this.transferAmount = (this.maxTransferAmount * percent).toFixed(6);
+                        this.transferAmountUsd = (this.transferAmount * this.transferFromToken.price_usd).toFixed(2);
+                    }
+                }
+            },
         }
     }).mount('#app');
 </script>

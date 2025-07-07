@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Body
+from fastapi import APIRouter, Query, Body, Form
 
 from core.trader import SolanaTrader
 from services import BirdEyeAPI
@@ -104,5 +104,48 @@ async def swap(data: dict = Body(...)):
             return ApiResponse.error(message=txid["error"])
         else:
             return ApiResponse.error(message="交易失败")
+    except Exception as e:
+        return ApiResponse.error(message=str(e))
+
+
+@router.post("/transfer_preview")
+async def transfer_preview(
+        key_id: int = Form(...),
+        token_address: str = Form(...),
+        to_address: str = Form(...),
+        amount: float = Form(...)
+):
+    """转账预览，返回真实手续费、转账后余额、USD金额等"""
+    try:
+        key = MonitorService.get_private_key_by_id(key_id)
+        if not key:
+            return ApiResponse.error(message="私钥不存在")
+        trader = SolanaTrader(key["private_key"])
+        preview = trader.transfer_preview(token_address, to_address, amount)
+        if isinstance(preview, dict) and preview.get("err"):
+            # 业务错误，返回-1，错误信息在message
+            return ApiResponse.error(message=preview.get("err"), data=preview.get("program_logs"))
+        return ApiResponse.success(data=preview)
+    except Exception as e:
+        return ApiResponse.error(message=str(e))
+
+
+@router.post("/transfer")
+async def transfer(
+        key_id: int = Form(...),
+        token_address: str = Form(...),
+        to_address: str = Form(...),
+        amount: float = Form(...)
+):
+    """执行转账，返回交易哈希等信息"""
+    try:
+        key = MonitorService.get_private_key_by_id(key_id)
+        if not key:
+            return ApiResponse.error(message="私钥不存在")
+        trader = SolanaTrader(key["private_key"])
+        result = trader.transfer(token_address, to_address, amount)
+        if isinstance(result, dict) and result.get("err"):
+            return ApiResponse.error(message=result.get("err"), data=result.get("program_logs"))
+        return ApiResponse.success(data=result)
     except Exception as e:
         return ApiResponse.error(message=str(e))
