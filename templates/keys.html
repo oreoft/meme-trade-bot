@@ -1218,8 +1218,13 @@
                 this.convertQuote = null;
                 this.swapResult = null;
                 this.isAmountInUsd = false;
-                // 计算最大可兑换USD
-                this.maxConvertUsd = token && token.price_usd ? (token.amount * token.price_usd) : 0;
+                // 对于SOL兑换，需要扣除交易费
+                if (token.address === 'So11111111111111111111111111111111111111112') {
+                    const maxConvertAmount = Math.max(0, token.amount - 0.00006);
+                    this.maxConvertUsd = maxConvertAmount * token.price_usd;
+                } else {
+                    this.maxConvertUsd = token.amount * token.price_usd;
+                }
             },
             closeConvertModal() {
                 this.showConvertModal = false;
@@ -1361,7 +1366,18 @@
             },
             setQuickAmount(percent) {
                 if (this.convertFromToken) {
-                    this.convertAmount = (this.convertFromToken.amount * percent).toFixed(6);
+                    // 计算实际可用的最大金额（SOL需要扣除交易费）
+                    let maxAmount = this.convertFromToken.amount;
+                    if (this.convertFromToken.address === 'So11111111111111111111111111111111111111112') {
+                        maxAmount = Math.max(0, this.convertFromToken.amount - 0.00006);
+                    }
+                    
+                    // 对于100%的情况，直接使用最大可用金额，避免浮点数精度问题
+                    if (percent === 1) {
+                        this.convertAmount = maxAmount;
+                    } else {
+                        this.convertAmount = (maxAmount * percent).toFixed(6);
+                    }
                     if (this.isAmountInUsd && this.convertFromToken.price_usd) {
                         this.convertAmountUsd = (this.convertAmount * this.convertFromToken.price_usd).toFixed(2);
                     }
@@ -1369,7 +1385,12 @@
             },
             setQuickAmountUsd(percent) {
                 if (this.convertFromToken && this.convertFromToken.price_usd) {
-                    this.convertAmountUsd = (this.maxConvertUsd * percent).toFixed(2);
+                    // 对于100%的情况，直接使用最大可兑换USD
+                    if (percent === 1) {
+                        this.convertAmountUsd = this.maxConvertUsd;
+                    } else {
+                        this.convertAmountUsd = (this.maxConvertUsd * percent).toFixed(2);
+                    }
                     if (!this.isAmountInUsd) {
                         this.convertAmount = (this.convertAmountUsd / this.convertFromToken.price_usd).toFixed(6);
                     }
@@ -1381,8 +1402,13 @@
                 this.transferToAddress = '';
                 this.transferAmount = '';
                 this.transferAmountUsd = '';
-                this.maxTransferAmount = token.amount;
-                this.maxTransferUsd = token.amount * token.price_usd;
+                // 对于SOL转账，需要扣除交易费
+                if (token.address === 'So11111111111111111111111111111111111111112') {
+                    this.maxTransferAmount = Math.max(0, token.amount - 0.00006);
+                } else {
+                    this.maxTransferAmount = token.amount;
+                }
+                this.maxTransferUsd = this.maxTransferAmount * token.price_usd;
                 this.transferLoading = false;
                 this.transferPreview = null;
                 this.showTransferModal = true;
@@ -1481,11 +1507,24 @@
             setTransferQuickAmount(percent) {
                 if (this.transferFromToken) {
                     if (this.isTransferAmountInUsd && this.transferFromToken.price_usd) {
-                        this.transferAmountUsd = (this.maxTransferUsd * percent).toFixed(2);
-                        this.transferAmount = (this.transferAmountUsd / this.transferFromToken.price_usd).toFixed(6);
+                        // 对于100%的情况，直接使用最大可转金额
+                        if (percent === 1) {
+                            this.transferAmountUsd = this.maxTransferUsd;
+                            this.transferAmount = this.maxTransferAmount;
+                        } else {
+                            this.transferAmountUsd = (this.maxTransferUsd * percent).toFixed(2);
+                            this.transferAmount = (this.transferAmountUsd / this.transferFromToken.price_usd).toFixed(6);
+                        }
                     } else {
-                        this.transferAmount = (this.maxTransferAmount * percent).toFixed(6);
-                        this.transferAmountUsd = (this.transferAmount * this.transferFromToken.price_usd).toFixed(2);
+                        // 对于100%的情况，直接使用最大可转数量
+                        if (percent === 1) {
+                            this.transferAmount = this.maxTransferAmount;
+                        } else {
+                            this.transferAmount = (this.maxTransferAmount * percent).toFixed(6);
+                        }
+                        if (this.transferFromToken.price_usd) {
+                            this.transferAmountUsd = (this.transferAmount * this.transferFromToken.price_usd).toFixed(2);
+                        }
                     }
                 }
             },

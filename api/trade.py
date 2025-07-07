@@ -121,7 +121,8 @@ async def transfer_preview(
         if not key:
             return ApiResponse.error(message="私钥不存在")
         trader = SolanaTrader(key["private_key"])
-        preview = trader.transfer_preview(normalize_sol_address(token_address), normalize_sol_address(to_address), amount)
+        preview = trader.transfer_preview(normalize_sol_address(token_address), normalize_sol_address(to_address),
+                                          amount)
         if isinstance(preview, dict) and preview.get("err"):
             # 业务错误，返回-1，错误信息在message
             return ApiResponse.error(message=preview.get("err"), data=preview.get("program_logs"))

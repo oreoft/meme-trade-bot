@@ -548,7 +548,7 @@ class SolanaTrader:
 
         # 处理模拟结果
         value = getattr(sim_result, 'value', sim_result)
-        fee = getattr(value, 'fee', 5000) / 1e9 if hasattr(value, 'fee') else 0.0005
+        fee = getattr(value, 'fee', 5000) / 1e9 if hasattr(value, 'fee') else 0.00006
         err = getattr(value, 'err', None)
         logs = getattr(value, 'logs', None)
 
@@ -604,7 +604,7 @@ class SolanaTrader:
                 }
 
             # 计算结果
-            result = self._calculate_transfer_result(token_address, amount, sim_result["fee"] or 0.0005)
+            result = self._calculate_transfer_result(token_address, amount, sim_result["fee"] or 0.00006)
             result.update({
                 "to": to_address,
                 "err": sim_result["err"],
@@ -650,7 +650,7 @@ class SolanaTrader:
                 logging.info(f"{token_name}转账成功，交易哈希: {tx_hash}")
 
                 # 计算并返回结果
-                return self._calculate_transfer_result(token_address, amount, 0.0005, tx_hash)
+                return self._calculate_transfer_result(token_address, amount, 0.00006, tx_hash)
 
             except Exception as e:
                 err_str = str(e)
