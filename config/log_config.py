@@ -33,7 +33,7 @@ def setup_logging():
         backupCount=5,
         encoding='utf-8'
     )
-    all_handler.setLevel(logging.DEBUG)
+    all_handler.setLevel(logging.INFO)
     all_handler.setFormatter(formatter)
     root_logger.addHandler(all_handler)
 

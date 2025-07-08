@@ -3,16 +3,10 @@ from fastapi import APIRouter, Query, Body, Form
 from core.trader import SolanaTrader
 from services import BirdEyeAPI
 from services.monitor_service import MonitorService
+from utils import normalize_sol_address
 from utils.response import ApiResponse
 
 router = APIRouter(prefix="/api", tags=["交易相关"])
-
-
-def normalize_sol_address(address: str) -> str:
-    """Jupiter只支持So11111111111111111111111111111111111111112，自动替换老SOL地址"""
-    sol_alias = "So11111111111111111111111111111111111111111"
-    sol_mint = "So11111111111111111111111111111111111111112"
-    return sol_mint if address == sol_alias else address
 
 
 @router.get("/token_info")

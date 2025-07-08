@@ -5,6 +5,7 @@ from solders.keypair import Keypair
 
 from database.models import MonitorRecord, MonitorLog, PrivateKey, SessionLocal
 from services.birdeye_api import BirdEyeAPI
+from utils import normalize_sol_address
 
 
 class MonitorService:
@@ -81,7 +82,7 @@ class MonitorService:
             if not private_key_obj:
                 return False, "私钥不存在或已删除", None
             api = BirdEyeAPI()
-            token_meta_data = api.get_token_meta_data(token_address)
+            token_meta_data = api.get_token_meta_data(normalize_sol_address(token_address))
             if not token_meta_data:
                 return False, "无法获取Token信息，请检查Token地址是否正确", None
             token_name = token_meta_data.get('name')
@@ -155,7 +156,7 @@ class MonitorService:
             token_address_changed = record.token_address != token_address
             if token_address_changed:
                 api = BirdEyeAPI()
-                token_meta_data = api.get_token_meta_data(token_address)
+                token_meta_data = api.get_token_meta_data(normalize_sol_address(token_address))
                 if not token_meta_data:
                     return False, "无法获取新Token信息，请检查Token地址是否正确"
                 record.token_name = token_meta_data.get('name')

@@ -106,6 +106,15 @@ class SolanaTrader:
             return 0.0
 
         try:
+            # 检查是否是SOL地址，如果是则直接调用get_sol_balance()
+            from utils import normalize_sol_address
+            normalized_address = normalize_sol_address(token_address)
+            sol_mint = "So11111111111111111111111111111111111111112"
+            
+            if normalized_address == sol_mint:
+                logging.debug(f"检测到SOL地址，直接调用get_sol_balance()")
+                return self.get_sol_balance()
+
             token_mint = Pubkey.from_string(token_address)
             wallet_pubkey = self.wallet.pubkey()
 
@@ -113,11 +122,9 @@ class SolanaTrader:
             try:
                 from spl.token.instructions import get_associated_token_address
                 from spl.token.constants import TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID
-
+                mint_program_id = self.client.get_account_info(token_mint).value.owner
                 # 计算关联token账户地址
-                ata = get_associated_token_address(wallet_pubkey, token_mint, TOKEN_PROGRAM_ID,
-                                                   ASSOCIATED_TOKEN_PROGRAM_ID)
-
+                ata = get_associated_token_address(wallet_pubkey, token_mint, mint_program_id)
                 # 直接获取关联token账户余额
                 balance_response = self.client.get_token_account_balance(ata)
                 if balance_response.value:
@@ -285,7 +292,8 @@ class SolanaTrader:
             else:
                 # 如果数据库中没有，默认使用9位小数（大多数Solana代币的标准）
                 api = BirdEyeAPI()
-                token_meta_data = api.get_token_meta_data(token_address)
+                from utils import normalize_sol_address
+                token_meta_data = api.get_token_meta_data(normalize_sol_address(token_address))
                 token_decimals = token_meta_data.get('decimals')
                 if token_decimals is not None:
                     logging.info(f"从API获取token decimals: {token_decimals}")
@@ -520,7 +528,8 @@ class SolanaTrader:
 
     def _calculate_transfer_result(self, token_address: str, amount: float, fee: float, tx_hash: str = None) -> dict:
         """计算转账结果"""
-        price = BirdEyeAPI().get_market_data(token_address).get('price', 0)
+        from utils import normalize_sol_address
+        price = BirdEyeAPI().get_market_data(normalize_sol_address(token_address)).get('price', 0)
         amount_usd = amount * price
 
         if token_address == str(WRAPPED_SOL_MINT):

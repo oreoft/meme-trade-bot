@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 
 from database.models import SwingMonitorRecord, PrivateKey, SessionLocal
 from services.birdeye_api import BirdEyeAPI
+from utils import normalize_sol_address
 
 
 class SwingMonitorService:
@@ -89,12 +90,12 @@ class SwingMonitorService:
 
             # 获取监听代币信息
             api = BirdEyeAPI()
-            watch_token_meta = api.get_token_meta_data(watch_token_address)
+            watch_token_meta = api.get_token_meta_data(normalize_sol_address(watch_token_address))
             if not watch_token_meta:
                 return False, "无法获取监听代币信息，请检查代币地址是否正确", None
 
             # 获取交易代币信息
-            trade_token_meta = api.get_token_meta_data(trade_token_address)
+            trade_token_meta = api.get_token_meta_data(normalize_sol_address(trade_token_address))
             if not trade_token_meta:
                 return False, "无法获取交易代币信息，请检查代币地址是否正确", None
 
@@ -186,7 +187,7 @@ class SwingMonitorService:
 
             # 更新监听代币信息
             if watch_token_changed:
-                watch_token_meta = api.get_token_meta_data(watch_token_address)
+                watch_token_meta = api.get_token_meta_data(normalize_sol_address(watch_token_address))
                 if not watch_token_meta:
                     return False, "无法获取新的监听代币信息，请检查代币地址是否正确"
                 record.watch_token_name = watch_token_meta.get('name')
@@ -196,7 +197,7 @@ class SwingMonitorService:
 
             # 更新交易代币信息
             if trade_token_changed:
-                trade_token_meta = api.get_token_meta_data(trade_token_address)
+                trade_token_meta = api.get_token_meta_data(normalize_sol_address(trade_token_address))
                 if not trade_token_meta:
                     return False, "无法获取新的交易代币信息，请检查代币地址是否正确"
                 record.trade_token_name = trade_token_meta.get('name')

@@ -8,6 +8,7 @@ from core.trader import SolanaTrader
 from database.models import MonitorRecord, MonitorLog, SwingMonitorRecord, SessionLocal
 from services import BirdEyeAPI
 from services.notifier import Notifier
+from utils import normalize_sol_address
 
 
 class PriceMonitor:
@@ -280,7 +281,7 @@ class PriceMonitor:
         """处理买入监听逻辑"""
         # 获取SOL的美元价格
         sol_mint = "So11111111111111111111111111111111111111112"
-        sol_info = BirdEyeAPI().get_market_data(sol_mint)
+        sol_info = BirdEyeAPI().get_market_data(normalize_sol_address(sol_mint))
         sol_usd_price = sol_info['price'] if sol_info and sol_info['price'] else 0.0
         actual_buy_percentage = record.sell_percentage
         if record.execution_mode != "single":
@@ -407,7 +408,7 @@ class PriceMonitor:
 
             while self.monitor_states.get(record_id, False):
                 try:
-                    price_info = BirdEyeAPI().get_market_data(record.token_address)
+                    price_info = BirdEyeAPI().get_market_data(normalize_sol_address(record.token_address))
                     if not price_info:
                         time.sleep(record.check_interval)
                         continue
@@ -645,7 +646,7 @@ class PriceMonitor:
             while self.swing_monitor_states.get(record_id, False):
                 try:
                     # 获取监听代币的价格信息
-                    watch_price_info = BirdEyeAPI().get_market_data(record.watch_token_address)
+                    watch_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(record.watch_token_address))
                     if not watch_price_info:
                         time.sleep(record.check_interval)
                         continue
@@ -682,10 +683,10 @@ class PriceMonitor:
                             record.name, True, 'sell')
                         
                         try:
-                            # 检查交易代币余额
-                            trade_token_balance = trader.get_token_balance(record.trade_token_address)
-                            if trade_token_balance <= 0:
-                                logging.info(f"波段监控 {record.name} 交易代币余额为0，跳过卖出")
+                            # 检查监听代币余额（卖出监听代币）
+                            watch_token_balance = trader.get_token_balance(record.watch_token_address)
+                            if watch_token_balance <= 0:
+                                logging.info(f"波段监控 {record.name} 监听代币余额为0，跳过卖出")
                                 time.sleep(record.check_interval)
                                 continue
                             
@@ -694,16 +695,16 @@ class PriceMonitor:
                             
                             # 检查是否需要全仓卖出
                             if record.all_in_threshold > 0:
-                                trade_token_price_info = BirdEyeAPI().get_market_data(record.trade_token_address)
-                                if trade_token_price_info and trade_token_price_info['price']:
-                                    total_value = trade_token_balance * trade_token_price_info['price']
+                                watch_token_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(record.watch_token_address))
+                                if watch_token_price_info and watch_token_price_info['price']:
+                                    total_value = watch_token_balance * watch_token_price_info['price']
                                     if total_value <= record.all_in_threshold:
                                         actual_sell_percentage = 1.0
                                         logging.info(f"波段监控 {record.name} 资产价值低于全仓阈值，全仓卖出")
                             
-                            # 执行卖出交易
+                            # 执行卖出交易：卖出监听代币换取交易代币
                             result = self._execute_swing_trade(
-                                trader, record.trade_token_address, record.watch_token_address,
+                                trader, record.watch_token_address, record.trade_token_address,
                                 actual_sell_percentage, 'sell', record, notifier, db
                             )
                             
@@ -725,10 +726,10 @@ class PriceMonitor:
                             record.name, True, 'buy')
                         
                         try:
-                            # 检查监听代币余额（用于买入交易代币）
-                            watch_token_balance = trader.get_token_balance(record.watch_token_address)
-                            if watch_token_balance <= 0:
-                                logging.info(f"波段监控 {record.name} 监听代币余额为0，跳过买入")
+                            # 检查交易代币余额（用交易代币买入监听代币）
+                            trade_token_balance = trader.get_token_balance(record.trade_token_address)
+                            if trade_token_balance <= 0:
+                                logging.info(f"波段监控 {record.name} 交易代币余额为0，跳过买入")
                                 time.sleep(record.check_interval)
                                 continue
                             
@@ -737,16 +738,16 @@ class PriceMonitor:
                             
                             # 检查是否需要全仓买入
                             if record.all_in_threshold > 0:
-                                watch_token_price_info = BirdEyeAPI().get_market_data(record.watch_token_address)
-                                if watch_token_price_info and watch_token_price_info['price']:
-                                    total_value = watch_token_balance * watch_token_price_info['price']
+                                trade_token_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(record.trade_token_address))
+                                if trade_token_price_info and trade_token_price_info['price']:
+                                    total_value = trade_token_balance * trade_token_price_info['price']
                                     if total_value <= record.all_in_threshold:
                                         actual_buy_percentage = 1.0
                                         logging.info(f"波段监控 {record.name} 资产价值低于全仓阈值，全仓买入")
                             
-                            # 执行买入交易
+                            # 执行买入交易：用交易代币买入监听代币
                             result = self._execute_swing_trade(
-                                trader, record.watch_token_address, record.trade_token_address,
+                                trader, record.trade_token_address, record.watch_token_address,
                                 actual_buy_percentage, 'buy', record, notifier, db
                             )
                             
@@ -812,7 +813,7 @@ class PriceMonitor:
             trade_amount = from_balance * percentage
             
             # 获取from_token价格信息用于计算USD价值
-            from_price_info = BirdEyeAPI().get_market_data(from_token)
+            from_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(from_token))
             estimated_usd_value = trade_amount * from_price_info['price'] if from_price_info and from_price_info['price'] else 0
             
             # 获取交易报价
