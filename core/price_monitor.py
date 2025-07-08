@@ -677,11 +677,6 @@ class PriceMonitor:
                     if current_value >= sell_threshold:
                         logging.info(f"波段监控 {record.name} 达到卖出条件！当前{value_name}: ${current_value:,.2f}, 卖出阈值: ${sell_threshold:,.2f}")
                         
-                        # 发送卖出预警
-                        notifier.send_price_alert(
-                            {**watch_price_info, 'threshold': sell_threshold, 'token_symbol': record.watch_token_symbol},
-                            record.name, True, 'sell')
-                        
                         try:
                             # 检查监听代币余额（卖出监听代币）
                             watch_token_balance = trader.get_token_balance(record.watch_token_address)
@@ -689,6 +684,11 @@ class PriceMonitor:
                                 logging.info(f"波段监控 {record.name} 监听代币余额为0，跳过卖出")
                                 time.sleep(record.check_interval)
                                 continue
+                            
+                            # 余额足够，发送卖出预警
+                            notifier.send_price_alert(
+                                {**watch_price_info, 'threshold': sell_threshold, 'token_symbol': record.watch_token_symbol},
+                                record.name, True, 'sell')
                             
                             # 计算卖出比例
                             actual_sell_percentage = record.sell_percentage
@@ -709,21 +709,31 @@ class PriceMonitor:
                             )
                             
                             if result:
-                                logging.info(f"波段监控 {record.name} 卖出交易完成，继续监控")
-                                time.sleep(60)  # 交易后等待60秒
+                                logging.info(f"波段监控 {record.name} 卖出交易完成，开始等待60秒...")
+                                # 在等待前更新数据库状态
+                                record.last_check_at = datetime.utcnow()
+                                db.commit()
+                                
+                                # 使用循环确保真正等待60秒，避免被信号中断
+                                start_time = time.time()
+                                target_time = start_time + 60
+                                while time.time() < target_time and self.swing_monitor_states.get(record_id, False):
+                                    remaining = target_time - time.time()
+                                    if remaining > 0:
+                                        time.sleep(min(remaining, 1))  # 每次最多睡1秒，避免长时间阻塞
+                                
+                                logging.info(f"波段监控 {record.name} 60秒等待完成，继续监控")
+                                continue  # 跳过本次循环的常规检查间隔
                             
                         except Exception as e:
                             logging.error(f"波段监控 {record.name} 卖出执行失败: {e}")
                             notifier.send_error_notification(f"波段卖出执行失败: {e}", record.name)
+                            # 卖出失败时也要等待一下，避免频繁重试
+                            time.sleep(record.check_interval)
                     
                     # 判断是否达到买入条件
                     elif current_value <= buy_threshold:
                         logging.info(f"波段监控 {record.name} 达到买入条件！当前{value_name}: ${current_value:,.2f}, 买入阈值: ${buy_threshold:,.2f}")
-                        
-                        # 发送买入预警
-                        notifier.send_price_alert(
-                            {**watch_price_info, 'threshold': buy_threshold, 'token_symbol': record.watch_token_symbol},
-                            record.name, True, 'buy')
                         
                         try:
                             # 检查交易代币余额（用交易代币买入监听代币）
@@ -732,6 +742,11 @@ class PriceMonitor:
                                 logging.info(f"波段监控 {record.name} 交易代币余额为0，跳过买入")
                                 time.sleep(record.check_interval)
                                 continue
+                            
+                            # 余额足够，发送买入预警
+                            notifier.send_price_alert(
+                                {**watch_price_info, 'threshold': buy_threshold, 'token_symbol': record.watch_token_symbol},
+                                record.name, True, 'buy')
                             
                             # 计算买入比例
                             actual_buy_percentage = record.buy_percentage
@@ -752,12 +767,41 @@ class PriceMonitor:
                             )
                             
                             if result:
-                                logging.info(f"波段监控 {record.name} 买入交易完成，继续监控")
-                                time.sleep(60)  # 交易后等待60秒
+                                logging.info(f"波段监控 {record.name} 买入交易完成，开始等待60秒...")
+                                # 在等待前更新数据库状态
+                                record.last_check_at = datetime.utcnow()
+                                db.commit()
+                                
+                                # 买入操作特殊调试
+                                start_time = time.time()
+                                target_time = start_time + 60
+                                logging.info(f"买入等待开始: start_time={start_time}, target_time={target_time}, monitor_state={self.swing_monitor_states.get(record_id, False)}")
+                                
+                                loop_count = 0
+                                while time.time() < target_time and self.swing_monitor_states.get(record_id, False):
+                                    current_time = time.time()
+                                    remaining = target_time - current_time
+                                    loop_count += 1
+                                    
+                                    if loop_count % 10 == 0:  # 每10次循环记录一次
+                                        logging.info(f"买入等待循环 {loop_count}: current_time={current_time}, remaining={remaining:.2f}, monitor_state={self.swing_monitor_states.get(record_id, False)}")
+                                    
+                                    if remaining > 0:
+                                        time.sleep(min(remaining, 1))  # 每次最多睡1秒，避免长时间阻塞
+                                    else:
+                                        break
+                                
+                                end_time = time.time()
+                                actual_wait = end_time - start_time
+                                logging.info(f"买入等待结束: end_time={end_time}, actual_wait={actual_wait:.2f}秒, monitor_state={self.swing_monitor_states.get(record_id, False)}")
+                                logging.info(f"波段监控 {record.name} 60秒等待完成，继续监控")
+                                continue  # 跳过本次循环的常规检查间隔
                             
                         except Exception as e:
                             logging.error(f"波段监控 {record.name} 买入执行失败: {e}")
                             notifier.send_error_notification(f"波段买入执行失败: {e}", record.name)
+                            # 买入失败时也要等待一下，避免频繁重试
+                            time.sleep(record.check_interval)
                     
                     else:
                         # 价格在买入和卖出阈值之间，继续监控
@@ -842,6 +886,7 @@ class PriceMonitor:
                     record.name, f"{from_symbol}→{to_symbol}", action_type=action_type
                 )
                 
+                logging.info(f"波段监控 {record.name} {action_type} _execute_swing_trade 返回 True")
                 return True
             else:
                 # 交易失败
