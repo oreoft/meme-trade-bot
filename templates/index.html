@@ -15,7 +15,7 @@
                     </h1>
                     <p class="text-muted mb-0">管理和监控您的代币价格阈值</p>
                 </div>
-                <button class="btn btn-primary" @click="showAddModal = true">
+                <button class="btn btn-primary" @click="openAddModal">
                     <i class="fas fa-plus me-2"></i>添加监控
                 </button>
             </div>
@@ -290,10 +290,57 @@
                             <div class="form-text">选择监听类型后，表单内容会动态变化</div>
                         </div>
                         <div class="mb-3">
+                            <label class="form-label">选择钱包私钥 <span class="text-danger">*</span></label>
+                            <select class="form-select" v-model="recordForm.private_key_id" required>
+                                <option value="">请选择钱包私钥</option>
+                                <option v-for="key in privateKeys" :key="key.id" :value="key.id" v-text="key.nickname + ' (' + key.public_key.substring(0,8) + '...' + key.public_key.substring(key.public_key.length-8) + ')'">
+                                </option>
+                            </select>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                如果列表为空，请先到
+                                <a href="/keys" target="_blank" class="text-decoration-none">私钥管理</a>
+                                页面添加私钥
+                            </div>
+                        </div>
+                        <div class="mb-3 position-relative">
                             <label class="form-label">代币地址 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" v-model="recordForm.token_address" 
                                    :class="{ 'is-invalid': tokenAddressError }" 
-                                   @input="tokenAddressError = ''" required>
+                                   @input="onTokenAddressInput" @focus="onTokenAddressInput" @blur="onTokenAddressBlur"
+                                   required placeholder="请输入代币地址或选择" autocomplete="off">
+                            <div v-if="showTokenDropdown && (filteredTokenList.length > 0 || tokensLoading)"
+                                 class="dropdown-menu show w-100 mt-1"
+                                 style="max-height:260px;overflow:auto;z-index:1050;">
+                                <div v-if="tokensLoading" class="dropdown-item text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                    <span class="text-muted">加载代币列表中...</span>
+                                </div>
+                                <div v-else-if="filteredTokenList.length === 0" class="dropdown-item text-center py-3 text-muted">
+                                    <i class="fas fa-search me-2"></i>
+                                    <span>未找到匹配的代币</span>
+                                </div>
+                                <div v-else v-for="token in filteredTokenList" :key="token.address"
+                                     class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;"
+                                     @mousedown.prevent="selectToken(token)">
+                                    <img v-if="token.logo_uri" :src="token.logo_uri" style="width:20px;height:20px;"
+                                         class="rounded-circle">
+                                    <span class="fw-bold" v-text="token.name"></span>
+                                    <span class="badge bg-secondary ms-2" v-text="token.symbol"></span>
+                                    <span class="text-muted ms-auto small"
+                                          v-text="token.address.substring(0,6)+'...'+token.address.substring(token.address.length-6)"></span>
+                                </div>
+                            </div>
+                            <div v-if="selectedTokenInfo" class="form-text mt-2">
+                                <div class="d-flex align-items-center">
+                                    <img v-if="selectedTokenInfo.logo_uri" :src="selectedTokenInfo.logo_uri"
+                                         alt="token logo" class="me-2 rounded-circle"
+                                         style="width: 24px; height: 24px;"
+                                         @error="$event.target.style.display='none'">
+                                    <span class="fw-bold me-2" v-text="selectedTokenInfo.name || '未知'"></span>
+                                    <span class="badge bg-secondary" v-text="selectedTokenInfo.symbol || 'N/A'"></span>
+                                </div>
+                            </div>
                             <div v-if="tokenAddressError" class="invalid-feedback d-block">
                                 <i class="fas fa-exclamation-triangle me-1"></i>
                                 <span v-text="tokenAddressError"></span>
@@ -360,20 +407,6 @@
                                 <label class="form-check-label" for="preSniperMode">
                                     开启后，达到阈值但余额不足时不会停止监控，而是跳过本次，等待下次再判断余额（默认关闭）
                                 </label>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">选择钱包私钥 <span class="text-danger">*</span></label>
-                            <select class="form-select" v-model="recordForm.private_key_id" required>
-                                <option value="">请选择钱包私钥</option>
-                                <option v-for="key in privateKeys" :key="key.id" :value="key.id" v-text="key.nickname + ' (' + key.public_key.substring(0,8) + '...' + key.public_key.substring(key.public_key.length-8) + ')'">
-                                </option>
-                            </select>
-                            <div class="form-text">
-                                <i class="fas fa-info-circle me-1"></i>
-                                如果列表为空，请先到
-                                <a href="/keys" target="_blank" class="text-decoration-none">私钥管理</a>
-                                页面添加私钥
                             </div>
                         </div>
                         <div class="d-flex justify-content-end gap-2">
@@ -524,7 +557,12 @@ createApp({
             operationLoading: {},
             tokenAddressError: '',
             recordForm: { ...defaultRecordForm },
-            messages: []
+            messages: [],
+            availableTokens: [], // 可用的代币列表
+            showTokenDropdown: false,
+            filteredTokenList: [],
+            tokensLoading: false,
+            selectedTokenInfo: null // 选中的代币信息
         }
     },
     computed: {
@@ -689,13 +727,21 @@ createApp({
                 this.showMessage('error', '网络错误');
             }
         },
-        editRecord(record) {
+        async editRecord(record) {
             this.editingRecordId = record.id;
             this.tokenAddressError = '';
             Object.keys(this.recordForm).forEach(key => {
                 this.recordForm[key] = record[key] !== undefined ? record[key] : defaultRecordForm[key];
             });
             this.showEditModal = true;
+            // 懒加载代币列表
+            if (this.availableTokens.length === 0) {
+                await this.loadAvailableTokens();
+            }
+            // 如果已有代币地址，获取代币信息
+            if (this.recordForm.token_address) {
+                await this.fetchTokenInfo();
+            }
         },
         async viewLogs(recordId) {
             this.showLogsModal = true;
@@ -721,6 +767,9 @@ createApp({
             this.showEditModal = false;
             this.editingRecordId = null;
             this.tokenAddressError = '';
+            this.showTokenDropdown = false;
+            this.filteredTokenList = [];
+            this.selectedTokenInfo = null;
             Object.keys(this.recordForm).forEach(key => {
                 this.recordForm[key] = defaultRecordForm[key];
             });
@@ -826,6 +875,123 @@ createApp({
             let val = e.target.value.replace(/[^\d.]/g, '');
             if (val.split('.').length > 2) val = val.replace(/\.+$/, '');
             this.recordForm.threshold = val;
+        },
+        async openAddModal() {
+            this.showAddModal = true;
+            // 懒加载代币列表
+            if (this.availableTokens.length === 0) {
+                await this.loadAvailableTokens();
+            }
+        },
+        async loadAvailableTokens() {
+            if (this.tokensLoading) return;
+            this.tokensLoading = true;
+            try {
+                const response = await ApiClient.get('/api/keys/summary/tokens');
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.availableTokens = data.tokens || [];
+                        // 加载完成后重新触发过滤
+                        this.onTokenAddressInput();
+                    },
+                    (error) => {
+                        this.showMessage('error', error || '加载代币列表失败');
+                        this.showTokenDropdown = false;
+                    }
+                );
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+                this.showTokenDropdown = false;
+            } finally {
+                this.tokensLoading = false;
+            }
+        },
+        onTokenAddressInput() {
+            this.tokenAddressError = '';
+            const query = this.recordForm.token_address.trim().toLowerCase();
+            
+            // 如果输入为空，重置代币信息
+            if (!query) {
+                this.selectedTokenInfo = null;
+            }
+            
+            // 如果代币列表为空且不在加载中，显示加载状态
+            if (this.availableTokens.length === 0 && !this.tokensLoading) {
+                this.showTokenDropdown = true;
+                this.loadAvailableTokens();
+                return;
+            }
+            
+            if (query) {
+                this.filteredTokenList = this.availableTokens.filter(token =>
+                    token.address.toLowerCase().includes(query) ||
+                    (token.name && token.name.toLowerCase().includes(query)) ||
+                    (token.symbol && token.symbol.toLowerCase().includes(query))
+                );
+            } else {
+                this.filteredTokenList = this.availableTokens;
+            }
+            
+            this.showTokenDropdown = this.filteredTokenList.length > 0 || this.tokensLoading;
+        },
+        selectToken(token) {
+            this.recordForm.token_address = token.address;
+            this.showTokenDropdown = false;
+            this.tokenAddressError = '';
+            this.selectedTokenInfo = {
+                name: token.name,
+                symbol: token.symbol,
+                logo_uri: token.logo_uri
+            };
+        },
+        onTokenAddressBlur() {
+            setTimeout(() => {
+                this.showTokenDropdown = false;
+                // 如果用户手动输入了地址，尝试获取代币信息
+                if (this.recordForm.token_address && !this.selectedTokenInfo) {
+                    this.fetchTokenInfo();
+                }
+            }, 200);
+        },
+        async fetchTokenInfo() {
+            if (!this.recordForm.token_address) {
+                this.selectedTokenInfo = null;
+                return;
+            }
+            
+            // 首先检查是否在已有的代币列表中
+            const existingToken = this.availableTokens.find(token => 
+                token.address.toLowerCase() === this.recordForm.token_address.toLowerCase()
+            );
+            
+            if (existingToken) {
+                this.selectedTokenInfo = {
+                    name: existingToken.name,
+                    symbol: existingToken.symbol,
+                    logo_uri: existingToken.logo_uri
+                };
+                return;
+            }
+            
+            // 如果不在列表中，调用API获取
+            try {
+                const response = await ApiClient.get(`/api/token_info?address=${this.recordForm.token_address}`);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.selectedTokenInfo = {
+                            name: data.name,
+                            symbol: data.symbol,
+                            logo_uri: data.logo_uri
+                        };
+                    },
+                    (error) => {
+                        // 获取失败时不显示错误，只是不显示代币信息
+                        this.selectedTokenInfo = null;
+                    }
+                );
+            } catch (error) {
+                this.selectedTokenInfo = null;
+            }
         }
     }
 }).mount('#app');
