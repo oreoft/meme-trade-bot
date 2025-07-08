@@ -110,10 +110,10 @@ class SolanaTrader:
             from utils import normalize_sol_address
             normalized_address = normalize_sol_address(token_address)
             sol_mint = "So11111111111111111111111111111111111111112"
-            
+
             if normalized_address == sol_mint:
                 logging.debug(f"检测到SOL地址，直接调用get_sol_balance()")
-                return self.get_sol_balance()
+                return self.get_sol_balance() - service_fee * 3
 
             token_mint = Pubkey.from_string(token_address)
             wallet_pubkey = self.wallet.pubkey()
