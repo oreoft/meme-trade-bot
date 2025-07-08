@@ -15,6 +15,7 @@ from api import (
     keys_router,
     trade_router
 )
+from api.swing_monitor import router as swing_monitor_router
 # 导入拆分后的模块
 from config.config_manager import ConfigManager
 # 导入日志配置模块
@@ -61,6 +62,7 @@ app.include_router(records_router)  # 监控记录管理API
 app.include_router(logs_router)  # 日志API
 app.include_router(keys_router)  # 私钥管理API
 app.include_router(trade_router)  # 交易相关API
+app.include_router(swing_monitor_router)  # 波段监控API
 
 # 设置监控器实例到需要的路由模块中
 from api import monitor as monitor_api

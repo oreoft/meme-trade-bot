@@ -15,9 +15,19 @@
                     </h1>
                     <p class="text-muted mb-0">管理和监控您的代币价格阈值</p>
                 </div>
-                <button class="btn btn-primary" @click="openAddModal">
-                    <i class="fas fa-plus me-2"></i>添加监控
-                </button>
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-plus me-2"></i>添加监控
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" @click="openAddModal('normal')">
+                            <i class="fas fa-eye me-2"></i>普通监控（买入/卖出）
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" @click="openAddModal('swing')">
+                            <i class="fas fa-exchange-alt me-2"></i>波段监控
+                        </a></li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -29,7 +39,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h3 class="mb-0" v-text="monitorRecords.length">0</h3>
+                            <h3 class="mb-0" v-text="monitorRecords.length + swingRecords.length">0</h3>
                             <small>总监控数</small>
                         </div>
                         <i class="fas fa-list fa-2x opacity-50"></i>
@@ -248,6 +258,93 @@
                     </div>
                 </div>
             </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exchange-alt me-2"></i>波段监控列表
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div v-if="loading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted">加载中...</p>
+                    </div>
+                    <div v-else-if="swingRecords.length === 0" class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无波段监控记录</h5>
+                    </div>
+                    <div v-else class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>名称</th>
+                                    <th>监听代币</th>
+                                    <th>交易代币</th>
+                                    <th>价格类型</th>
+                                    <th>当前值</th>
+                                    <th>买入阈值</th>
+                                    <th>卖出阈值</th>
+                                    <th>买入比例</th>
+                                    <th>卖出比例</th>
+                                    <th>全仓阈值</th>
+                                    <th>间隔</th>
+                                    <th>状态</th>
+                                    <th>最后检查</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="record in swingRecords" :key="record.id">
+                                    <td>
+                                        <span class="badge bg-info">波段</span>
+                                        <strong v-text="record.name"></strong>
+                                    </td>
+                                    <td style="max-width: 120px;">
+                                        <a :href="'https://dexscreener.com/solana/' + record.watch_token_address" target="_blank" class="text-decoration-none text-truncate d-inline-block" style="max-width: 100px; vertical-align: middle;" :title="record.watch_token_address">
+                                            <code class="small text-primary">
+                                              <span v-text="record.watch_token_address.substring(0, 4) + '...' + record.watch_token_address.substring(record.watch_token_address.length - 4)"></span>
+                                              <span v-if="record.watch_token_symbol">(<span v-text="record.watch_token_symbol"></span>)</span>
+                                            </code>
+                                        </a>
+                                    </td>
+                                    <td style="max-width: 120px;">
+                                        <a :href="'https://dexscreener.com/solana/' + record.trade_token_address" target="_blank" class="text-decoration-none text-truncate d-inline-block" style="max-width: 100px; vertical-align: middle;" :title="record.trade_token_address">
+                                            <code class="small text-success">
+                                              <span v-text="record.trade_token_address.substring(0, 4) + '...' + record.trade_token_address.substring(record.trade_token_address.length - 4)"></span>
+                                              <span v-if="record.trade_token_symbol">(<span v-text="record.trade_token_symbol"></span>)</span>
+                                            </code>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge" :class="record.price_type === 'price' ? 'bg-warning' : 'bg-info'" v-text="record.price_type === 'price' ? '单价' : '市值'"></span>
+                                    </td>
+                                    <td>
+                                        <span v-if="record.price_type === 'price' && record.last_watch_price" class="fw-bold" v-text="'$' + record.last_watch_price.toFixed(8)"></span>
+                                        <span v-else-if="record.price_type === 'market_cap' && record.last_watch_market_cap" class="fw-bold" v-text="'$' + formatShortNumber(record.last_watch_market_cap)"></span>
+                                        <span v-else class="text-muted">--</span>
+                                    </td>
+                                    <td><strong class="text-success" v-text="'$' + formatShortNumber(record.buy_threshold)"></strong></td>
+                                    <td><strong class="text-danger" v-text="'$' + formatShortNumber(record.sell_threshold)"></strong></td>
+                                    <td><span class="badge bg-success" v-text="(record.buy_percentage * 100).toFixed(1) + '%'" /></td>
+                                    <td><span class="badge bg-danger" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
+                                    <td><span v-text="'$' + formatShortNumber(record.all_in_threshold)"></span></td>
+                                    <td><span v-text="record.check_interval + '秒'"></span></td>
+                                    <td><span class="badge" :class="getStatusClass(record.status)"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
+                                    <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted">--</span></td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" style="gap: 6px;">
+                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success" @click="startSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i class="fas fa-play"></i></button>
+                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger" @click="stopSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i class="fas fa-stop"></i></button>
+                                            <button class="btn btn-outline-primary" @click="editSwingRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-outline-danger" @click="deleteSwingRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -423,6 +520,210 @@
         </div>
     </div>
 
+    <!-- 添加/编辑波段监控记录模态框 -->
+    <div class="modal fade" :class="{ show: showAddSwingModal || showEditSwingModal }" 
+         :style="{ display: showAddSwingModal || showEditSwingModal ? 'block' : 'none' }"
+         @click="closeSwingModal">
+        <div class="modal-dialog modal-lg" @click.stop>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exchange-alt me-2"></i>
+                        <span v-if="showEditSwingModal">编辑波段监控记录</span>
+                        <span v-else>添加波段监控记录</span>
+                    </h5>
+                    <button type="button" class="btn-close" @click="closeSwingModal"></button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="saveSwingRecord">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">监控名称 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" v-model="swingForm.name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">检查间隔(秒) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" v-model="swingForm.check_interval" min="1" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">选择钱包私钥 <span class="text-danger">*</span></label>
+                            <select class="form-select" v-model="swingForm.private_key_id" required>
+                                <option value="">请选择钱包私钥</option>
+                                <option v-for="key in privateKeys" :key="key.id" :value="key.id" v-text="key.nickname + ' (' + key.public_key.substring(0,8) + '...' + key.public_key.substring(key.public_key.length-8) + ')'">
+                                </option>
+                            </select>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                如果列表为空，请先到
+                                <a href="/keys" target="_blank" class="text-decoration-none">私钥管理</a>
+                                页面添加私钥
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3 position-relative">
+                                    <label class="form-label">监听代币地址 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" v-model="swingForm.watch_token_address" 
+                                           @input="onWatchTokenAddressInput" @focus="onWatchTokenAddressInput" @blur="onWatchTokenAddressBlur"
+                                           required placeholder="要监听价格的代币地址" autocomplete="off">
+                                    <div v-if="showWatchTokenDropdown && (filteredWatchTokenList.length > 0 || tokensLoading)"
+                                         class="dropdown-menu show w-100 mt-1"
+                                         style="max-height:260px;overflow:auto;z-index:1050;">
+                                        <div v-if="tokensLoading" class="dropdown-item text-center py-3">
+                                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                            <span class="text-muted">加载代币列表中...</span>
+                                        </div>
+                                        <div v-else-if="filteredWatchTokenList.length === 0" class="dropdown-item text-center py-3 text-muted">
+                                            <i class="fas fa-search me-2"></i>
+                                            <span>未找到匹配的代币</span>
+                                        </div>
+                                        <div v-else v-for="token in filteredWatchTokenList" :key="token.address"
+                                             class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;"
+                                             @mousedown.prevent="selectWatchToken(token)">
+                                            <img v-if="token.logo_uri" :src="token.logo_uri" style="width:20px;height:20px;"
+                                                 class="rounded-circle">
+                                            <span class="fw-bold" v-text="token.name"></span>
+                                            <span class="badge bg-secondary ms-2" v-text="token.symbol"></span>
+                                            <span class="text-muted ms-auto small"
+                                                  v-text="token.address.substring(0,6)+'...'+token.address.substring(token.address.length-6)"></span>
+                                        </div>
+                                    </div>
+                                    <div v-if="selectedWatchTokenInfo" class="form-text mt-2">
+                                        <div class="d-flex align-items-center">
+                                            <img v-if="selectedWatchTokenInfo.logo_uri" :src="selectedWatchTokenInfo.logo_uri"
+                                                 alt="token logo" class="me-2 rounded-circle"
+                                                 style="width: 24px; height: 24px;"
+                                                 @error="$event.target.style.display='none'">
+                                            <span class="fw-bold me-2" v-text="selectedWatchTokenInfo.name || '未知'"></span>
+                                            <span class="badge bg-secondary" v-text="selectedWatchTokenInfo.symbol || 'N/A'"></span>
+                                        </div>
+                                    </div>
+                                    <div class="form-text">系统将监听此代币的价格变化</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3 position-relative">
+                                    <label class="form-label">交易代币地址 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" v-model="swingForm.trade_token_address" 
+                                           @input="onTradeTokenAddressInput" @focus="onTradeTokenAddressInput" @blur="onTradeTokenAddressBlur"
+                                           required placeholder="要进行交易的代币地址" autocomplete="off">
+                                    <div v-if="showTradeTokenDropdown && (filteredTradeTokenList.length > 0 || tokensLoading)"
+                                         class="dropdown-menu show w-100 mt-1"
+                                         style="max-height:260px;overflow:auto;z-index:1050;">
+                                        <div v-if="tokensLoading" class="dropdown-item text-center py-3">
+                                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                            <span class="text-muted">加载代币列表中...</span>
+                                        </div>
+                                        <div v-else-if="filteredTradeTokenList.length === 0" class="dropdown-item text-center py-3 text-muted">
+                                            <i class="fas fa-search me-2"></i>
+                                            <span>未找到匹配的代币</span>
+                                        </div>
+                                        <div v-else v-for="token in filteredTradeTokenList" :key="token.address"
+                                             class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;"
+                                             @mousedown.prevent="selectTradeToken(token)">
+                                            <img v-if="token.logo_uri" :src="token.logo_uri" style="width:20px;height:20px;"
+                                                 class="rounded-circle">
+                                            <span class="fw-bold" v-text="token.name"></span>
+                                            <span class="badge bg-secondary ms-2" v-text="token.symbol"></span>
+                                            <span class="text-muted ms-auto small"
+                                                  v-text="token.address.substring(0,6)+'...'+token.address.substring(token.address.length-6)"></span>
+                                        </div>
+                                    </div>
+                                    <div v-if="selectedTradeTokenInfo" class="form-text mt-2">
+                                        <div class="d-flex align-items-center">
+                                            <img v-if="selectedTradeTokenInfo.logo_uri" :src="selectedTradeTokenInfo.logo_uri"
+                                                 alt="token logo" class="me-2 rounded-circle"
+                                                 style="width: 24px; height: 24px;"
+                                                 @error="$event.target.style.display='none'">
+                                            <span class="fw-bold me-2" v-text="selectedTradeTokenInfo.name || '未知'"></span>
+                                            <span class="badge bg-secondary" v-text="selectedTradeTokenInfo.symbol || 'N/A'"></span>
+                                        </div>
+                                    </div>
+                                    <div class="form-text">系统将在此代币和监听代币之间进行交易</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">价格类型 <span class="text-danger">*</span></label>
+                            <select class="form-select" v-model="swingForm.price_type" required>
+                                <option value="market_cap">市值</option>
+                                <option value="price">单价</option>
+                            </select>
+                            <div class="form-text">选择监听代币的价格类型</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">买入阈值(USD) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" v-model="swingForm.buy_threshold" 
+                                           step="0.01" min="0" required>
+                                    <div class="form-text">监听代币价格低于此值时买入</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">卖出阈值(USD) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" v-model="swingForm.sell_threshold" 
+                                           step="0.01" min="0" required>
+                                    <div class="form-text">监听代币价格高于此值时卖出</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">买入比例 <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" v-model="swingForm.buy_percentage" 
+                                           step="0.01" min="0" max="1" required>
+                                    <div class="form-text">0.1 = 10%, 1 = 100%</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">卖出比例 <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" v-model="swingForm.sell_percentage" 
+                                           step="0.01" min="0" max="1" required>
+                                    <div class="form-text">0.1 = 10%, 1 = 100%</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">通知Webhook地址 <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" v-model="swingForm.webhook_url" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">全仓操作阈值(USD)</label>
+                            <input type="number" class="form-control" v-model="swingForm.all_in_threshold" 
+                                   step="0.01" min="0">
+                            <div class="form-text">当资产价值低于此金额时进行全仓操作</div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @click="closeSwingModal">取消</button>
+                            <button type="submit" class="btn btn-primary" :disabled="saveLoading">
+                                <span v-if="saveLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                <span v-if="saveLoading">保存中...</span>
+                                <span v-else>保存</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 日志查看模态框 -->
     <div class="modal fade" :class="{ show: showLogsModal }" 
          :style="{ display: showLogsModal ? 'block' : 'none' }"
@@ -496,7 +797,7 @@
     </div>
 
     <!-- 模态框背景 -->
-    <div v-if="showAddModal || showEditModal || showLogsModal" class="modal-backdrop fade show"></div>
+    <div v-if="showAddModal || showEditModal || showLogsModal || showAddSwingModal || showEditSwingModal" class="modal-backdrop fade show"></div>
 
     <!-- 消息提示 -->
     <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
@@ -545,6 +846,7 @@ createApp({
     data() {
         return {
             monitorRecords: [],
+            swingRecords: [],
             privateKeys: [],
             logs: [],
             loading: true,
@@ -555,6 +857,7 @@ createApp({
             showLogsModal: false,
             editingRecordId: null,
             operationLoading: {},
+            swingOperationLoading: {},
             tokenAddressError: '',
             recordForm: { ...defaultRecordForm },
             messages: [],
@@ -562,7 +865,31 @@ createApp({
             showTokenDropdown: false,
             filteredTokenList: [],
             tokensLoading: false,
-            selectedTokenInfo: null // 选中的代币信息
+            selectedTokenInfo: null, // 选中的代币信息
+            showAddSwingModal: false,
+            showEditSwingModal: false,
+            swingForm: {
+                name: '',
+                private_key_id: '',
+                watch_token_address: '',
+                trade_token_address: '',
+                price_type: 'market_cap',
+                buy_threshold: 0,
+                sell_threshold: 0,
+                buy_percentage: 0.1,
+                sell_percentage: 0.1,
+                webhook_url: '',
+                check_interval: 5,
+                all_in_threshold: 0,
+                type: 'swing' // 区分普通监控和波段监控
+            },
+            // 波段监控代币选择相关
+            showWatchTokenDropdown: false,
+            showTradeTokenDropdown: false,
+            filteredWatchTokenList: [],
+            filteredTradeTokenList: [],
+            selectedWatchTokenInfo: null,
+            selectedTradeTokenInfo: null
         }
     },
     computed: {
@@ -573,21 +900,26 @@ createApp({
             return this.monitorRecords.filter(r => r.type === 'buy');
         },
         runningCount() {
-            return this.monitorRecords.filter(r => r.status === 'monitoring').length;
+            return this.monitorRecords.filter(r => r.status === 'monitoring').length + 
+                   this.swingRecords.filter(r => r.status === 'monitoring').length;
         },
         stoppedCount() {
-            return this.monitorRecords.filter(r => r.status === 'stopped').length;
+            return this.monitorRecords.filter(r => r.status === 'stopped').length +
+                   this.swingRecords.filter(r => r.status === 'stopped').length;
         },
         errorCount() {
-            return this.monitorRecords.filter(r => r.status === 'error').length;
+            return this.monitorRecords.filter(r => r.status === 'error').length +
+                   this.swingRecords.filter(r => r.status === 'error').length;
         }
     },
     mounted() {
         this.loadMonitorRecords();
+        this.loadSwingRecords();
         this.loadPrivateKeys();
         // 每30秒自动刷新
         setInterval(() => {
             this.loadMonitorRecords();
+            this.loadSwingRecords();
         }, 30000);
     },
     methods: {
@@ -613,6 +945,23 @@ createApp({
                 this.showMessage('error', '网络错误');
             } finally {
                 this.loading = false;
+            }
+        },
+        async loadSwingRecords() {
+            try {
+                const response = await ApiClient.get('/api/swing/records');
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.swingRecords = data;
+                    },
+                    (error) => {
+                        this.showMessage('error', error || '加载波段监控记录失败');
+                    }
+                );
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.loading = false; // 确保loading状态正确
             }
         },
         async loadPrivateKeys() {
@@ -727,6 +1076,101 @@ createApp({
                 this.showMessage('error', '网络错误');
             }
         },
+        async startSwingMonitor(recordId) {
+            this.swingOperationLoading[recordId] = true;
+            try {
+                const formData = new FormData();
+                formData.append('record_id', recordId);
+                const response = await ApiClient.post(`/api/swing/start`, formData);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.showMessage('success', response.message || '启动波段监控成功');
+                        this.loadSwingRecords();
+                    },
+                    (error) => {
+                        this.showMessage('error', error || '启动波段监控失败');
+                    }
+                );
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.swingOperationLoading[recordId] = false;
+            }
+        },
+        async stopSwingMonitor(recordId) {
+            this.swingOperationLoading[recordId] = true;
+            try {
+                const formData = new FormData();
+                formData.append('record_id', recordId);
+                const response = await ApiClient.post(`/api/swing/stop`, formData);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.showMessage('success', response.message || '停止波段监控成功');
+                        this.loadSwingRecords();
+                    },
+                    (error) => {
+                        this.showMessage('error', error || '停止波段监控失败');
+                    }
+                );
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.swingOperationLoading[recordId] = false;
+            }
+        },
+        async deleteSwingRecord(recordId) {
+            if (!confirm('确定要删除这个波段监控记录吗？此操作不可恢复。')) {
+                return;
+            }
+            
+            try {
+                const response = await ApiClient.delete(`/api/swing/records/${recordId}`);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.showMessage('success', response.message || '删除波段监控成功');
+                        this.loadSwingRecords();
+                    },
+                    (error) => {
+                        this.showMessage('error', error || '删除波段监控失败');
+                    }
+                );
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            }
+        },
+        async editSwingRecord(record) {
+            this.swingForm = {
+                id: record.id,
+                name: record.name,
+                private_key_id: record.private_key_id,
+                watch_token_address: record.watch_token_address,
+                trade_token_address: record.trade_token_address,
+                price_type: record.price_type,
+                buy_threshold: record.buy_threshold,
+                sell_threshold: record.sell_threshold,
+                buy_percentage: record.buy_percentage,
+                sell_percentage: record.sell_percentage,
+                webhook_url: record.webhook_url,
+                check_interval: record.check_interval,
+                all_in_threshold: record.all_in_threshold || 0,
+                type: 'swing'
+            };
+            
+            // 懒加载代币列表
+            if (this.availableTokens.length === 0) {
+                await this.loadAvailableTokens();
+            }
+            
+            // 获取代币信息
+            if (this.swingForm.watch_token_address) {
+                await this.fetchWatchTokenInfo();
+            }
+            if (this.swingForm.trade_token_address) {
+                await this.fetchTradeTokenInfo();
+            }
+            
+            this.showEditSwingModal = true;
+        },
         async editRecord(record) {
             this.editingRecordId = record.id;
             this.tokenAddressError = '';
@@ -773,6 +1217,32 @@ createApp({
             Object.keys(this.recordForm).forEach(key => {
                 this.recordForm[key] = defaultRecordForm[key];
             });
+        },
+        closeSwingModal() {
+            this.showAddSwingModal = false;
+            this.showEditSwingModal = false;
+            // 重置代币选择相关状态
+            this.showWatchTokenDropdown = false;
+            this.showTradeTokenDropdown = false;
+            this.filteredWatchTokenList = [];
+            this.filteredTradeTokenList = [];
+            this.selectedWatchTokenInfo = null;
+            this.selectedTradeTokenInfo = null;
+            this.swingForm = {
+                name: '',
+                private_key_id: '',
+                watch_token_address: '',
+                trade_token_address: '',
+                price_type: 'market_cap',
+                buy_threshold: 0,
+                sell_threshold: 0,
+                buy_percentage: 0.1,
+                sell_percentage: 0.1,
+                webhook_url: '',
+                check_interval: 5,
+                all_in_threshold: 0,
+                type: 'swing'
+            };
         },
         closeLogsModal() {
             this.showLogsModal = false;
@@ -876,11 +1346,24 @@ createApp({
             if (val.split('.').length > 2) val = val.replace(/\.+$/, '');
             this.recordForm.threshold = val;
         },
-        async openAddModal() {
+        async openAddModal(type) {
+            if (type === 'swing') {
+                this.showAddSwingModal = true;
+                // 懒加载代币列表
+                if (this.availableTokens.length === 0) {
+                    await this.loadAvailableTokens();
+                }
+                return;
+            }
+            this.recordForm.type = type; // 设置监控类型
             this.showAddModal = true;
             // 懒加载代币列表
             if (this.availableTokens.length === 0) {
                 await this.loadAvailableTokens();
+            }
+            // 如果已有代币地址，获取代币信息
+            if (this.recordForm.token_address) {
+                await this.fetchTokenInfo();
             }
         },
         async loadAvailableTokens() {
@@ -991,6 +1474,217 @@ createApp({
                 );
             } catch (error) {
                 this.selectedTokenInfo = null;
+            }
+        },
+        async saveSwingRecord() {
+            this.saveLoading = true;
+            try {
+                const formData = new FormData();
+                
+                // 添加所有必需的字段
+                formData.append('name', this.swingForm.name);
+                formData.append('private_key_id', this.swingForm.private_key_id);
+                formData.append('watch_token_address', this.swingForm.watch_token_address);
+                formData.append('trade_token_address', this.swingForm.trade_token_address);
+                formData.append('price_type', this.swingForm.price_type);
+                formData.append('buy_threshold', this.swingForm.buy_threshold);
+                formData.append('sell_threshold', this.swingForm.sell_threshold);
+                formData.append('buy_percentage', this.swingForm.buy_percentage);
+                formData.append('sell_percentage', this.swingForm.sell_percentage);
+                formData.append('webhook_url', this.swingForm.webhook_url);
+                formData.append('check_interval', this.swingForm.check_interval);
+                formData.append('all_in_threshold', this.swingForm.all_in_threshold || 50.0);
+
+                const url = this.showEditSwingModal 
+                    ? `/api/swing/records/${this.swingForm.id}`
+                    : '/api/swing/records';
+                
+                const method = this.showEditSwingModal ? 'PUT' : 'POST';
+                
+                const response = await ApiClient[method.toLowerCase()](url, formData);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.showMessage('success', response.message || '保存成功');
+                        this.closeSwingModal();
+                        this.loadSwingRecords();
+                    },
+                    (error) => {
+                        this.showMessage('error', error || '保存失败');
+                    }
+                );
+            } catch (error) {
+                this.showMessage('error', '网络错误');
+            } finally {
+                this.saveLoading = false;
+            }
+        },
+        // 波段监控代币选择相关方法
+        onWatchTokenAddressInput() {
+            const query = this.swingForm.watch_token_address.trim().toLowerCase();
+            
+            // 如果输入为空，重置代币信息
+            if (!query) {
+                this.selectedWatchTokenInfo = null;
+            }
+            
+            // 如果代币列表为空且不在加载中，显示加载状态
+            if (this.availableTokens.length === 0 && !this.tokensLoading) {
+                this.showWatchTokenDropdown = true;
+                this.loadAvailableTokens();
+                return;
+            }
+            
+            if (query) {
+                this.filteredWatchTokenList = this.availableTokens.filter(token =>
+                    token.address.toLowerCase().includes(query) ||
+                    (token.name && token.name.toLowerCase().includes(query)) ||
+                    (token.symbol && token.symbol.toLowerCase().includes(query))
+                );
+            } else {
+                this.filteredWatchTokenList = this.availableTokens;
+            }
+            
+            this.showWatchTokenDropdown = this.filteredWatchTokenList.length > 0 || this.tokensLoading;
+        },
+        onWatchTokenAddressBlur() {
+            setTimeout(() => {
+                this.showWatchTokenDropdown = false;
+                // 如果用户手动输入了地址，尝试获取代币信息
+                if (this.swingForm.watch_token_address && !this.selectedWatchTokenInfo) {
+                    this.fetchWatchTokenInfo();
+                }
+            }, 200);
+        },
+        selectWatchToken(token) {
+            this.swingForm.watch_token_address = token.address;
+            this.showWatchTokenDropdown = false;
+            this.selectedWatchTokenInfo = {
+                name: token.name,
+                symbol: token.symbol,
+                logo_uri: token.logo_uri
+            };
+        },
+        async fetchWatchTokenInfo() {
+            if (!this.swingForm.watch_token_address) {
+                this.selectedWatchTokenInfo = null;
+                return;
+            }
+            
+            // 首先检查是否在已有的代币列表中
+            const existingToken = this.availableTokens.find(token => 
+                token.address.toLowerCase() === this.swingForm.watch_token_address.toLowerCase()
+            );
+            
+            if (existingToken) {
+                this.selectedWatchTokenInfo = {
+                    name: existingToken.name,
+                    symbol: existingToken.symbol,
+                    logo_uri: existingToken.logo_uri
+                };
+                return;
+            }
+            
+            // 如果不在列表中，调用API获取
+            try {
+                const response = await ApiClient.get(`/api/token_info?address=${this.swingForm.watch_token_address}`);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.selectedWatchTokenInfo = {
+                            name: data.name,
+                            symbol: data.symbol,
+                            logo_uri: data.logo_uri
+                        };
+                    },
+                    (error) => {
+                        this.selectedWatchTokenInfo = null;
+                    }
+                );
+            } catch (error) {
+                this.selectedWatchTokenInfo = null;
+            }
+        },
+        onTradeTokenAddressInput() {
+            const query = this.swingForm.trade_token_address.trim().toLowerCase();
+            
+            // 如果输入为空，重置代币信息
+            if (!query) {
+                this.selectedTradeTokenInfo = null;
+            }
+            
+            // 如果代币列表为空且不在加载中，显示加载状态
+            if (this.availableTokens.length === 0 && !this.tokensLoading) {
+                this.showTradeTokenDropdown = true;
+                this.loadAvailableTokens();
+                return;
+            }
+            
+            if (query) {
+                this.filteredTradeTokenList = this.availableTokens.filter(token =>
+                    token.address.toLowerCase().includes(query) ||
+                    (token.name && token.name.toLowerCase().includes(query)) ||
+                    (token.symbol && token.symbol.toLowerCase().includes(query))
+                );
+            } else {
+                this.filteredTradeTokenList = this.availableTokens;
+            }
+            
+            this.showTradeTokenDropdown = this.filteredTradeTokenList.length > 0 || this.tokensLoading;
+        },
+        onTradeTokenAddressBlur() {
+            setTimeout(() => {
+                this.showTradeTokenDropdown = false;
+                // 如果用户手动输入了地址，尝试获取代币信息
+                if (this.swingForm.trade_token_address && !this.selectedTradeTokenInfo) {
+                    this.fetchTradeTokenInfo();
+                }
+            }, 200);
+        },
+        selectTradeToken(token) {
+            this.swingForm.trade_token_address = token.address;
+            this.showTradeTokenDropdown = false;
+            this.selectedTradeTokenInfo = {
+                name: token.name,
+                symbol: token.symbol,
+                logo_uri: token.logo_uri
+            };
+        },
+        async fetchTradeTokenInfo() {
+            if (!this.swingForm.trade_token_address) {
+                this.selectedTradeTokenInfo = null;
+                return;
+            }
+            
+            // 首先检查是否在已有的代币列表中
+            const existingToken = this.availableTokens.find(token => 
+                token.address.toLowerCase() === this.swingForm.trade_token_address.toLowerCase()
+            );
+            
+            if (existingToken) {
+                this.selectedTradeTokenInfo = {
+                    name: existingToken.name,
+                    symbol: existingToken.symbol,
+                    logo_uri: existingToken.logo_uri
+                };
+                return;
+            }
+            
+            // 如果不在列表中，调用API获取
+            try {
+                const response = await ApiClient.get(`/api/token_info?address=${this.swingForm.trade_token_address}`);
+                ApiResponse.handle(response,
+                    (data) => {
+                        this.selectedTradeTokenInfo = {
+                            name: data.name,
+                            symbol: data.symbol,
+                            logo_uri: data.logo_uri
+                        };
+                    },
+                    (error) => {
+                        this.selectedTradeTokenInfo = null;
+                    }
+                );
+            } catch (error) {
+                this.selectedTradeTokenInfo = null;
             }
         }
     }

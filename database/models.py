@@ -65,6 +65,53 @@ class MonitorRecord(Base):
     # 关系
     private_key_obj = relationship("PrivateKey", lazy="joined", foreign_keys=[private_key_id])
 
+
+class SwingMonitorRecord(Base):
+    """波段监控记录表"""
+    __tablename__ = "swing_monitor_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)  # 监控名称
+    private_key_id = Column(Integer, ForeignKey("private_keys.id"), nullable=False)  # 私钥ID
+    
+    # 监听代币配置
+    watch_token_address = Column(String, nullable=False)  # 监听的代币地址
+    watch_token_name = Column(String)  # 监听代币名称
+    watch_token_symbol = Column(String)  # 监听代币符号
+    watch_token_logo_uri = Column(String)  # 监听代币Logo URI
+    watch_token_decimals = Column(Integer)  # 监听代币小数位数
+    
+    # 交易代币配置
+    trade_token_address = Column(String, nullable=False)  # 交易的代币地址
+    trade_token_name = Column(String)  # 交易代币名称
+    trade_token_symbol = Column(String)  # 交易代币符号
+    trade_token_logo_uri = Column(String)  # 交易代币Logo URI
+    trade_token_decimals = Column(Integer)  # 交易代币小数位数
+    
+    # 价格监控配置
+    price_type = Column(String, default="market_cap")  # 价格类型：market_cap(市值), price(单价)
+    sell_threshold = Column(Float, nullable=False)  # 卖出阈值
+    buy_threshold = Column(Float, nullable=False)  # 买入阈值
+    sell_percentage = Column(Float, nullable=False)  # 卖出比例 (0-1)
+    buy_percentage = Column(Float, nullable=False)  # 买入比例 (0-1)
+    
+    # 其他配置
+    webhook_url = Column(String, nullable=False)  # 通知webhook
+    check_interval = Column(Integer, default=5)  # 检查间隔（秒）
+    all_in_threshold = Column(Float, default=50.0)  # 触发全仓操作的最小金额(USD)
+    
+    # 状态字段
+    status = Column(String, default="stopped")  # 状态：monitoring, stopped, error, completed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    last_check_at = Column(DateTime)
+    last_watch_price = Column(Float)  # 最后监听价格
+    last_watch_market_cap = Column(Float)  # 最后监听市值
+    
+    # 关系
+    private_key_obj = relationship("PrivateKey", lazy="joined", foreign_keys=[private_key_id])
+
+
 class MonitorLog(Base):
     __tablename__ = "monitor_logs"
 
