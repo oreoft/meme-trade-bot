@@ -712,10 +712,8 @@ class PriceMonitor:
 
                             # 检查是否需要全仓卖出
                             if record.all_in_threshold > 0:
-                                watch_token_price_info = BirdEyeAPI().get_market_data(
-                                    normalize_sol_address(record.watch_token_address))
-                                if watch_token_price_info and watch_token_price_info['price']:
-                                    total_value = watch_token_balance * watch_token_price_info['price']
+                                if watch_price_info and watch_price_info['price']:
+                                    total_value = watch_token_balance * watch_price_info['price']
                                     if total_value <= record.all_in_threshold:
                                         actual_sell_percentage = 1.0
                                         logging.info(f"波段监控 {record.name} 资产价值低于全仓阈值，全仓卖出")
