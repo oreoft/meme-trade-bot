@@ -70,7 +70,7 @@ async def update_swing_record(
     sell_percentage: float = Form(...),
     buy_percentage: float = Form(...),
     webhook_url: str = Form(...),
-    check_interval: int = Form(5),
+    check_interval: int = Form(60),
     all_in_threshold: float = Form(50.0)
 ):
     """更新波段监控记录"""
@@ -92,6 +92,8 @@ async def update_swing_record(
         )
 
         if success:
+            # 自动修复状态为stopped
+            SwingMonitorService.update_record_status(record_id, "stopped")
             return ApiResponse.success(message=message)
         else:
             return ApiResponse.error(message=message)
