@@ -100,6 +100,32 @@ async def update_monitor_record(
     except Exception as e:
         return ApiResponse.error(message=str(e))
 
+
+@router.post("/start")
+async def start_monitor(record_id: int):
+    """启动监控"""
+    if _monitor is None:
+        return ApiResponse.error(message="监控器未初始化")
+
+    result, message = _monitor.start_monitor(record_id)
+    if result:
+        return ApiResponse.success(message=message)
+    else:
+        return ApiResponse.error(message=message)
+
+@router.post("/stop")
+async def stop_monitor(record_id: int):
+    """停止监控"""
+    if _monitor is None:
+        return ApiResponse.error(message="监控器未初始化")
+
+    result, message = _monitor.stop_monitor(record_id)
+    if result:
+        return ApiResponse.success(message=message)
+    else:
+        return ApiResponse.error(message=message)
+
+
 @router.delete("/{record_id}")
 async def delete_monitor_record(record_id: int):
     """删除监控记录"""
@@ -115,4 +141,4 @@ async def delete_monitor_record(record_id: int):
         else:
             return ApiResponse.error(message=message)
     except Exception as e:
-        return ApiResponse.error(message=str(e)) 
+        return ApiResponse.error(message=str(e))

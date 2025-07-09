@@ -1316,7 +1316,7 @@
             async startMonitor(recordId) {
                 this.operationLoading[recordId] = true;
                 try {
-                    const response = await ApiClient.post(`/api/monitor/start?record_id=${recordId}`);
+                    const response = await ApiClient.post(`/api/monitor/records/start?record_id=${recordId}`);
                     ApiResponse.handle(response,
                         (data) => {
                             this.showMessage('success', response.message || '启动成功');
@@ -1335,7 +1335,7 @@
             async stopMonitor(recordId) {
                 this.operationLoading[recordId] = true;
                 try {
-                    const response = await ApiClient.post(`/api/monitor/stop?record_id=${recordId}`);
+                    const response = await ApiClient.post(`/api/monitor/records/stop?record_id=${recordId}`);
                     ApiResponse.handle(response,
                         (data) => {
                             this.showMessage('success', response.message || '停止成功');

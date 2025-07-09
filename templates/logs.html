@@ -33,21 +33,21 @@
                         <div class="col-md-6">
                             <label class="form-label mb-2">筛选操作类型</label>
                             <div class="d-flex gap-1">
-                                <button type="button" 
+                                <button type="button"
                                         class="btn btn-sm px-2 py-1"
                                         style="font-size: 0.75rem;"
                                         :class="selectedActionTypes.includes('monitoring') ? 'btn-primary' : 'btn-outline-primary'"
                                         @click="toggleActionType('monitoring')">
                                     <i class="fas fa-eye me-1"></i>监控中
                                 </button>
-                                <button type="button" 
+                                <button type="button"
                                         class="btn btn-sm px-2 py-1"
                                         style="font-size: 0.75rem;"
                                         :class="selectedActionTypes.includes('sell') ? 'btn-warning' : 'btn-outline-warning'"
                                         @click="toggleActionType('sell')">
                                     <i class="fas fa-arrow-down me-1"></i>卖出
                                 </button>
-                                <button type="button" 
+                                <button type="button"
                                         class="btn btn-sm px-2 py-1"
                                         style="font-size: 0.75rem;"
                                         :class="selectedActionTypes.includes('buy') ? 'btn-success' : 'btn-outline-success'"
@@ -150,7 +150,7 @@
                         <div class="spinner-border text-primary" role="status"></div>
                         <p class="mt-2 text-muted">加载日志中...</p>
                     </div>
-                    
+
                     <div v-else-if="logs.length === 0" class="text-center py-5">
                         <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                         <h5 class="text-muted">暂无日志记录</h5>
@@ -165,9 +165,10 @@
                                     <th width="15%">监控记录</th>
                                     <th width="12%">价格</th>
                                     <th width="12%">市值</th>
+                                    <th width="9%">交易金额</th>
                                     <th width="10%">达到阈值</th>
                                     <th width="15%">操作</th>
-                                    <th width="21%">交易哈希</th>
+                                    <th width="16%">交易哈希</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -189,6 +190,11 @@
                                     <td>
                                         <span v-if="log.market_cap" class="font-monospace" v-text="'$' + log.market_cap.toLocaleString()"></span>
                                         <span v-else class="text-muted">--</span>
+                                    </td>
+                                    <td>
+                                    <span v-if="log.transaction_usd"
+                                          v-text="'$' + log.transaction_usd.toLocaleString()"></span>
+                                        <span v-else>--</span>
                                     </td>
                                     <td>
                                         <span class="badge" :class="log.threshold_reached ? 'bg-danger' : 'bg-success'">
@@ -240,12 +246,12 @@
 
     <!-- 消息提示 -->
     <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
-        <div v-for="message in messages" :key="message.id" 
-             class="toast align-items-center border-0 show mb-2" 
+        <div v-for="message in messages" :key="message.id"
+             class="toast align-items-center border-0 show mb-2"
              :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
             <div class="d-flex">
                 <div class="toast-body" v-text="message.text"></div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" 
+                <button type="button" class="btn-close btn-close-white me-2 m-auto"
                         @click="removeMessage(message.id)"></button>
             </div>
         </div>
@@ -282,7 +288,7 @@ createApp({
             const pages = [];
             const start = Math.max(1, this.currentPage - 2);
             const end = Math.min(this.totalPages, this.currentPage + 2);
-            
+
             for (let i = start; i <= end; i++) {
                 pages.push(i);
             }
@@ -291,7 +297,7 @@ createApp({
     },
     mounted() {
         this.loadLogs();
-        
+
         // 每30秒自动刷新
         this.autoRefreshInterval = setInterval(() => {
             this.loadLogs();
@@ -394,7 +400,7 @@ createApp({
         },
         getActionBadgeClass(action) {
             if (!action) return 'bg-secondary';
-            
+
             if (action.includes('自动出售') || action.includes('交易')) {
                 return 'bg-success';
             } else if (action.includes('阈值达到')) {
@@ -430,4 +436,4 @@ createApp({
     }
 }).mount('#app');
 </script>
-{% endblock %} 
+{% endblock %}

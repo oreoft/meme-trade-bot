@@ -12,10 +12,6 @@ templates = Jinja2Templates(directory="templates")
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-@router.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request})
-
 @router.get("/config", response_class=HTMLResponse)
 async def config_page(request: Request):
     return templates.TemplateResponse("config.html", {"request": request})
@@ -30,4 +26,4 @@ async def keys_page(request: Request):
 
 @router.get("/api-example", response_class=HTMLResponse)
 async def api_example_page(request: Request):
-    return templates.TemplateResponse("api-example.html", {"request": request}) 
+    return templates.TemplateResponse("api-example.html", {"request": request})
