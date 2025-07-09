@@ -20,10 +20,6 @@ async def dashboard(request: Request):
 async def config_page(request: Request):
     return templates.TemplateResponse("config.html", {"request": request})
 
-@router.get("/monitor", response_class=HTMLResponse)
-async def monitor_page(request: Request):
-    return templates.TemplateResponse("monitor.html", {"request": request})
-
 @router.get("/logs", response_class=HTMLResponse)
 async def logs_page(request: Request):
     return templates.TemplateResponse("logs.html", {"request": request})

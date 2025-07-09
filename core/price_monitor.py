@@ -2,7 +2,7 @@ import logging
 import threading
 import time
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict
 
 from core.trader import SolanaTrader
 from database.models import MonitorRecord, MonitorLog, SwingMonitorRecord, SessionLocal
@@ -538,7 +538,7 @@ class PriceMonitor:
         db = SessionLocal()
         try:
             log = MonitorLog(
-                monitor_record_id=record_id if monitor_type == 'normal' else None,
+                monitor_record_id=record_id,
                 timestamp=datetime.utcnow(),
                 price=price_info.get('price'),
                 market_cap=price_info.get('market_cap'),
@@ -556,62 +556,6 @@ class PriceMonitor:
             )
             db.add(log)
             db.commit()
-        finally:
-            db.close()
-
-    def get_all_monitor_status(self) -> List[Dict]:
-        """获取所有监控状态"""
-        db = SessionLocal()
-        try:
-            # 获取普通监控记录
-            normal_records = db.query(MonitorRecord).all()
-            # 获取波段监控记录
-            swing_records = db.query(SwingMonitorRecord).all()
-
-            status_list = []
-
-            # 添加普通监控记录
-            for record in normal_records:
-                status_list.append({
-                    'id': record.id,
-                    'name': record.name,
-                    'monitor_type': 'normal',
-                    'type': record.type,
-                    'token_address': record.token_address,
-                    'token_symbol': record.token_symbol,
-                    'threshold': record.threshold,
-                    'sell_percentage': record.sell_percentage,
-                    'status': record.status,
-                    'last_check_at': record.last_check_at.isoformat() if record.last_check_at else None,
-                    'last_price': record.last_price,
-                    'last_market_cap': record.last_market_cap,
-                    'is_running': record.id in self.monitor_states and self.monitor_states[record.id]
-                })
-
-            # 添加波段监控记录
-            for record in swing_records:
-                status_list.append({
-                    'id': record.id,
-                    'name': record.name,
-                    'monitor_type': 'swing',
-                    'type': 'swing',
-                    'watch_token_address': record.watch_token_address,
-                    'watch_token_symbol': record.watch_token_symbol,
-                    'trade_token_address': record.trade_token_address,
-                    'trade_token_symbol': record.trade_token_symbol,
-                    'price_type': record.price_type,
-                    'sell_threshold': record.sell_threshold,
-                    'buy_threshold': record.buy_threshold,
-                    'sell_percentage': record.sell_percentage,
-                    'buy_percentage': record.buy_percentage,
-                    'status': record.status,
-                    'last_check_at': record.last_check_at.isoformat() if record.last_check_at else None,
-                    'last_watch_price': record.last_watch_price,
-                    'last_watch_market_cap': record.last_watch_market_cap,
-                    'is_running': record.id in self.swing_monitor_states and self.swing_monitor_states[record.id]
-                })
-
-            return status_list
         finally:
             db.close()
 

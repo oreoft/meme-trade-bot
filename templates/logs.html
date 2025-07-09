@@ -21,15 +21,6 @@
             <div class="card">
                 <div class="card-body">
                     <div class="row align-items-end">
-                        <div class="col-md-4">
-                            <label class="form-label">选择监控记录</label>
-                            <select class="form-select" v-model="selectedMonitorId" @change="loadLogs">
-                                <option value="">所有监控记录</option>
-                                <option v-for="monitor in monitors" :key="monitor.id" :value="monitor.id">
-                                    <span v-text="monitor.name + ' (' + monitor.token_address.substring(0, 8) + '...)'"></span>
-                                </option>
-                            </select>
-                        </div>
                         <div class="col-md-2">
                             <label class="form-label">每页显示</label>
                             <select class="form-select" v-model="perPage" @change="loadLogs">
@@ -251,10 +242,8 @@ const { createApp } = Vue;
 createApp({
     data() {
         return {
-            monitors: [],
             logs: [],
             loading: true,
-            selectedMonitorId: '',
             perPage: 20,
             currentPage: 1,
             totalLogs: 0,
@@ -265,11 +254,6 @@ createApp({
         }
     },
     computed: {
-        selectedMonitorName() {
-            if (!this.selectedMonitorId) return '';
-            const monitor = this.monitors.find(m => m.id == this.selectedMonitorId);
-            return monitor ? monitor.name : '';
-        },
         thresholdReachedCount() {
             return this.logs.filter(log => log.threshold_reached).length;
         },
@@ -288,15 +272,7 @@ createApp({
         }
     },
     mounted() {
-        this.loadMonitors();
         this.loadLogs();
-        
-        // 检查URL参数
-        const urlParams = new URLSearchParams(window.location.search);
-        const monitorId = urlParams.get('monitor_id');
-        if (monitorId) {
-            this.selectedMonitorId = monitorId;
-        }
         
         // 每30秒自动刷新
         this.autoRefreshInterval = setInterval(() => {
@@ -309,52 +285,12 @@ createApp({
         }
     },
     methods: {
-        async loadMonitors() {
-            try {
-                // 加载普通监控记录
-                const normalResponse = await ApiClient.get('/api/monitor/records');
-                // 加载波段监控记录
-                const swingResponse = await ApiClient.get('/api/swing/records');
-                
-                let normalMonitors = [];
-                let swingMonitors = [];
-                
-                ApiResponse.handle(normalResponse,
-                    (data) => {
-                        normalMonitors = data.map(record => ({
-                            ...record,
-                            monitor_type: 'normal'
-                        }));
-                    },
-                    (error) => {
-                        console.error('加载普通监控记录失败:', error);
-                    }
-                );
-                
-                ApiResponse.handle(swingResponse,
-                    (data) => {
-                        swingMonitors = data.map(record => ({
-                            ...record,
-                            monitor_type: 'swing'
-                        }));
-                    },
-                    (error) => {
-                        console.error('加载波段监控记录失败:', error);
-                    }
-                );
-                
-                // 合并监控记录
-                this.monitors = [...normalMonitors, ...swingMonitors];
-            } catch (error) {
-                console.error('加载监控记录失败:', error);
-            }
-        },
         async loadLogs() {
             this.loading = true;
             try {
                 let url = `/api/logs?page=${this.currentPage}&per_page=${this.perPage}`;
-                if (this.selectedMonitorId) {
-                    url += `&monitor_record_id=${this.selectedMonitorId}`;
+                if (this.filterType) {
+                    url += `&filter_type=${this.filterType}`;
                 }
                 const response = await ApiClient.get(url);
                 ApiResponse.handle(response,
@@ -379,9 +315,8 @@ createApp({
         },
         async clearLogs() {
             let confirmMessage = '确定要清空所有日志吗？此操作不可恢复！';
-            if (this.selectedMonitorId) {
-                const monitorName = this.selectedMonitorName || `ID: ${this.selectedMonitorId}`;
-                confirmMessage = `确定要清空监控记录 "${monitorName}" 的所有日志吗？此操作不可恢复！`;
+            if (this.filterType) {
+                confirmMessage = `确定要清空所有 ${this.filterType} 的日志吗？此操作不可恢复！`;
             }
             if (!confirm(confirmMessage)) {
                 return;
@@ -389,8 +324,8 @@ createApp({
             this.loading = true;
             try {
                 let url = '/api/logs';
-                if (this.selectedMonitorId) {
-                    url += `?monitor_record_id=${this.selectedMonitorId}`;
+                if (this.filterType) {
+                    url += `?filter_type=${this.filterType}`;
                 }
                 const response = await ApiClient.delete(url);
                 ApiResponse.handle(response,
@@ -417,12 +352,12 @@ createApp({
             }
         },
         getMonitorName(recordId) {
-            const monitor = this.monitors.find(m => m.id === recordId);
-            return monitor ? monitor.name : '';
+            // 不再从 monitors 中查找，因为不再有选择监控记录的选项
+            return '';
         },
         getMonitorType(recordId) {
-            const monitor = this.monitors.find(m => m.id === recordId);
-            return monitor ? monitor.type : '';
+            // 不再从 monitors 中查找，因为不再有选择监控记录的选项
+            return '';
         },
         getLogRowClass(log) {
             if (log.tx_hash) {

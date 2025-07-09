@@ -210,27 +210,27 @@ class MonitorService:
             db.close()
 
     @staticmethod
-    def get_logs(page: int = 1, per_page: int = 20, monitor_record_id: Optional[int] = None):
-        """获取监控日志"""
+    def get_logs(page: int = 1, per_page: int = 20, monitor_record_id: Optional[int] = None, type: str = None):
+        """
+        获取监控日志，支持 type=normal/swing
+        """
         db = SessionLocal()
         try:
-            # 获取普通监控日志
-            normal_query = db.query(MonitorLog)
+            query = db.query(MonitorLog)
+            if type == 'swing':
+                query = query.filter(MonitorLog.monitor_type == 'swing')
+            elif type == 'normal':
+                query = query.filter((MonitorLog.monitor_type == 'normal') | (MonitorLog.monitor_type == None))
+            # 兼容未传type时，查全部
             if monitor_record_id:
-                normal_query = normal_query.filter(MonitorLog.monitor_record_id == monitor_record_id)
-            
-            # 按时间排序
-            normal_logs = normal_query.order_by(MonitorLog.timestamp.desc()).all()
-            
-            # 转换为统一格式
+                query = query.filter(MonitorLog.monitor_record_id == monitor_record_id)
+            logs = query.order_by(MonitorLog.timestamp.desc()).all()
             log_list = []
-            
-            # 添加普通监控日志
-            for log in normal_logs:
+            for log in logs:
                 log_list.append({
-                    "id": f"normal_{log.id}",
+                    "id": f"{log.monitor_type or 'normal'}_{log.id}",
                     "monitor_record_id": log.monitor_record_id,
-                    "monitor_type": "normal",
+                    "monitor_type": log.monitor_type or 'normal',
                     "timestamp": log.timestamp.isoformat() if log.timestamp else None,
                     "price": log.price,
                     "market_cap": log.market_cap,
@@ -238,15 +238,10 @@ class MonitorService:
                     "action_taken": log.action_taken,
                     "tx_hash": log.tx_hash
                 })
-            
-            # 按时间排序
             log_list.sort(key=lambda x: x['timestamp'] if x['timestamp'] else '', reverse=True)
-            
-            # 分页
             total = len(log_list)
             offset = (page - 1) * per_page
             log_list = log_list[offset:offset + per_page]
-
             return {
                 "logs": log_list,
                 "total": total,

@@ -9,7 +9,6 @@ from fastapi.staticfiles import StaticFiles
 from api import (
     pages_router,
     configs_router,
-    monitor_router,
     records_router,
     logs_router,
     keys_router,
@@ -57,7 +56,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # 注册路由
 app.include_router(pages_router)  # 页面路由
 app.include_router(configs_router)  # 配置管理API
-app.include_router(monitor_router)  # 监控管理API
 app.include_router(records_router)  # 监控记录管理API
 app.include_router(logs_router)  # 日志API
 app.include_router(keys_router)  # 私钥管理API
@@ -65,10 +63,8 @@ app.include_router(trade_router)  # 交易相关API
 app.include_router(swing_monitor_router)  # 波段监控API
 
 # 设置监控器实例到需要的路由模块中
-from api import monitor as monitor_api
 from api import records as records_api
 
-monitor_api.set_monitor(monitor)
 records_api.set_monitor(monitor)
 
 if __name__ == "__main__":

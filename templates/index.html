@@ -160,11 +160,11 @@
                                     <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted small">--</span></td>
                                     <td>
                                         <div class="btn-group btn-group-sm" style="gap: 4px;">
-                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success btn-sm" @click="startMonitor(record.id)" :disabled="operationLoading[record.id]" title="启动监控"><i class="fas fa-play"></i></button>
-                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger btn-sm" @click="stopMonitor(record.id)" :disabled="operationLoading[record.id]" title="停止监控"><i class="fas fa-stop"></i></button>
-                                            <button class="btn btn-outline-primary btn-sm" @click="editRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
-                                            <button class="btn btn-outline-info btn-sm" @click="viewLogs(record.id)" title="查看日志"><i class="fas fa-history"></i></button>
-                                            <button class="btn btn-outline-danger btn-sm" @click="deleteRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
+                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success btn-sm" @click="startSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i class="fas fa-play"></i></button>
+                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger btn-sm" @click="stopSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i class="fas fa-stop"></i></button>
+                                            <button class="btn btn-outline-primary btn-sm" @click="editSwingRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-outline-info btn-sm" @click="viewLogs('normal', record.id)" title="查看日志"><i class="fas fa-history"></i></button>
+                                            <button class="btn btn-outline-danger btn-sm" @click="deleteSwingRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -253,6 +253,7 @@
                                             <button v-if="record.status === 'stopped'" class="btn btn-outline-success btn-sm" @click="startSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i class="fas fa-play"></i></button>
                                             <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger btn-sm" @click="stopSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i class="fas fa-stop"></i></button>
                                             <button class="btn btn-outline-primary btn-sm" @click="editSwingRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-outline-info btn-sm" @click="viewLogs('swing', record.id)" title="查看日志"><i class="fas fa-history"></i></button>
                                             <button class="btn btn-outline-danger btn-sm" @click="deleteSwingRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
                                         </div>
                                     </td>
@@ -342,7 +343,7 @@
                                             <button v-if="record.status === 'stopped'" class="btn btn-outline-success btn-sm" @click="startMonitor(record.id)" :disabled="operationLoading[record.id]" title="启动监控"><i class="fas fa-play"></i></button>
                                             <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger btn-sm" @click="stopMonitor(record.id)" :disabled="operationLoading[record.id]" title="停止监控"><i class="fas fa-stop"></i></button>
                                             <button class="btn btn-outline-primary btn-sm" @click="editRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
-                                            <button class="btn btn-outline-info btn-sm" @click="viewLogs(record.id)" title="查看日志"><i class="fas fa-history"></i></button>
+                                            <button class="btn btn-outline-info btn-sm" @click="viewLogs('normal', record.id)" title="查看日志"><i class="fas fa-history"></i></button>
                                             <button class="btn btn-outline-danger btn-sm" @click="deleteRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
                                         </div>
                                     </td>
@@ -731,10 +732,8 @@
         </div>
     </div>
 
-    <!-- 日志查看模态框 -->
-    <div class="modal fade" :class="{ show: showLogsModal }"
-         :style="{ display: showLogsModal ? 'block' : 'none' }"
-         @click="closeLogsModal">
+    <!-- 日志查看模态框（原生渲染） -->
+    <div class="modal fade" :class="{ show: showLogsModal }" :style="{ display: showLogsModal ? 'block' : 'none' }" @click="closeLogsModal">
         <div class="modal-dialog modal-xl" @click.stop>
             <div class="modal-content">
                 <div class="modal-header">
@@ -744,12 +743,12 @@
                     </h5>
                     <button type="button" class="btn-close" @click="closeLogsModal"></button>
                 </div>
-                <div class="modal-body">
-                    <div v-if="logsLoading" class="text-center py-3">
+                <div class="modal-body p-0">
+                    <div v-if="logsLoading" class="text-center py-5">
                         <div class="spinner-border text-primary"></div>
                         <p class="mt-2">加载日志中...</p>
                     </div>
-                    <div v-else-if="logs.length === 0" class="text-center py-3">
+                    <div v-else-if="logs.length === 0" class="text-center py-5">
                         <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
                         <p class="text-muted">暂无日志记录</p>
                     </div>
@@ -896,7 +895,9 @@ createApp({
             filteredWatchTokenList: [],
             filteredTradeTokenList: [],
             selectedWatchTokenInfo: null,
-            selectedTradeTokenInfo: null
+            selectedTradeTokenInfo: null,
+            logsType: '',
+            logsRecordId: null,
         }
     },
     computed: {
@@ -1194,21 +1195,23 @@ createApp({
                 await this.fetchTokenInfo();
             }
         },
-        async viewLogs(recordId) {
+        async viewLogs(type, recordId) {
             this.showLogsModal = true;
+            this.logsType = type;
+            this.logsRecordId = recordId;
             this.logsLoading = true;
             try {
-                const response = await ApiClient.get(`/api/logs?monitor_record_id=${recordId}&per_page=50`);
+                const response = await ApiClient.get(`/api/logs?type=${type}&monitor_record_id=${recordId}&per_page=50`);
                 ApiResponse.handle(response,
                     (data) => {
                         this.logs = data.logs;
                     },
                     (error) => {
-                        this.showMessage('error', '加载日志失败');
+                        this.logs = [];
                     }
                 );
             } catch (error) {
-                this.showMessage('error', '网络错误');
+                this.logs = [];
             } finally {
                 this.logsLoading = false;
             }
@@ -1254,6 +1257,8 @@ createApp({
         closeLogsModal() {
             this.showLogsModal = false;
             this.logs = [];
+            this.logsType = '';
+            this.logsRecordId = null;
         },
         getStatusClass(status) {
             const statusClasses = {

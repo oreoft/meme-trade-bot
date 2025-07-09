@@ -7,10 +7,12 @@ from utils.response import ApiResponse
 router = APIRouter(prefix="/api", tags=["日志管理"])
 
 @router.get("/logs")
-async def get_logs(page: int = 1, per_page: int = 20, monitor_record_id: int = None):
-    """获取监控日志"""
+async def get_logs(page: int = 1, per_page: int = 20, monitor_record_id: int = None, type: str = None):
+    """
+    获取监控日志，支持 type=normal/swing
+    """
     try:
-        data = MonitorService.get_logs(page, per_page, monitor_record_id)
+        data = MonitorService.get_logs(page, per_page, monitor_record_id, type)
         return ApiResponse.success(data=data)
     except Exception as e:
         return ApiResponse.error(message=str(e))
