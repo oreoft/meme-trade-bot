@@ -30,14 +30,32 @@
                                 <option value="100">100条</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">筛选类型</label>
-                            <select class="form-select" v-model="filterType" @change="loadLogs">
-                                <option value="">所有记录</option>
-                                <option value="threshold_reached">已达阈值</option>
-                                <option value="trade_executed">已执行交易</option>
-                                <option value="monitoring">监控中</option>
-                            </select>
+                        <div class="col-md-6">
+                            <label class="form-label mb-2">筛选操作类型</label>
+                            <div class="d-flex gap-1">
+                                <button type="button" 
+                                        class="btn btn-sm px-2 py-1"
+                                        style="font-size: 0.75rem;"
+                                        :class="selectedActionTypes.includes('monitoring') ? 'btn-primary' : 'btn-outline-primary'"
+                                        @click="toggleActionType('monitoring')">
+                                    <i class="fas fa-eye me-1"></i>监控中
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm px-2 py-1"
+                                        style="font-size: 0.75rem;"
+                                        :class="selectedActionTypes.includes('sell') ? 'btn-warning' : 'btn-outline-warning'"
+                                        @click="toggleActionType('sell')">
+                                    <i class="fas fa-arrow-down me-1"></i>卖出
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm px-2 py-1"
+                                        style="font-size: 0.75rem;"
+                                        :class="selectedActionTypes.includes('buy') ? 'btn-success' : 'btn-outline-success'"
+                                        @click="toggleActionType('buy')">
+                                    <i class="fas fa-arrow-up me-1"></i>买入
+                                </button>
+                            </div>
+                            <div class="form-text">点击选择要显示的操作类型，不选则显示所有类型</div>
                         </div>
                         <div class="col-md-3">
                             <div class="btn-group w-100" role="group">
@@ -248,7 +266,7 @@ createApp({
             currentPage: 1,
             totalLogs: 0,
             totalPages: 0,
-            filterType: '',
+            selectedActionTypes: [], // 选中的操作类型过滤
             autoRefreshInterval: null,
             messages: []
         }
@@ -285,12 +303,23 @@ createApp({
         }
     },
     methods: {
+        toggleActionType(type) {
+            const index = this.selectedActionTypes.indexOf(type);
+            if (index > -1) {
+                this.selectedActionTypes.splice(index, 1);
+            } else {
+                this.selectedActionTypes.push(type);
+            }
+            this.currentPage = 1; // 重置到第一页
+            this.loadLogs();
+        },
         async loadLogs() {
             this.loading = true;
             try {
                 let url = `/api/logs?page=${this.currentPage}&per_page=${this.perPage}`;
-                if (this.filterType) {
-                    url += `&filter_type=${this.filterType}`;
+                if (this.selectedActionTypes.length > 0) {
+                    // 将数组转换为逗号分割的字符串
+                    url += `&action_types=${this.selectedActionTypes.join(',')}`;
                 }
                 const response = await ApiClient.get(url);
                 ApiResponse.handle(response,
@@ -315,19 +344,15 @@ createApp({
         },
         async clearLogs() {
             let confirmMessage = '确定要清空所有日志吗？此操作不可恢复！';
-            if (this.filterType) {
-                confirmMessage = `确定要清空所有 ${this.filterType} 的日志吗？此操作不可恢复！`;
+            if (this.selectedActionTypes.length > 0) {
+                confirmMessage = `确定要清空所有 ${this.selectedActionTypes.join(', ')} 类型的日志吗？此操作不可恢复！`;
             }
             if (!confirm(confirmMessage)) {
                 return;
             }
             this.loading = true;
             try {
-                let url = '/api/logs';
-                if (this.filterType) {
-                    url += `?filter_type=${this.filterType}`;
-                }
-                const response = await ApiClient.delete(url);
+                const response = await ApiClient.delete('/api/logs');
                 ApiResponse.handle(response,
                     (data) => {
                         this.showMessage('success', response.message || '日志清空成功');

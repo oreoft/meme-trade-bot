@@ -744,6 +744,44 @@
                     <button type="button" class="btn-close" @click="closeLogsModal"></button>
                 </div>
                 <div class="modal-body p-0">
+                    <!-- 过滤器 -->
+                    <div class="p-3 border-bottom">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <label class="form-label mb-2">筛选操作类型</label>
+                                <div class="d-flex gap-1">
+                                    <button type="button" 
+                                            class="btn btn-sm px-2 py-1"
+                                            style="font-size: 0.75rem;"
+                                            :class="selectedActionTypes.includes('monitoring') ? 'btn-primary' : 'btn-outline-primary'"
+                                            @click="toggleActionType('monitoring')">
+                                        <i class="fas fa-eye me-1"></i>监控中
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm px-2 py-1"
+                                            style="font-size: 0.75rem;"
+                                            :class="selectedActionTypes.includes('sell') ? 'btn-warning' : 'btn-outline-warning'"
+                                            @click="toggleActionType('sell')">
+                                        <i class="fas fa-arrow-down me-1"></i>卖出
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm px-2 py-1"
+                                            style="font-size: 0.75rem;"
+                                            :class="selectedActionTypes.includes('buy') ? 'btn-success' : 'btn-outline-success'"
+                                            @click="toggleActionType('buy')">
+                                        <i class="fas fa-arrow-up me-1"></i>买入
+                                    </button>
+                                </div>
+                                <div class="form-text">点击选择要显示的操作类型，不选则显示所有类型</div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button class="btn btn-primary" @click="loadModalLogs">
+                                    <i class="fas fa-sync-alt" :class="{ 'fa-spin': logsLoading }"></i>
+                                    刷新
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     <div v-if="logsLoading" class="text-center py-5">
                         <div class="spinner-border text-primary"></div>
                         <p class="mt-2">加载日志中...</p>
@@ -903,6 +941,7 @@ createApp({
             selectedTradeTokenInfo: null,
             logsType: '',
             logsRecordId: null,
+            selectedActionTypes: [], // 选中的操作类型过滤
         }
     },
     computed: {
@@ -1204,9 +1243,27 @@ createApp({
             this.showLogsModal = true;
             this.logsType = type;
             this.logsRecordId = recordId;
+            this.selectedActionTypes = []; // 重置过滤器
+            this.loadModalLogs();
+        },
+        toggleActionType(type) {
+            const index = this.selectedActionTypes.indexOf(type);
+            if (index > -1) {
+                this.selectedActionTypes.splice(index, 1);
+            } else {
+                this.selectedActionTypes.push(type);
+            }
+            this.loadModalLogs();
+        },
+        async loadModalLogs() {
             this.logsLoading = true;
             try {
-                const response = await ApiClient.get(`/api/logs?type=${type}&monitor_record_id=${recordId}&per_page=50`);
+                let url = `/api/logs?type=${this.logsType}&monitor_record_id=${this.logsRecordId}&per_page=50`;
+                if (this.selectedActionTypes.length > 0) {
+                    // 将数组转换为逗号分割的字符串
+                    url += `&action_types=${this.selectedActionTypes.join(',')}`;
+                }
+                const response = await ApiClient.get(url);
                 ApiResponse.handle(response,
                     (data) => {
                         this.logs = data.logs;
@@ -1264,6 +1321,7 @@ createApp({
             this.logs = [];
             this.logsType = '';
             this.logsRecordId = null;
+            this.selectedActionTypes = [];
         },
         getStatusClass(status) {
             const statusClasses = {
