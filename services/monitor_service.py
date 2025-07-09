@@ -214,29 +214,41 @@ class MonitorService:
         """获取监控日志"""
         db = SessionLocal()
         try:
-            offset = (page - 1) * per_page
-            query = db.query(MonitorLog)
-
+            # 获取普通监控日志
+            normal_query = db.query(MonitorLog)
             if monitor_record_id:
-                query = query.filter(MonitorLog.monitor_record_id == monitor_record_id)
-
-            logs = query.order_by(MonitorLog.timestamp.desc()).offset(offset).limit(per_page).all()
-            total = query.count()
+                normal_query = normal_query.filter(MonitorLog.monitor_record_id == monitor_record_id)
+            
+            # 按时间排序
+            normal_logs = normal_query.order_by(MonitorLog.timestamp.desc()).all()
+            
+            # 转换为统一格式
+            log_list = []
+            
+            # 添加普通监控日志
+            for log in normal_logs:
+                log_list.append({
+                    "id": f"normal_{log.id}",
+                    "monitor_record_id": log.monitor_record_id,
+                    "monitor_type": "normal",
+                    "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                    "price": log.price,
+                    "market_cap": log.market_cap,
+                    "threshold_reached": log.threshold_reached,
+                    "action_taken": log.action_taken,
+                    "tx_hash": log.tx_hash
+                })
+            
+            # 按时间排序
+            log_list.sort(key=lambda x: x['timestamp'] if x['timestamp'] else '', reverse=True)
+            
+            # 分页
+            total = len(log_list)
+            offset = (page - 1) * per_page
+            log_list = log_list[offset:offset + per_page]
 
             return {
-                "logs": [
-                    {
-                        "id": log.id,
-                        "monitor_record_id": log.monitor_record_id,
-                        "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-                        "price": log.price,
-                        "market_cap": log.market_cap,
-                        "threshold_reached": log.threshold_reached,
-                        "action_taken": log.action_taken,
-                        "tx_hash": log.tx_hash
-                    }
-                    for log in logs
-                ],
+                "logs": log_list,
                 "total": total,
                 "page": page,
                 "per_page": per_page
@@ -302,29 +314,31 @@ class MonitorService:
         """清空日志
 
         Args:
-            monitor_record_id: 监控记录ID，如果为None则清空所有日志
+            monitor_record_id: 普通监控记录ID，如果为None则清空所有普通监控日志
 
         Returns:
             tuple[bool, str, int]: (是否成功, 消息, 清空的日志数量)
         """
         db = SessionLocal()
         try:
-            query = db.query(MonitorLog)
-
+            total_count = 0
+            
+            # 清空普通监控日志
+            normal_query = db.query(MonitorLog)
             if monitor_record_id:
-                query = query.filter(MonitorLog.monitor_record_id == monitor_record_id)
-
-            # 获取要删除的日志数量
-            count = query.count()
-
-            # 删除日志
-            query.delete()
-            db.commit()
-
+                normal_query = normal_query.filter(MonitorLog.monitor_record_id == monitor_record_id)
+            normal_count = normal_query.count()
+            normal_query.delete()
+            
+            total_count = normal_count
+            
             if monitor_record_id:
-                return True, f"成功清空监控记录 {monitor_record_id} 的 {count} 条日志", count
+                message = f"成功清空监控记录 {monitor_record_id} 的 {normal_count} 条日志"
             else:
-                return True, f"成功清空所有 {count} 条日志", count
+                message = f"成功清空所有日志：{normal_count} 条普通监控日志"
+            
+            db.commit()
+            return True, message, total_count
         except Exception as e:
             return False, f"清空日志失败: {str(e)}", 0
         finally:

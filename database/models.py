@@ -116,13 +116,23 @@ class MonitorLog(Base):
     __tablename__ = "monitor_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    monitor_record_id = Column(Integer, nullable=False)  # 关联的监控记录ID
+    monitor_record_id = Column(Integer, nullable=True)  # 关联的监控记录ID，波段监控可为null
     timestamp = Column(DateTime, default=datetime.utcnow)
     price = Column(Float)
     market_cap = Column(Float)
     threshold_reached = Column(Boolean, default=False)
     action_taken = Column(String)
     tx_hash = Column(String)
+    # 新增字段
+    monitor_type = Column(String, default='normal')  # normal/swing
+    price_type = Column(String)
+    current_value = Column(Float)
+    sell_threshold = Column(Float)
+    buy_threshold = Column(Float)
+    action_type = Column(String)
+    watch_token_address = Column(String)
+    trade_token_address = Column(String)
+
 
 class TokenMetaData(Base):
     __tablename__ = "token_meta_data"

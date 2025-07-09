@@ -21,6 +21,7 @@ from spl.token.instructions import create_idempotent_associated_token_account, \
     transfer, TransferParams as TokenTransferParams
 
 from services.birdeye_api import BirdEyeAPI
+from utils import normalize_sol_address
 
 try:
     from spl.token.instructions import get_associated_token_address
@@ -107,7 +108,6 @@ class SolanaTrader:
 
         try:
             # 检查是否是SOL地址，如果是则直接调用get_sol_balance()
-            from utils import normalize_sol_address
             normalized_address = normalize_sol_address(token_address)
             sol_mint = "So11111111111111111111111111111111111111112"
 
@@ -174,8 +174,8 @@ class SolanaTrader:
         try:
             url = f"{self.jupiter_url}/quote"
             params = {
-                'inputMint': input_mint,
-                'outputMint': output_mint,
+                'inputMint': normalize_sol_address(input_mint),
+                'outputMint': normalize_sol_address(output_mint),
                 'amount': amount,
                 'slippageBps': self.slippage_bps
             }

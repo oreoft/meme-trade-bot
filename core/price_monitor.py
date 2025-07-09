@@ -530,16 +530,29 @@ class PriceMonitor:
             finally:
                 db.close()
 
-    def _log_monitor_data(self, record_id: int, price_info: dict, threshold: float):
-        """记录监控数据"""
+    def _log_monitor_data(self, record_id: int, price_info: dict, threshold: float, *,
+                         monitor_type: str = 'normal', price_type: str = None, current_value: float = None,
+                         sell_threshold: float = None, buy_threshold: float = None, action_type: str = None,
+                         action_taken: str = None, tx_hash: str = None, watch_token_address: str = None, trade_token_address: str = None):
+        """记录监控数据，兼容普通和波段监控"""
         db = SessionLocal()
         try:
             log = MonitorLog(
-                monitor_record_id=record_id,
-                price=price_info['price'],
-                market_cap=price_info['market_cap'],
-                threshold_reached=price_info['market_cap'] >= threshold,
-                action_taken="监控中" if price_info['market_cap'] < threshold else "阈值达到"
+                monitor_record_id=record_id if monitor_type == 'normal' else None,
+                timestamp=datetime.utcnow(),
+                price=price_info.get('price'),
+                market_cap=price_info.get('market_cap'),
+                threshold_reached=(price_info.get('market_cap') >= threshold) if threshold is not None and price_info.get('market_cap') is not None else False,
+                action_taken=action_taken or ("监控中" if threshold is not None and price_info.get('market_cap') is not None and price_info.get('market_cap') < threshold else "阈值达到"),
+                tx_hash=tx_hash,
+                monitor_type=monitor_type,
+                price_type=price_type,
+                current_value=current_value,
+                sell_threshold=sell_threshold,
+                buy_threshold=buy_threshold,
+                action_type=action_type,
+                watch_token_address=watch_token_address,
+                trade_token_address=trade_token_address
             )
             db.add(log)
             db.commit()
@@ -550,13 +563,22 @@ class PriceMonitor:
         """获取所有监控状态"""
         db = SessionLocal()
         try:
-            records = db.query(MonitorRecord).all()
+            # 获取普通监控记录
+            normal_records = db.query(MonitorRecord).all()
+            # 获取波段监控记录
+            swing_records = db.query(SwingMonitorRecord).all()
+
             status_list = []
-            for record in records:
+
+            # 添加普通监控记录
+            for record in normal_records:
                 status_list.append({
                     'id': record.id,
                     'name': record.name,
+                    'monitor_type': 'normal',
+                    'type': record.type,
                     'token_address': record.token_address,
+                    'token_symbol': record.token_symbol,
                     'threshold': record.threshold,
                     'sell_percentage': record.sell_percentage,
                     'status': record.status,
@@ -565,6 +587,30 @@ class PriceMonitor:
                     'last_market_cap': record.last_market_cap,
                     'is_running': record.id in self.monitor_states and self.monitor_states[record.id]
                 })
+
+            # 添加波段监控记录
+            for record in swing_records:
+                status_list.append({
+                    'id': record.id,
+                    'name': record.name,
+                    'monitor_type': 'swing',
+                    'type': 'swing',
+                    'watch_token_address': record.watch_token_address,
+                    'watch_token_symbol': record.watch_token_symbol,
+                    'trade_token_address': record.trade_token_address,
+                    'trade_token_symbol': record.trade_token_symbol,
+                    'price_type': record.price_type,
+                    'sell_threshold': record.sell_threshold,
+                    'buy_threshold': record.buy_threshold,
+                    'sell_percentage': record.sell_percentage,
+                    'buy_percentage': record.buy_percentage,
+                    'status': record.status,
+                    'last_check_at': record.last_check_at.isoformat() if record.last_check_at else None,
+                    'last_watch_price': record.last_watch_price,
+                    'last_watch_market_cap': record.last_watch_market_cap,
+                    'is_running': record.id in self.swing_monitor_states and self.swing_monitor_states[record.id]
+                })
+
             return status_list
         finally:
             db.close()
@@ -644,16 +690,12 @@ class PriceMonitor:
             trader = SolanaTrader(private_key=private_key)
             notifier = Notifier(webhook_url=record.webhook_url)
 
-            # 添加交易冷却标志
             last_trade_time = 0
 
             while self.swing_monitor_states.get(record_id, False):
                 try:
-                    # 添加循环开始日志来验证猜想
-                    logging.info(
-                        f"波段监控 {record.name} 开始新的循环迭代，时间: {datetime.utcnow().strftime('%H:%M:%S')}")
+                    logging.info(f"波段监控 {record.name} 开始新的循环迭代，时间: {datetime.utcnow().strftime('%H:%M:%S')}")
 
-                    # 检查是否在交易冷却期内
                     current_time = time.time()
                     if current_time - last_trade_time < 60:
                         remaining_cooldown = 60 - (current_time - last_trade_time)
@@ -661,34 +703,46 @@ class PriceMonitor:
                         time.sleep(min(remaining_cooldown, record.check_interval))
                         continue
 
-                    # 获取监听代币的价格信息
                     watch_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(record.watch_token_address))
                     if not watch_price_info:
                         time.sleep(record.check_interval)
                         continue
 
-                    # 更新监控记录
                     record.last_check_at = datetime.utcnow()
                     record.last_watch_price = watch_price_info['price']
                     record.last_watch_market_cap = watch_price_info['market_cap']
                     db.commit()
 
-                    # 根据价格类型获取当前值
                     if record.price_type == "price":
                         current_value = watch_price_info['price']
                         sell_threshold = record.sell_threshold
                         buy_threshold = record.buy_threshold
                         value_name = "价格"
                         value_unit = "USD"
-                    else:  # market_cap
+                    else:
                         current_value = watch_price_info['market_cap']
                         sell_threshold = record.sell_threshold
                         buy_threshold = record.buy_threshold
                         value_name = "市值"
                         value_unit = "USD"
 
-                    logging.debug(
-                        f"波段监控 {record.name} 当前{value_name}: ${current_value:,.2f}, 卖出阈值: ${sell_threshold:,.2f}, 买入阈值: ${buy_threshold:,.2f}")
+                    logging.debug(f"波段监控 {record.name} 当前{value_name}: ${current_value:,.2f}, 卖出阈值: ${sell_threshold:,.2f}, 买入阈值: ${buy_threshold:,.2f}")
+
+                    # 记录监控日志
+                    self._log_monitor_data(
+                        record_id=record.id,
+                        price_info=watch_price_info,
+                        threshold=None,
+                        monitor_type='swing',
+                        price_type=record.price_type,
+                        current_value=current_value,
+                        sell_threshold=sell_threshold,
+                        buy_threshold=buy_threshold,
+                        action_type='monitoring',
+                        action_taken=None,
+                        watch_token_address=record.watch_token_address,
+                        trade_token_address=record.trade_token_address
+                    )
 
                     # 判断是否达到卖出条件
                     if current_value >= sell_threshold:
@@ -850,24 +904,16 @@ class PriceMonitor:
                              notifier: Notifier, db) -> bool:
         """执行波段交易"""
         try:
-            # 获取from_token余额
             from_balance = trader.get_token_balance(from_token)
             if from_balance <= 0:
                 logging.warning(f"波段监控 {record.name} {action_type} 源代币余额为0")
                 return False
 
-            # 计算交易数量
             trade_amount = from_balance * percentage
-
-            # 获取from_token价格信息用于计算USD价值
             from_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(from_token))
-            estimated_usd_value = trade_amount * from_price_info['price'] if from_price_info and from_price_info[
-                'price'] else 0
-
-            # 获取交易报价
+            estimated_usd_value = trade_amount * from_price_info['price'] if from_price_info and from_price_info['price'] else 0
             from_decimals = trader.get_token_decimals(from_token)
             lamports = int(trade_amount * (10 ** from_decimals))
-
             quote = trader.get_quote(from_token, to_token, lamports)
             if not quote or "error" in quote:
                 error_msg = quote.get("error", "获取交易报价失败") if quote else "获取交易报价失败"
@@ -875,25 +921,38 @@ class PriceMonitor:
                 notifier.send_error_notification(f"波段{action_type}报价失败: {error_msg}", record.name)
                 return False
 
-            # 执行交易
             tx_hash = trader.execute_swap(quote)
             if isinstance(tx_hash, str) and tx_hash:
                 logging.info(f"波段监控 {record.name} {action_type} 交易成功: {tx_hash}")
-
-                # 发送交易通知
                 action_name = "买入" if action_type == 'buy' else "卖出"
                 from_symbol = record.watch_token_symbol if from_token == record.watch_token_address else record.trade_token_symbol
                 to_symbol = record.trade_token_symbol if to_token == record.trade_token_address else record.watch_token_symbol
-
                 notifier.send_trade_notification(
                     tx_hash, trade_amount, estimated_usd_value,
                     record.name, f"{from_symbol}→{to_symbol}", action_type=action_type
                 )
-
+                # 记录交易日志
+                watch_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(record.watch_token_address))
+                if watch_price_info:
+                    current_value = watch_price_info['price'] if record.price_type == 'price' else watch_price_info['market_cap']
+                    self._log_monitor_data(
+                        record_id=record.id,
+                        price_info=watch_price_info,
+                        threshold=None,
+                        monitor_type='swing',
+                        price_type=record.price_type,
+                        current_value=current_value,
+                        sell_threshold=record.sell_threshold,
+                        buy_threshold=record.buy_threshold,
+                        action_type=action_type,
+                        action_taken=f"执行{action_name}交易成功",
+                        tx_hash=tx_hash,
+                        watch_token_address=record.watch_token_address,
+                        trade_token_address=record.trade_token_address
+                    )
                 logging.info(f"波段监控 {record.name} {action_type} _execute_swing_trade 返回 True")
                 return True
             else:
-                # 交易失败
                 if isinstance(tx_hash, dict) and "error" in tx_hash:
                     error_msg = tx_hash["error"]
                 else:
@@ -901,7 +960,6 @@ class PriceMonitor:
                 logging.error(f"波段监控 {record.name} {action_type} 交易失败: {error_msg}")
                 notifier.send_error_notification(f"波段{action_type}交易失败: {error_msg}", record.name)
                 return False
-
         except Exception as e:
             logging.error(f"波段监控 {record.name} {action_type} 交易异常: {e}")
             notifier.send_error_notification(f"波段{action_type}交易异常: {e}", record.name)

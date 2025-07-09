@@ -167,7 +167,9 @@
                                         <small v-text="formatTime(log.timestamp)"></small>
                                     </td>
                                     <td>
-                                        <span class="badge" :class="getMonitorType(log.monitor_record_id) === 'buy' ? 'bg-primary' : 'bg-warning'" v-text="getMonitorType(log.monitor_record_id) === 'buy' ? '买入' : '卖出'"></span>
+                                        <span v-if="log.monitor_type === 'swing'" class="badge bg-info">波段</span>
+                                        <span v-else-if="getMonitorType(log.monitor_record_id) === 'buy'" class="badge bg-primary">买入</span>
+                                        <span v-else class="badge bg-warning">卖出</span>
                                         <span v-if="getMonitorName(log.monitor_record_id)" class="badge bg-light text-dark" v-text="getMonitorName(log.monitor_record_id)"></span>
                                         <span v-else class="text-muted">ID: <span v-text="log.monitor_record_id"></span></span>
                                     </td>
@@ -309,15 +311,40 @@ createApp({
     methods: {
         async loadMonitors() {
             try {
-                const response = await ApiClient.get('/api/monitor/records');
-                ApiResponse.handle(response,
+                // 加载普通监控记录
+                const normalResponse = await ApiClient.get('/api/monitor/records');
+                // 加载波段监控记录
+                const swingResponse = await ApiClient.get('/api/swing/records');
+                
+                let normalMonitors = [];
+                let swingMonitors = [];
+                
+                ApiResponse.handle(normalResponse,
                     (data) => {
-                        this.monitors = data;
+                        normalMonitors = data.map(record => ({
+                            ...record,
+                            monitor_type: 'normal'
+                        }));
                     },
                     (error) => {
-                        console.error('加载监控记录失败:', error);
+                        console.error('加载普通监控记录失败:', error);
                     }
                 );
+                
+                ApiResponse.handle(swingResponse,
+                    (data) => {
+                        swingMonitors = data.map(record => ({
+                            ...record,
+                            monitor_type: 'swing'
+                        }));
+                    },
+                    (error) => {
+                        console.error('加载波段监控记录失败:', error);
+                    }
+                );
+                
+                // 合并监控记录
+                this.monitors = [...normalMonitors, ...swingMonitors];
             } catch (error) {
                 console.error('加载监控记录失败:', error);
             }
@@ -326,11 +353,9 @@ createApp({
             this.loading = true;
             try {
                 let url = `/api/logs?page=${this.currentPage}&per_page=${this.perPage}`;
-                
                 if (this.selectedMonitorId) {
                     url += `&monitor_record_id=${this.selectedMonitorId}`;
                 }
-                
                 const response = await ApiClient.get(url);
                 ApiResponse.handle(response,
                     (data) => {
@@ -353,29 +378,24 @@ createApp({
             await this.loadLogs();
         },
         async clearLogs() {
-            // 显示确认对话框
             let confirmMessage = '确定要清空所有日志吗？此操作不可恢复！';
             if (this.selectedMonitorId) {
                 const monitorName = this.selectedMonitorName || `ID: ${this.selectedMonitorId}`;
                 confirmMessage = `确定要清空监控记录 "${monitorName}" 的所有日志吗？此操作不可恢复！`;
             }
-            
             if (!confirm(confirmMessage)) {
                 return;
             }
-            
             this.loading = true;
             try {
                 let url = '/api/logs';
                 if (this.selectedMonitorId) {
                     url += `?monitor_record_id=${this.selectedMonitorId}`;
                 }
-                
                 const response = await ApiClient.delete(url);
                 ApiResponse.handle(response,
                     (data) => {
                         this.showMessage('success', response.message || '日志清空成功');
-                        // 重新加载日志
                         this.currentPage = 1;
                         this.loadLogs();
                     },
