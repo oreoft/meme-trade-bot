@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>币价监控系统</title>
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome -->
@@ -12,10 +12,10 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Vue.js -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="/static/js/vue.global.js"></script>
     <!-- Axios -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
+
     <style>
         body {
             background-color: #f8f9fa;
@@ -65,7 +65,7 @@
                         <span v-if="status.running">运行中</span>
                         <span v-else>已停止</span>
                     </span>
-                    <button class="btn btn-sm" 
+                    <button class="btn btn-sm"
                             :class="status.running ? 'btn-outline-light' : 'btn-success'"
                             @click="toggleMonitor"
                             :disabled="toggleLoading">
@@ -198,7 +198,7 @@
                                             <td><small><code v-text="config.key"></code></small></td>
                                             <td>
                                                 <small v-if="config.key === 'PRIVATE_KEY'">
-                                                    ******** 
+                                                    ********
                                                 </small>
                                                 <small v-else v-text="config.value"></small>
                                             </td>
@@ -266,7 +266,7 @@
         </div>
 
         <!-- 编辑配置模态框 -->
-        <div class="modal fade" :class="{ show: showEditModal }" 
+        <div class="modal fade" :class="{ show: showEditModal }"
              :style="{ display: showEditModal ? 'block' : 'none' }">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -301,12 +301,12 @@
 
         <!-- 消息提示 -->
         <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
-            <div v-for="message in messages" :key="message.id" 
+            <div v-for="message in messages" :key="message.id"
                  class="toast align-items-center border-0 show"
                  :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
                 <div class="d-flex">
                     <div class="toast-body" v-text="message.text"></div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" 
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto"
                             @click="removeMessage(message.id)"></button>
                 </div>
             </div>
@@ -426,7 +426,7 @@
                     try {
                         const endpoint = this.status.running ? '/api/monitor/stop' : '/api/monitor/start';
                         const response = await axios.post(endpoint);
-                        
+
                         if (response.data.success) {
                             this.showMessage(response.data.message, 'success');
                             await this.loadStatus();
@@ -444,27 +444,27 @@
                     this.saveLoading = true;
                     try {
                         const formData = new FormData();
-                        
+
                         // 保存TOKEN_ADDRESS
                         formData.append('key', 'TOKEN_ADDRESS');
                         formData.append('value', this.quickConfig.TOKEN_ADDRESS);
                         formData.append('config_type', 'string');
                         await axios.post('/api/configs', formData);
-                        
+
                         // 保存MARKET_CAP_THRESHOLD
                         const formData2 = new FormData();
                         formData2.append('key', 'MARKET_CAP_THRESHOLD');
                         formData2.append('value', this.quickConfig.MARKET_CAP_THRESHOLD);
                         formData2.append('config_type', 'number');
                         await axios.post('/api/configs', formData2);
-                        
+
                         // 保存SELL_PERCENTAGE
                         const formData3 = new FormData();
                         formData3.append('key', 'SELL_PERCENTAGE');
                         formData3.append('value', this.quickConfig.SELL_PERCENTAGE);
                         formData3.append('config_type', 'number');
                         await axios.post('/api/configs', formData3);
-                        
+
                         this.showMessage('配置保存成功', 'success');
                         await this.loadConfigs();
                     } catch (error) {
@@ -489,7 +489,7 @@
                         formData.append('key', this.editForm.key);
                         formData.append('value', this.editForm.value);
                         formData.append('description', this.editForm.description);
-                        
+
                         const response = await ApiClient.post('/api/configs', formData);
                         ApiResponse.handle(response,
                             (data) => {
@@ -544,4 +544,4 @@
         }).mount('#app');
     </script>
 </body>
-</html> 
+</html>
