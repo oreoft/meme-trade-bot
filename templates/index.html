@@ -418,13 +418,13 @@
                                     <div class="btn-group btn-group-sm" style="gap: 4px;">
                                         <button v-if="record.status === 'stopped'"
                                                 class="btn btn-outline-success btn-sm"
-                                                @click="startSwingMonitor(record.id)"
-                                                :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i
+                                                @click="startMonitor(record.id)"
+                                                :disabled="operationLoading[record.id]" title="启动售出监控"><i
                                                     class="fas fa-play"></i></button>
                                         <button v-if="record.status === 'monitoring'"
                                                 class="btn btn-outline-danger btn-sm"
-                                                @click="stopSwingMonitor(record.id)"
-                                                :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i
+                                                @click="stopMonitor(record.id)"
+                                                :disabled="operationLoading[record.id]" title="停止售出监控"><i
                                                     class="fas fa-stop"></i></button>
                                         <button class="btn btn-outline-primary btn-sm" @click="editRecord(record)"
                                                 :disabled="record.status === 'monitoring'" title="编辑"><i
