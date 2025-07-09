@@ -107,62 +107,153 @@
                         <h5 class="text-muted">暂无出售监听记录</h5>
                     </div>
                     <div v-else class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover table-sm">
                             <thead>
                                 <tr>
-                                    <th>名称</th>
-                                    <th>代币地址</th>
-                                    <th>阈值</th>
-                                    <th>当前市值</th>
-                                    <th>距离阈值</th>
-                                    <th>出售比例</th>
-                                    <th>执行模式</th>
-                                    <th>最低持仓</th>
-                                    <th>检查间隔</th>
-                                    <th>状态</th>
-                                    <th>最后检查</th>
-                                    <th>操作</th>
+                                    <th style="min-width: 120px;">名称</th>
+                                    <th style="min-width: 100px;">代币地址</th>
+                                    <th style="min-width: 70px;">阈值</th>
+                                    <th style="min-width: 80px;">当前市值</th>
+                                    <th style="min-width: 90px;">距离阈值</th>
+                                    <th style="min-width: 60px;">出售%</th>
+                                    <th style="min-width: 60px;">执行</th>
+                                    <th style="min-width: 70px;">最低持仓</th>
+                                    <th style="min-width: 50px;">间隔</th>
+                                    <th style="min-width: 60px;">状态</th>
+                                    <th style="min-width: 100px;">最后检查</th>
+                                    <th style="min-width: 140px;">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="record in sellRecords" :key="record.id">
                                     <td>
-                                        <span class="badge" :class="record.type === 'buy' ? 'bg-primary' : 'bg-warning'" v-text="record.type === 'buy' ? '买入' : '卖出'"></span>
-                                        <strong v-text="record.name"></strong>
+                                        <div class="d-flex flex-column">
+                                            <span class="badge bg-warning mb-1" style="font-size: 0.65rem;">出售</span>
+                                            <strong class="small" v-text="record.name"></strong>
+                                        </div>
                                     </td>
-                                    <td style="max-width: 160px;">
-                                        <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank" class="text-decoration-none text-truncate d-inline-block" style="max-width: 140px; vertical-align: middle;" :title="record.token_address">
+                                    <td>
+                                        <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank" class="text-decoration-none" :title="record.token_address">
                                             <code class="small text-primary">
-                                              <span v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></span>
-                                              <span v-if="record.token_symbol">(<span v-text="record.token_symbol"></span>)</span>
+                                              <div v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></div>
+                                              <small v-if="record.token_symbol" class="text-muted">(<span v-text="record.token_symbol"></span>)</small>
                                             </code>
                                         </a>
                                     </td>
-                                    <td><strong v-text="'$' + formatShortNumber(record.threshold)"></strong></td>
+                                    <td><strong class="small" v-text="'$' + formatShortNumber(record.threshold)"></strong></td>
                                     <td>
-                                        <span v-if="record.last_market_cap" class="fw-bold" v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
-                                        <span v-else class="text-muted">--</span>
+                                        <span v-if="record.last_market_cap" class="fw-bold small" v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
+                                        <span v-else class="text-muted small">--</span>
                                     </td>
                                     <td>
                                         <span v-if="record.last_market_cap && record.threshold" v-html="getThresholdDiffHtml(record)"></span>
-                                        <span v-else class="text-muted">--</span>
+                                        <span v-else class="text-muted small">--</span>
                                     </td>
-                                    <td><span class="badge bg-info" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
-                                    <td><span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" v-text="record.execution_mode === 'single' ? '单次' : '多次'"></span></td>
+                                    <td><span class="badge bg-info" style="font-size: 0.7rem;" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
+                                    <td><span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" style="font-size: 0.7rem;" v-text="record.execution_mode === 'single' ? '单次' : '多次'"></span></td>
                                     <td>
-                                        <span v-if="record.execution_mode === 'multiple'" v-text="'$' + formatShortNumber(record.minimum_hold_value)"></span>
+                                        <span v-if="record.execution_mode === 'multiple'" class="small" v-text="'$' + formatShortNumber(record.minimum_hold_value)"></span>
+                                        <span v-else class="text-muted small">--</span>
+                                    </td>
+                                    <td><span class="small" v-text="record.check_interval + 's'"></span></td>
+                                    <td><span class="badge" :class="getStatusClass(record.status)" style="font-size: 0.7rem;"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
+                                    <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted small">--</span></td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" style="gap: 4px;">
+                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success btn-sm" @click="startMonitor(record.id)" :disabled="operationLoading[record.id]" title="启动监控"><i class="fas fa-play"></i></button>
+                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger btn-sm" @click="stopMonitor(record.id)" :disabled="operationLoading[record.id]" title="停止监控"><i class="fas fa-stop"></i></button>
+                                            <button class="btn btn-outline-primary btn-sm" @click="editRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-outline-info btn-sm" @click="viewLogs(record.id)" title="查看日志"><i class="fas fa-history"></i></button>
+                                            <button class="btn btn-outline-danger btn-sm" @click="deleteRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exchange-alt me-2"></i>波段监控列表
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div v-if="loading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted">加载中...</p>
+                    </div>
+                    <div v-else-if="swingRecords.length === 0" class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无波段监控记录</h5>
+                    </div>
+                    <div v-else class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 120px;">名称</th>
+                                    <th style="min-width: 100px;">监听代币</th>
+                                    <th style="min-width: 100px;">交易代币</th>
+                                    <th style="min-width: 60px;">类型</th>
+                                    <th style="min-width: 80px;">当前值</th>
+                                    <th style="min-width: 80px;">买入阈值</th>
+                                    <th style="min-width: 80px;">卖出阈值</th>
+                                    <th style="min-width: 60px;">买入%</th>
+                                    <th style="min-width: 60px;">卖出%</th>
+                                    <th style="min-width: 70px;">全仓阈值</th>
+                                    <th style="min-width: 50px;">间隔</th>
+                                    <th style="min-width: 60px;">状态</th>
+                                    <th style="min-width: 100px;">最后检查</th>
+                                    <th style="min-width: 120px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="record in swingRecords" :key="record.id">
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span class="badge bg-info mb-1" style="font-size: 0.65rem;">波段</span>
+                                            <strong class="small" v-text="record.name"></strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a :href="'https://dexscreener.com/solana/' + record.watch_token_address" target="_blank" class="text-decoration-none" :title="record.watch_token_address">
+                                            <code class="small text-primary">
+                                              <div v-text="record.watch_token_address.substring(0, 4) + '...' + record.watch_token_address.substring(record.watch_token_address.length - 4)"></div>
+                                              <small v-if="record.watch_token_symbol" class="text-muted">(<span v-text="record.watch_token_symbol"></span>)</small>
+                                            </code>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <a :href="'https://dexscreener.com/solana/' + record.trade_token_address" target="_blank" class="text-decoration-none" :title="record.trade_token_address">
+                                            <code class="small text-success">
+                                              <div v-text="record.trade_token_address.substring(0, 4) + '...' + record.trade_token_address.substring(record.trade_token_address.length - 4)"></div>
+                                              <small v-if="record.trade_token_symbol" class="text-muted">(<span v-text="record.trade_token_symbol"></span>)</small>
+                                            </code>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge" :class="record.price_type === 'price' ? 'bg-warning' : 'bg-info'" v-text="record.price_type === 'price' ? '单价' : '市值'"></span>
+                                    </td>
+                                    <td>
+                                        <span v-if="record.price_type === 'price' && record.last_watch_price" class="fw-bold small" v-text="'$' + record.last_watch_price.toFixed(2)"></span>
+                                        <span v-else-if="record.price_type === 'market_cap' && record.last_watch_market_cap" class="fw-bold small" v-text="'$' + formatShortNumber(record.last_watch_market_cap)"></span>
                                         <span v-else class="text-muted">--</span>
                                     </td>
-                                    <td><span v-text="record.check_interval + '秒'"></span></td>
-                                    <td><span class="badge" :class="getStatusClass(record.status)"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
+                                    <td><strong class="text-success small" v-text="'$' + formatShortNumber(record.buy_threshold)"></strong></td>
+                                    <td><strong class="text-danger small" v-text="'$' + formatShortNumber(record.sell_threshold)"></strong></td>
+                                    <td><span class="badge bg-success" style="font-size: 0.7rem;" v-text="(record.buy_percentage * 100).toFixed(1) + '%'" /></td>
+                                    <td><span class="badge bg-danger" style="font-size: 0.7rem;" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
+                                    <td><span class="small" v-text="'$' + formatShortNumber(record.all_in_threshold)"></span></td>
+                                    <td><span class="small" v-text="record.check_interval + 's'"></span></td>
+                                    <td><span class="badge" :class="getStatusClass(record.status)" style="font-size: 0.7rem;"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
                                     <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted">--</span></td>
                                     <td>
-                                        <div class="btn-group btn-group-sm" style="gap: 6px;">
-                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success" @click="startMonitor(record.id)" :disabled="operationLoading[record.id]" title="启动监控"><i class="fas fa-play"></i></button>
-                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger" @click="stopMonitor(record.id)" :disabled="operationLoading[record.id]" title="停止监控"><i class="fas fa-stop"></i></button>
-                                            <button class="btn btn-outline-primary" @click="editRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
-                                            <button class="btn btn-outline-info" @click="viewLogs(record.id)" title="查看日志"><i class="fas fa-history"></i></button>
-                                            <button class="btn btn-outline-danger" @click="deleteRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
+                                        <div class="btn-group btn-group-sm" style="gap: 4px;">
+                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success btn-sm" @click="startSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i class="fas fa-play"></i></button>
+                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger btn-sm" @click="stopSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i class="fas fa-stop"></i></button>
+                                            <button class="btn btn-outline-primary btn-sm" @click="editSwingRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-outline-danger btn-sm" @click="deleteSwingRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -187,156 +278,72 @@
                         <h5 class="text-muted">暂无购买监听记录</h5>
                     </div>
                     <div v-else class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover table-sm">
                             <thead>
                                 <tr>
-                                    <th>名称</th>
-                                    <th>代币地址</th>
-                                    <th>阈值</th>
-                                    <th>当前市值</th>
-                                    <th>距离阈值</th>
-                                    <th>购买比例</th>
-                                    <th>执行</th>
-                                    <th>累计购买(USD)</th>
-                                    <th>间隔</th>
-                                    <th>状态</th>
-                                    <th>最后检查</th>
-                                    <th>操作</th>
+                                    <th style="min-width: 120px;">名称</th>
+                                    <th style="min-width: 100px;">代币地址</th>
+                                    <th style="min-width: 70px;">阈值</th>
+                                    <th style="min-width: 80px;">当前市值</th>
+                                    <th style="min-width: 90px;">距离阈值</th>
+                                    <th style="min-width: 60px;">购买%</th>
+                                    <th style="min-width: 60px;">执行</th>
+                                    <th style="min-width: 100px;">累计购买</th>
+                                    <th style="min-width: 50px;">间隔</th>
+                                    <th style="min-width: 60px;">状态</th>
+                                    <th style="min-width: 100px;">最后检查</th>
+                                    <th style="min-width: 140px;">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="record in buyRecords" :key="record.id">
                                     <td>
-                                        <span class="badge" :class="record.type === 'buy' ? 'bg-primary' : 'bg-warning'" v-text="record.type === 'buy' ? '买入' : '卖出'"></span>
-                                        <strong v-text="record.name"></strong>
+                                        <div class="d-flex flex-column">
+                                            <span class="badge bg-primary mb-1" style="font-size: 0.65rem;">买入</span>
+                                            <strong class="small" v-text="record.name"></strong>
+                                        </div>
                                     </td>
-                                    <td style="max-width: 160px;">
-                                        <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank" class="text-decoration-none text-truncate d-inline-block" style="max-width: 140px; vertical-align: middle;" :title="record.token_address">
+                                    <td>
+                                        <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank" class="text-decoration-none" :title="record.token_address">
                                             <code class="small text-primary">
-                                              <span v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></span>
-                                              <span v-if="record.token_symbol">(<span v-text="record.token_symbol"></span>)</span>
+                                              <div v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></div>
+                                              <small v-if="record.token_symbol" class="text-muted">(<span v-text="record.token_symbol"></span>)</small>
                                             </code>
                                         </a>
                                     </td>
-                                    <td><strong v-text="'$' + formatShortNumber(record.threshold)"></strong></td>
+                                    <td><strong class="small" v-text="'$' + formatShortNumber(record.threshold)"></strong></td>
                                     <td>
-                                        <span v-if="record.last_market_cap" class="fw-bold" v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
-                                        <span v-else class="text-muted">--</span>
+                                        <span v-if="record.last_market_cap" class="fw-bold small" v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
+                                        <span v-else class="text-muted small">--</span>
                                     </td>
                                     <td>
                                         <span v-if="record.last_market_cap && record.threshold && record.last_market_cap > record.threshold"
-                                              class="fw-bold text-success"
+                                              class="fw-bold text-success small"
                                               v-text="'还需跌 $' + formatShortNumber(record.last_market_cap - record.threshold)"></span>
                                         <span v-else-if="record.last_market_cap && record.threshold"
-                                              class="fw-bold text-danger"
+                                              class="fw-bold text-danger small"
                                               v-text="'已低于阈值'"></span>
-                                        <span v-else class="text-muted">--</span>
+                                        <span v-else class="text-muted small">--</span>
                                     </td>
-                                    <td><span class="badge bg-info" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
-                                    <td><span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" v-text="record.execution_mode === 'single' ? '单次' : '多次'"/></td>
+                                    <td><span class="badge bg-info" style="font-size: 0.7rem;" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
+                                    <td><span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" style="font-size: 0.7rem;" v-text="record.execution_mode === 'single' ? '单次' : '多次'"/></td>
                                     <td>
-                                        <span v-if="record.max_buy_amount && record.max_buy_amount > 0">
-                                            <span v-text="(typeof record.accumulated_buy_usd !== 'undefined' ? ('$' + formatShortNumber(record.accumulated_buy_usd)) : (record._accumulated_buy_usd ? ('$' + formatShortNumber(record._accumulated_buy_usd)) : '$0.00')) + ' / $' + formatShortNumber(record.max_buy_amount)"></span>
+                                        <span v-if="record.max_buy_amount && record.max_buy_amount > 0" class="small">
+                                            <div v-text="(typeof record.accumulated_buy_usd !== 'undefined' ? ('$' + formatShortNumber(record.accumulated_buy_usd)) : (record._accumulated_buy_usd ? ('$' + formatShortNumber(record._accumulated_buy_usd)) : '$0.00'))"></div>
+                                            <small class="text-muted">/ $<span v-text="formatShortNumber(record.max_buy_amount)"></span></small>
                                         </span>
-                                        <span v-else class="text-muted">--</span>
+                                        <span v-else class="text-muted small">--</span>
                                     </td>
-                                    <td><span v-text="record.check_interval + '秒'"></span></td>
-                                    <td><span class="badge" :class="getStatusClass(record.status)"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
-                                    <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted">--</span></td>
+                                    <td><span class="small" v-text="record.check_interval + 's'"></span></td>
+                                    <td><span class="badge" :class="getStatusClass(record.status)" style="font-size: 0.7rem;"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
+                                    <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted small">--</span></td>
                                     <td>
-                                        <div class="btn-group btn-group-sm" style="gap: 6px;">
-                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success" @click="startMonitor(record.id)" :disabled="operationLoading[record.id]" title="启动监控"><i class="fas fa-play"></i></button>
-                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger" @click="stopMonitor(record.id)" :disabled="operationLoading[record.id]" title="停止监控"><i class="fas fa-stop"></i></button>
-                                            <button class="btn btn-outline-primary" @click="editRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
-                                            <button class="btn btn-outline-info" @click="viewLogs(record.id)" title="查看日志"><i class="fas fa-history"></i></button>
-                                            <button class="btn btn-outline-danger" @click="deleteRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-exchange-alt me-2"></i>波段监控列表
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div v-if="loading" class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status"></div>
-                        <p class="mt-2 text-muted">加载中...</p>
-                    </div>
-                    <div v-else-if="swingRecords.length === 0" class="text-center py-5">
-                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">暂无波段监控记录</h5>
-                    </div>
-                    <div v-else class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>名称</th>
-                                    <th>监听代币</th>
-                                    <th>交易代币</th>
-                                    <th>价格类型</th>
-                                    <th>当前值</th>
-                                    <th>买入阈值</th>
-                                    <th>卖出阈值</th>
-                                    <th>买入比例</th>
-                                    <th>卖出比例</th>
-                                    <th>全仓阈值</th>
-                                    <th>间隔</th>
-                                    <th>状态</th>
-                                    <th>最后检查</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="record in swingRecords" :key="record.id">
-                                    <td>
-                                        <span class="badge bg-info">波段</span>
-                                        <strong v-text="record.name"></strong>
-                                    </td>
-                                    <td style="max-width: 120px;">
-                                        <a :href="'https://dexscreener.com/solana/' + record.watch_token_address" target="_blank" class="text-decoration-none text-truncate d-inline-block" style="max-width: 100px; vertical-align: middle;" :title="record.watch_token_address">
-                                            <code class="small text-primary">
-                                              <span v-text="record.watch_token_address.substring(0, 4) + '...' + record.watch_token_address.substring(record.watch_token_address.length - 4)"></span>
-                                              <span v-if="record.watch_token_symbol">(<span v-text="record.watch_token_symbol"></span>)</span>
-                                            </code>
-                                        </a>
-                                    </td>
-                                    <td style="max-width: 120px;">
-                                        <a :href="'https://dexscreener.com/solana/' + record.trade_token_address" target="_blank" class="text-decoration-none text-truncate d-inline-block" style="max-width: 100px; vertical-align: middle;" :title="record.trade_token_address">
-                                            <code class="small text-success">
-                                              <span v-text="record.trade_token_address.substring(0, 4) + '...' + record.trade_token_address.substring(record.trade_token_address.length - 4)"></span>
-                                              <span v-if="record.trade_token_symbol">(<span v-text="record.trade_token_symbol"></span>)</span>
-                                            </code>
-                                        </a>
-                                    </td>
-                                    <td>
-                                        <span class="badge" :class="record.price_type === 'price' ? 'bg-warning' : 'bg-info'" v-text="record.price_type === 'price' ? '单价' : '市值'"></span>
-                                    </td>
-                                    <td>
-                                        <span v-if="record.price_type === 'price' && record.last_watch_price" class="fw-bold" v-text="'$' + record.last_watch_price.toFixed(8)"></span>
-                                        <span v-else-if="record.price_type === 'market_cap' && record.last_watch_market_cap" class="fw-bold" v-text="'$' + formatShortNumber(record.last_watch_market_cap)"></span>
-                                        <span v-else class="text-muted">--</span>
-                                    </td>
-                                    <td><strong class="text-success" v-text="'$' + formatShortNumber(record.buy_threshold)"></strong></td>
-                                    <td><strong class="text-danger" v-text="'$' + formatShortNumber(record.sell_threshold)"></strong></td>
-                                    <td><span class="badge bg-success" v-text="(record.buy_percentage * 100).toFixed(1) + '%'" /></td>
-                                    <td><span class="badge bg-danger" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
-                                    <td><span v-text="'$' + formatShortNumber(record.all_in_threshold)"></span></td>
-                                    <td><span v-text="record.check_interval + '秒'"></span></td>
-                                    <td><span class="badge" :class="getStatusClass(record.status)"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
-                                    <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted">--</span></td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm" style="gap: 6px;">
-                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success" @click="startSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i class="fas fa-play"></i></button>
-                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger" @click="stopSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i class="fas fa-stop"></i></button>
-                                            <button class="btn btn-outline-primary" @click="editSwingRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
-                                            <button class="btn btn-outline-danger" @click="deleteSwingRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
+                                        <div class="btn-group btn-group-sm" style="gap: 4px;">
+                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success btn-sm" @click="startMonitor(record.id)" :disabled="operationLoading[record.id]" title="启动监控"><i class="fas fa-play"></i></button>
+                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger btn-sm" @click="stopMonitor(record.id)" :disabled="operationLoading[record.id]" title="停止监控"><i class="fas fa-stop"></i></button>
+                                            <button class="btn btn-outline-primary btn-sm" @click="editRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-outline-info btn-sm" @click="viewLogs(record.id)" title="查看日志"><i class="fas fa-history"></i></button>
+                                            <button class="btn btn-outline-danger btn-sm" @click="deleteRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -349,7 +356,7 @@
     </div>
 
     <!-- 添加/编辑监控记录模态框 -->
-    <div class="modal fade" :class="{ show: showAddModal || showEditModal }" 
+    <div class="modal fade" :class="{ show: showAddModal || showEditModal }"
          :style="{ display: showAddModal || showEditModal ? 'block' : 'none' }"
          @click="closeModal">
         <div class="modal-dialog modal-lg" @click.stop>
@@ -402,8 +409,8 @@
                         </div>
                         <div class="mb-3 position-relative">
                             <label class="form-label">代币地址 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" v-model="recordForm.token_address" 
-                                   :class="{ 'is-invalid': tokenAddressError }" 
+                            <input type="text" class="form-control" v-model="recordForm.token_address"
+                                   :class="{ 'is-invalid': tokenAddressError }"
                                    @input="onTokenAddressInput" @focus="onTokenAddressInput" @blur="onTokenAddressBlur"
                                    required placeholder="请输入代币地址或选择" autocomplete="off">
                             <div v-if="showTokenDropdown && (filteredTokenList.length > 0 || tokensLoading)"
@@ -480,13 +487,13 @@
                             <div class="col-md-6">
                                 <div class="mb-3" v-if="recordForm.type === 'sell'">
                                     <label class="form-label">最低持仓金额(USD)</label>
-                                    <input type="number" class="form-control" v-model="recordForm.minimum_hold_value" 
+                                    <input type="number" class="form-control" v-model="recordForm.minimum_hold_value"
                                            step="0.01" min="0" :disabled="recordForm.execution_mode === 'single'">
                                     <div class="form-text">多次执行模式下，当持仓价值低于此金额时将100%出售</div>
                                 </div>
                                 <div class="mb-3" v-else>
                                     <label class="form-label">最低SOL保留金额(USD)</label>
-                                    <input type="number" class="form-control" v-model="recordForm.minimum_hold_value" 
+                                    <input type="number" class="form-control" v-model="recordForm.minimum_hold_value"
                                            step="0.01" min="0" :disabled="recordForm.execution_mode === 'single'">
                                     <div class="form-text">多次执行模式下，SOL价值低于此金额时全部买入</div>
                                 </div>
@@ -521,7 +528,7 @@
     </div>
 
     <!-- 添加/编辑波段监控记录模态框 -->
-    <div class="modal fade" :class="{ show: showAddSwingModal || showEditSwingModal }" 
+    <div class="modal fade" :class="{ show: showAddSwingModal || showEditSwingModal }"
          :style="{ display: showAddSwingModal || showEditSwingModal ? 'block' : 'none' }"
          @click="closeSwingModal">
         <div class="modal-dialog modal-lg" @click.stop>
@@ -550,7 +557,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label">选择钱包私钥 <span class="text-danger">*</span></label>
                             <select class="form-select" v-model="swingForm.private_key_id" required>
@@ -570,7 +577,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3 position-relative">
                                     <label class="form-label">监听代币地址 <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" v-model="swingForm.watch_token_address" 
+                                    <input type="text" class="form-control" v-model="swingForm.watch_token_address"
                                            @input="onWatchTokenAddressInput" @focus="onWatchTokenAddressInput" @blur="onWatchTokenAddressBlur"
                                            required placeholder="要监听价格的代币地址" autocomplete="off">
                                     <div v-if="showWatchTokenDropdown && (filteredWatchTokenList.length > 0 || tokensLoading)"
@@ -611,7 +618,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3 position-relative">
                                     <label class="form-label">交易代币地址 <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" v-model="swingForm.trade_token_address" 
+                                    <input type="text" class="form-control" v-model="swingForm.trade_token_address"
                                            @input="onTradeTokenAddressInput" @focus="onTradeTokenAddressInput" @blur="onTradeTokenAddressBlur"
                                            required placeholder="要进行交易的代币地址" autocomplete="off">
                                     <div v-if="showTradeTokenDropdown && (filteredTradeTokenList.length > 0 || tokensLoading)"
@@ -664,7 +671,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">买入阈值(USD) <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" v-model="swingForm.buy_threshold" 
+                                    <input type="number" class="form-control" v-model="swingForm.buy_threshold"
                                            step="0.01" min="0" required>
                                     <div class="form-text">监听代币价格低于此值时买入</div>
                                 </div>
@@ -672,7 +679,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">卖出阈值(USD) <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" v-model="swingForm.sell_threshold" 
+                                    <input type="number" class="form-control" v-model="swingForm.sell_threshold"
                                            step="0.01" min="0" required>
                                     <div class="form-text">监听代币价格高于此值时卖出</div>
                                 </div>
@@ -683,7 +690,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">买入比例 <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" v-model="swingForm.buy_percentage" 
+                                    <input type="number" class="form-control" v-model="swingForm.buy_percentage"
                                            step="0.01" min="0" max="1" required>
                                     <div class="form-text">0.1 = 10%, 1 = 100%</div>
                                 </div>
@@ -691,7 +698,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">卖出比例 <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" v-model="swingForm.sell_percentage" 
+                                    <input type="number" class="form-control" v-model="swingForm.sell_percentage"
                                            step="0.01" min="0" max="1" required>
                                     <div class="form-text">0.1 = 10%, 1 = 100%</div>
                                 </div>
@@ -705,7 +712,7 @@
 
                         <div class="mb-3">
                             <label class="form-label">全仓操作阈值(USD)</label>
-                            <input type="number" class="form-control" v-model="swingForm.all_in_threshold" 
+                            <input type="number" class="form-control" v-model="swingForm.all_in_threshold"
                                    step="0.01" min="0">
                             <div class="form-text">当资产价值低于此金额时进行全仓操作</div>
                         </div>
@@ -725,7 +732,7 @@
     </div>
 
     <!-- 日志查看模态框 -->
-    <div class="modal fade" :class="{ show: showLogsModal }" 
+    <div class="modal fade" :class="{ show: showLogsModal }"
          :style="{ display: showLogsModal ? 'block' : 'none' }"
          @click="closeLogsModal">
         <div class="modal-dialog modal-xl" @click.stop>
@@ -801,13 +808,13 @@
 
     <!-- 消息提示 -->
     <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
-        <div v-for="message in messages" :key="message.id" 
-             class="toast align-items-center border-0 show mb-2" 
+        <div v-for="message in messages" :key="message.id"
+             class="toast align-items-center border-0 show mb-2"
              :class="message.type === 'success' ? 'text-bg-success' : 'text-bg-danger'">
             <div class="d-flex">
                 <div class="toast-body" v-text="message.text">
                 </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" 
+                <button type="button" class="btn-close btn-close-white me-2 m-auto"
                         @click="removeMessage(message.id)"></button>
             </div>
         </div>
@@ -834,7 +841,7 @@ const defaultRecordForm = {
     threshold: 200000,
     sell_percentage: 0.1,
     webhook_url: '',
-    check_interval: 5,
+    check_interval: 60,
     execution_mode: 'single',
     minimum_hold_value: 50.0,
     pre_sniper_mode: false,
@@ -879,7 +886,7 @@ createApp({
                 buy_percentage: 0.1,
                 sell_percentage: 0.1,
                 webhook_url: '',
-                check_interval: 5,
+                check_interval: 60,
                 all_in_threshold: 0,
                 type: 'swing' // 区分普通监控和波段监控
             },
@@ -900,7 +907,7 @@ createApp({
             return this.monitorRecords.filter(r => r.type === 'buy');
         },
         runningCount() {
-            return this.monitorRecords.filter(r => r.status === 'monitoring').length + 
+            return this.monitorRecords.filter(r => r.status === 'monitoring').length +
                    this.swingRecords.filter(r => r.status === 'monitoring').length;
         },
         stoppedCount() {
@@ -990,12 +997,12 @@ createApp({
                     if (key !== 'threshold') formData.append(key, this.recordForm[key]);
                 });
 
-                const url = this.showEditModal 
+                const url = this.showEditModal
                     ? `/api/monitor/records/${this.editingRecordId}`
                     : '/api/monitor/records';
-                
+
                 const method = this.showEditModal ? 'PUT' : 'POST';
-                
+
                 const response = await ApiClient[method.toLowerCase()](url, formData);
                 ApiResponse.handle(response,
                     (data) => {
@@ -1060,7 +1067,7 @@ createApp({
             if (!confirm('确定要删除这个监控记录吗？此操作不可恢复。')) {
                 return;
             }
-            
+
             try {
                 const response = await ApiClient.delete(`/api/monitor/records/${recordId}`);
                 ApiResponse.handle(response,
@@ -1122,7 +1129,7 @@ createApp({
             if (!confirm('确定要删除这个波段监控记录吗？此操作不可恢复。')) {
                 return;
             }
-            
+
             try {
                 const response = await ApiClient.delete(`/api/swing/records/${recordId}`);
                 ApiResponse.handle(response,
@@ -1155,12 +1162,12 @@ createApp({
                 all_in_threshold: record.all_in_threshold || 0,
                 type: 'swing'
             };
-            
+
             // 懒加载代币列表
             if (this.availableTokens.length === 0) {
                 await this.loadAvailableTokens();
             }
-            
+
             // 获取代币信息
             if (this.swingForm.watch_token_address) {
                 await this.fetchWatchTokenInfo();
@@ -1168,7 +1175,7 @@ createApp({
             if (this.swingForm.trade_token_address) {
                 await this.fetchTradeTokenInfo();
             }
-            
+
             this.showEditSwingModal = true;
         },
         async editRecord(record) {
@@ -1239,7 +1246,7 @@ createApp({
                 buy_percentage: 0.1,
                 sell_percentage: 0.1,
                 webhook_url: '',
-                check_interval: 5,
+                check_interval: 60,
                 all_in_threshold: 0,
                 type: 'swing'
             };
@@ -1311,7 +1318,7 @@ createApp({
             textArea.style.left = '-999999px';
             textArea.style.top = '-999999px';
             document.body.appendChild(textArea);
-            
+
             try {
                 textArea.focus();
                 textArea.select();
@@ -1392,19 +1399,19 @@ createApp({
         onTokenAddressInput() {
             this.tokenAddressError = '';
             const query = this.recordForm.token_address.trim().toLowerCase();
-            
+
             // 如果输入为空，重置代币信息
             if (!query) {
                 this.selectedTokenInfo = null;
             }
-            
+
             // 如果代币列表为空且不在加载中，显示加载状态
             if (this.availableTokens.length === 0 && !this.tokensLoading) {
                 this.showTokenDropdown = true;
                 this.loadAvailableTokens();
                 return;
             }
-            
+
             if (query) {
                 this.filteredTokenList = this.availableTokens.filter(token =>
                     token.address.toLowerCase().includes(query) ||
@@ -1414,7 +1421,7 @@ createApp({
             } else {
                 this.filteredTokenList = this.availableTokens;
             }
-            
+
             this.showTokenDropdown = this.filteredTokenList.length > 0 || this.tokensLoading;
         },
         selectToken(token) {
@@ -1441,12 +1448,12 @@ createApp({
                 this.selectedTokenInfo = null;
                 return;
             }
-            
+
             // 首先检查是否在已有的代币列表中
-            const existingToken = this.availableTokens.find(token => 
+            const existingToken = this.availableTokens.find(token =>
                 token.address.toLowerCase() === this.recordForm.token_address.toLowerCase()
             );
-            
+
             if (existingToken) {
                 this.selectedTokenInfo = {
                     name: existingToken.name,
@@ -1455,7 +1462,7 @@ createApp({
                 };
                 return;
             }
-            
+
             // 如果不在列表中，调用API获取
             try {
                 const response = await ApiClient.get(`/api/token_info?address=${this.recordForm.token_address}`);
@@ -1480,7 +1487,7 @@ createApp({
             this.saveLoading = true;
             try {
                 const formData = new FormData();
-                
+
                 // 添加所有必需的字段
                 formData.append('name', this.swingForm.name);
                 formData.append('private_key_id', this.swingForm.private_key_id);
@@ -1495,12 +1502,12 @@ createApp({
                 formData.append('check_interval', this.swingForm.check_interval);
                 formData.append('all_in_threshold', this.swingForm.all_in_threshold || 50.0);
 
-                const url = this.showEditSwingModal 
+                const url = this.showEditSwingModal
                     ? `/api/swing/records/${this.swingForm.id}`
                     : '/api/swing/records';
-                
+
                 const method = this.showEditSwingModal ? 'PUT' : 'POST';
-                
+
                 const response = await ApiClient[method.toLowerCase()](url, formData);
                 ApiResponse.handle(response,
                     (data) => {
@@ -1521,19 +1528,19 @@ createApp({
         // 波段监控代币选择相关方法
         onWatchTokenAddressInput() {
             const query = this.swingForm.watch_token_address.trim().toLowerCase();
-            
+
             // 如果输入为空，重置代币信息
             if (!query) {
                 this.selectedWatchTokenInfo = null;
             }
-            
+
             // 如果代币列表为空且不在加载中，显示加载状态
             if (this.availableTokens.length === 0 && !this.tokensLoading) {
                 this.showWatchTokenDropdown = true;
                 this.loadAvailableTokens();
                 return;
             }
-            
+
             if (query) {
                 this.filteredWatchTokenList = this.availableTokens.filter(token =>
                     token.address.toLowerCase().includes(query) ||
@@ -1543,7 +1550,7 @@ createApp({
             } else {
                 this.filteredWatchTokenList = this.availableTokens;
             }
-            
+
             this.showWatchTokenDropdown = this.filteredWatchTokenList.length > 0 || this.tokensLoading;
         },
         onWatchTokenAddressBlur() {
@@ -1569,12 +1576,12 @@ createApp({
                 this.selectedWatchTokenInfo = null;
                 return;
             }
-            
+
             // 首先检查是否在已有的代币列表中
-            const existingToken = this.availableTokens.find(token => 
+            const existingToken = this.availableTokens.find(token =>
                 token.address.toLowerCase() === this.swingForm.watch_token_address.toLowerCase()
             );
-            
+
             if (existingToken) {
                 this.selectedWatchTokenInfo = {
                     name: existingToken.name,
@@ -1583,7 +1590,7 @@ createApp({
                 };
                 return;
             }
-            
+
             // 如果不在列表中，调用API获取
             try {
                 const response = await ApiClient.get(`/api/token_info?address=${this.swingForm.watch_token_address}`);
@@ -1605,19 +1612,19 @@ createApp({
         },
         onTradeTokenAddressInput() {
             const query = this.swingForm.trade_token_address.trim().toLowerCase();
-            
+
             // 如果输入为空，重置代币信息
             if (!query) {
                 this.selectedTradeTokenInfo = null;
             }
-            
+
             // 如果代币列表为空且不在加载中，显示加载状态
             if (this.availableTokens.length === 0 && !this.tokensLoading) {
                 this.showTradeTokenDropdown = true;
                 this.loadAvailableTokens();
                 return;
             }
-            
+
             if (query) {
                 this.filteredTradeTokenList = this.availableTokens.filter(token =>
                     token.address.toLowerCase().includes(query) ||
@@ -1627,7 +1634,7 @@ createApp({
             } else {
                 this.filteredTradeTokenList = this.availableTokens;
             }
-            
+
             this.showTradeTokenDropdown = this.filteredTradeTokenList.length > 0 || this.tokensLoading;
         },
         onTradeTokenAddressBlur() {
@@ -1653,12 +1660,12 @@ createApp({
                 this.selectedTradeTokenInfo = null;
                 return;
             }
-            
+
             // 首先检查是否在已有的代币列表中
-            const existingToken = this.availableTokens.find(token => 
+            const existingToken = this.availableTokens.find(token =>
                 token.address.toLowerCase() === this.swingForm.trade_token_address.toLowerCase()
             );
-            
+
             if (existingToken) {
                 this.selectedTradeTokenInfo = {
                     name: existingToken.name,
@@ -1667,7 +1674,7 @@ createApp({
                 };
                 return;
             }
-            
+
             // 如果不在列表中，调用API获取
             try {
                 const response = await ApiClient.get(`/api/token_info?address=${this.swingForm.trade_token_address}`);
@@ -1690,4 +1697,4 @@ createApp({
     }
 }).mount('#app');
 </script>
-{% endblock %} 
+{% endblock %}
