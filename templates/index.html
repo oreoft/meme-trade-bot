@@ -21,11 +21,11 @@
                     </button>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="#" @click="openAddModal('normal')">
-                            <i class="fas fa-eye me-2"></i>普通监控（买入/卖出）
-                        </a></li>
+                                <i class="fas fa-eye me-2"></i>普通监控（买入/卖出）
+                            </a></li>
                         <li><a class="dropdown-item" href="#" @click="openAddModal('swing')">
-                            <i class="fas fa-exchange-alt me-2"></i>波段监控
-                        </a></li>
+                                <i class="fas fa-exchange-alt me-2"></i>波段监控
+                            </a></li>
                     </ul>
                 </div>
             </div>
@@ -109,65 +109,95 @@
                     <div v-else class="table-responsive">
                         <table class="table table-hover table-sm">
                             <thead>
-                                <tr>
-                                    <th style="min-width: 120px;">名称</th>
-                                    <th style="min-width: 100px;">代币地址</th>
-                                    <th style="min-width: 70px;">阈值</th>
-                                    <th style="min-width: 80px;">当前市值</th>
-                                    <th style="min-width: 90px;">距离阈值</th>
-                                    <th style="min-width: 60px;">出售%</th>
-                                    <th style="min-width: 60px;">执行</th>
-                                    <th style="min-width: 70px;">最低持仓</th>
-                                    <th style="min-width: 50px;">间隔</th>
-                                    <th style="min-width: 60px;">状态</th>
-                                    <th style="min-width: 100px;">最后检查</th>
-                                    <th style="min-width: 140px;">操作</th>
-                                </tr>
+                            <tr>
+                                <th style="min-width: 120px;">名称</th>
+                                <th style="min-width: 100px;">代币地址</th>
+                                <th style="min-width: 70px;">阈值</th>
+                                <th style="min-width: 80px;">当前市值</th>
+                                <th style="min-width: 90px;">距离阈值</th>
+                                <th style="min-width: 60px;">出售%</th>
+                                <th style="min-width: 60px;">执行</th>
+                                <th style="min-width: 70px;">最低持仓</th>
+                                <th style="min-width: 50px;">间隔</th>
+                                <th style="min-width: 60px;">状态</th>
+                                <th style="min-width: 100px;">最后检查</th>
+                                <th style="min-width: 140px;">操作</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="record in sellRecords" :key="record.id">
-                                    <td>
-                                        <div class="d-flex flex-column">
-                                            <span class="badge bg-warning mb-1" style="font-size: 0.65rem;">出售</span>
-                                            <strong class="small" v-text="record.name"></strong>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank" class="text-decoration-none" :title="record.token_address">
-                                            <code class="small text-primary">
-                                              <div v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></div>
-                                              <small v-if="record.token_symbol" class="text-muted">(<span v-text="record.token_symbol"></span>)</small>
-                                            </code>
-                                        </a>
-                                    </td>
-                                    <td><strong class="small" v-text="'$' + formatShortNumber(record.threshold)"></strong></td>
-                                    <td>
-                                        <span v-if="record.last_market_cap" class="fw-bold small" v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
-                                        <span v-else class="text-muted small">--</span>
-                                    </td>
-                                    <td>
-                                        <span v-if="record.last_market_cap && record.threshold" v-html="getThresholdDiffHtml(record)"></span>
-                                        <span v-else class="text-muted small">--</span>
-                                    </td>
-                                    <td><span class="badge bg-info" style="font-size: 0.7rem;" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
-                                    <td><span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" style="font-size: 0.7rem;" v-text="record.execution_mode === 'single' ? '单次' : '多次'"></span></td>
-                                    <td>
-                                        <span v-if="record.execution_mode === 'multiple'" class="small" v-text="'$' + formatShortNumber(record.minimum_hold_value)"></span>
-                                        <span v-else class="text-muted small">--</span>
-                                    </td>
-                                    <td><span class="small" v-text="record.check_interval + 's'"></span></td>
-                                    <td><span class="badge" :class="getStatusClass(record.status)" style="font-size: 0.7rem;"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
-                                    <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted small">--</span></td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm" style="gap: 4px;">
-                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success btn-sm" @click="startSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i class="fas fa-play"></i></button>
-                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger btn-sm" @click="stopSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i class="fas fa-stop"></i></button>
-                                            <button class="btn btn-outline-primary btn-sm" @click="editSwingRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
-                                            <button class="btn btn-outline-info btn-sm" @click="viewLogs('normal', record.id)" title="查看日志"><i class="fas fa-history"></i></button>
-                                            <button class="btn btn-outline-danger btn-sm" @click="deleteSwingRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
-                                        </div>
-                                    </td>
-                                </tr>
+                            <tr v-for="record in sellRecords" :key="record.id">
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span class="badge bg-warning mb-1" style="font-size: 0.65rem;">出售</span>
+                                        <strong class="small" v-text="record.name"></strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank"
+                                       class="text-decoration-none" :title="record.token_address">
+                                        <code class="small text-primary">
+                                            <div v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></div>
+                                            <small v-if="record.token_symbol" class="text-muted">(<span
+                                                        v-text="record.token_symbol"></span>)</small>
+                                        </code>
+                                    </a>
+                                </td>
+                                <td><strong class="small" v-text="'$' + formatShortNumber(record.threshold)"></strong>
+                                </td>
+                                <td>
+                                    <span v-if="record.last_market_cap" class="fw-bold small"
+                                          v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
+                                    <span v-else class="text-muted small">--</span>
+                                </td>
+                                <td>
+                                    <span v-if="record.last_market_cap && record.threshold"
+                                          v-html="getThresholdDiffHtml(record)"></span>
+                                    <span v-else class="text-muted small">--</span>
+                                </td>
+                                <td><span class="badge bg-info" style="font-size: 0.7rem;"
+                                          v-text="(record.sell_percentage * 100).toFixed(1) + '%'"/></td>
+                                <td><span class="badge"
+                                          :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'"
+                                          style="font-size: 0.7rem;"
+                                          v-text="record.execution_mode === 'single' ? '单次' : '多次'"></span></td>
+                                <td>
+                                    <span v-if="record.execution_mode === 'multiple'" class="small"
+                                          v-text="'$' + formatShortNumber(record.minimum_hold_value)"></span>
+                                    <span v-else class="text-muted small">--</span>
+                                </td>
+                                <td><span class="small" v-text="record.check_interval + 's'"></span></td>
+                                <td><span class="badge" :class="getStatusClass(record.status)"
+                                          style="font-size: 0.7rem;"><i class="fas"
+                                                                        :class="getStatusIcon(record.status)"></i><span
+                                                v-text="getStatusText(record.status)"></span></span></td>
+                                <td><small v-if="record.last_check_at" class="text-muted"
+                                           v-text="formatTime(record.last_check_at)"></small><span v-else
+                                                                                                   class="text-muted small">--</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" style="gap: 4px;">
+                                        <button v-if="record.status === 'stopped'"
+                                                class="btn btn-outline-success btn-sm"
+                                                @click="startSwingMonitor(record.id)"
+                                                :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i
+                                                    class="fas fa-play"></i></button>
+                                        <button v-if="record.status === 'monitoring'"
+                                                class="btn btn-outline-danger btn-sm"
+                                                @click="stopSwingMonitor(record.id)"
+                                                :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i
+                                                    class="fas fa-stop"></i></button>
+                                        <button class="btn btn-outline-primary btn-sm" @click="editRecord(record)"
+                                                :disabled="record.status === 'monitoring'" title="编辑"><i
+                                                    class="fas fa-edit"></i></button>
+                                        <button class="btn btn-outline-info btn-sm"
+                                                @click="viewLogs('normal', record.id)" title="查看日志"><i
+                                                    class="fas fa-history"></i></button>
+                                        <button class="btn btn-outline-danger btn-sm" @click="deleteRecord(record.id)"
+                                                :disabled="record.status === 'monitoring'" title="删除"><i
+                                                    class="fas fa-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
@@ -191,25 +221,26 @@
                     <div v-else class="table-responsive">
                         <table class="table table-hover table-sm">
                             <thead>
-                                <tr>
-                                    <th style="min-width: 120px;">名称</th>
-                                    <th style="min-width: 100px;">监听代币</th>
-                                    <th style="min-width: 100px;">交易代币</th>
-                                    <th style="min-width: 60px;">类型</th>
-                                    <th style="min-width: 80px;">当前值</th>
-                                    <th style="min-width: 80px;">买入阈值</th>
-                                    <th style="min-width: 80px;">卖出阈值</th>
-                                    <th style="min-width: 60px;">买入%</th>
-                                    <th style="min-width: 60px;">卖出%</th>
-                                    <th style="min-width: 70px;">全仓阈值</th>
-                                    <th style="min-width: 50px;">间隔</th>
-                                    <th style="min-width: 60px;">状态</th>
-                                    <th style="min-width: 100px;">最后检查</th>
-                                    <th style="min-width: 120px;">操作</th>
-                                </tr>
+                            <tr>
+                                <th style="min-width: 120px;">名称</th>
+                                <th style="min-width: 100px;">监听代币</th>
+                                <th style="min-width: 100px;">交易代币</th>
+                                <th style="min-width: 60px;">类型</th>
+                                <th style="min-width: 80px;">当前值</th>
+                                <th style="min-width: 80px;">买入阈值</th>
+                                <th style="min-width: 80px;">卖出阈值</th>
+                                <th style="min-width: 60px;">买入%</th>
+                                <th style="min-width: 60px;">卖出%</th>
+                                <th style="min-width: 70px;">全仓阈值</th>
+                                <th style="min-width: 50px;">间隔</th>
+                                <th style="min-width: 60px;">状态</th>
+                                <th style="min-width: 100px;">最后检查</th>
+                                <th style="min-width: 120px;">操作</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="record in swingRecords" :key="record.id">
+                            <template v-for="record in swingRecords" :key="record.id">
+                                <tr>
                                     <td>
                                         <div class="d-flex flex-column">
                                             <span class="badge bg-info mb-1" style="font-size: 0.65rem;">波段</span>
@@ -217,47 +248,196 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <a :href="'https://dexscreener.com/solana/' + record.watch_token_address" target="_blank" class="text-decoration-none" :title="record.watch_token_address">
+                                        <a :href="'https://dexscreener.com/solana/' + record.watch_token_address"
+                                           target="_blank" class="text-decoration-none"
+                                           :title="record.watch_token_address">
                                             <code class="small text-primary">
-                                              <div v-text="record.watch_token_address.substring(0, 4) + '...' + record.watch_token_address.substring(record.watch_token_address.length - 4)"></div>
-                                              <small v-if="record.watch_token_symbol" class="text-muted">(<span v-text="record.watch_token_symbol"></span>)</small>
+                                                <div v-text="record.watch_token_address.substring(0, 4) + '...' + record.watch_token_address.substring(record.watch_token_address.length - 4)"></div>
+                                                <small v-if="record.watch_token_symbol" class="text-muted">(<span
+                                                            v-text="record.watch_token_symbol"></span>)</small>
                                             </code>
                                         </a>
                                     </td>
                                     <td>
-                                        <a :href="'https://dexscreener.com/solana/' + record.trade_token_address" target="_blank" class="text-decoration-none" :title="record.trade_token_address">
+                                        <a :href="'https://dexscreener.com/solana/' + record.trade_token_address"
+                                           target="_blank" class="text-decoration-none"
+                                           :title="record.trade_token_address">
                                             <code class="small text-success">
-                                              <div v-text="record.trade_token_address.substring(0, 4) + '...' + record.trade_token_address.substring(record.trade_token_address.length - 4)"></div>
-                                              <small v-if="record.trade_token_symbol" class="text-muted">(<span v-text="record.trade_token_symbol"></span>)</small>
+                                                <div v-text="record.trade_token_address.substring(0, 4) + '...' + record.trade_token_address.substring(record.trade_token_address.length - 4)"></div>
+                                                <small v-if="record.trade_token_symbol" class="text-muted">(<span
+                                                            v-text="record.trade_token_symbol"></span>)</small>
                                             </code>
                                         </a>
                                     </td>
                                     <td>
-                                        <span class="badge" :class="record.price_type === 'price' ? 'bg-warning' : 'bg-info'" v-text="record.price_type === 'price' ? '单价' : '市值'"></span>
+                                    <span class="badge"
+                                          :class="record.price_type === 'price' ? 'bg-warning' : 'bg-info'"
+                                          v-text="record.price_type === 'price' ? '单价' : '市值'"></span>
                                     </td>
                                     <td>
-                                        <span v-if="record.price_type === 'price' && record.last_watch_price" class="fw-bold small" v-text="'$' + record.last_watch_price.toFixed(2)"></span>
-                                        <span v-else-if="record.price_type === 'market_cap' && record.last_watch_market_cap" class="fw-bold small" v-text="'$' + formatShortNumber(record.last_watch_market_cap)"></span>
+                                    <span v-if="record.price_type === 'price' && record.last_watch_price"
+                                          class="fw-bold small"
+                                          v-text="'$' + record.last_watch_price.toFixed(2)"></span>
+                                        <span v-else-if="record.price_type === 'market_cap' && record.last_watch_market_cap"
+                                              class="fw-bold small"
+                                              v-text="'$' + formatShortNumber(record.last_watch_market_cap)"></span>
                                         <span v-else class="text-muted">--</span>
                                     </td>
-                                    <td><strong class="text-success small" v-text="'$' + formatShortNumber(record.buy_threshold)"></strong></td>
-                                    <td><strong class="text-danger small" v-text="'$' + formatShortNumber(record.sell_threshold)"></strong></td>
-                                    <td><span class="badge bg-success" style="font-size: 0.7rem;" v-text="(record.buy_percentage * 100).toFixed(1) + '%'" /></td>
-                                    <td><span class="badge bg-danger" style="font-size: 0.7rem;" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
-                                    <td><span class="small" v-text="'$' + formatShortNumber(record.all_in_threshold)"></span></td>
+                                    <td><strong class="text-success small"
+                                                v-text="'$' + formatShortNumber(record.buy_threshold)"></strong></td>
+                                    <td><strong class="text-danger small"
+                                                v-text="'$' + formatShortNumber(record.sell_threshold)"></strong></td>
+                                    <td><span class="badge bg-success" style="font-size: 0.7rem;"
+                                              v-text="(record.buy_percentage * 100).toFixed(1) + '%'"/></td>
+                                    <td><span class="badge bg-danger" style="font-size: 0.7rem;"
+                                              v-text="(record.sell_percentage * 100).toFixed(1) + '%'"/></td>
+                                    <td><span class="small"
+                                              v-text="'$' + formatShortNumber(record.all_in_threshold)"></span></td>
                                     <td><span class="small" v-text="record.check_interval + 's'"></span></td>
-                                    <td><span class="badge" :class="getStatusClass(record.status)" style="font-size: 0.7rem;"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
-                                    <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted">--</span></td>
+                                    <td><span class="badge" :class="getStatusClass(record.status)"
+                                              style="font-size: 0.7rem;"><i class="fas"
+                                                                            :class="getStatusIcon(record.status)"></i><span
+                                                    v-text="getStatusText(record.status)"></span></span></td>
+                                    <td><small v-if="record.last_check_at" class="text-muted"
+                                               v-text="formatTime(record.last_check_at)"></small><span v-else
+                                                                                                       class="text-muted">--</span>
+                                    </td>
                                     <td>
                                         <div class="btn-group btn-group-sm" style="gap: 4px;">
-                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success btn-sm" @click="startSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i class="fas fa-play"></i></button>
-                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger btn-sm" @click="stopSwingMonitor(record.id)" :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i class="fas fa-stop"></i></button>
-                                            <button class="btn btn-outline-primary btn-sm" @click="editSwingRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
-                                            <button class="btn btn-outline-info btn-sm" @click="viewLogs('swing', record.id)" title="查看日志"><i class="fas fa-history"></i></button>
-                                            <button class="btn btn-outline-danger btn-sm" @click="deleteSwingRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
+                                            <button
+                                                    class="btn btn-outline-info btn-sm"
+                                                    @click="record && record.id && toggleSwingWalletTokens(record.id, record.private_key_id)"
+                                                    :title="record && record.id && swingWalletTokensExpanded[record.id] ? '收起Token明细' : '展开Token明细'">
+                                                <span v-if="record && record.id && swingWalletTokensLoading[record.id]"
+                                                      class="spinner-border spinner-border-sm"></span>
+                                                <i v-else-if="record && record.id && swingWalletTokensExpanded[record.id]"
+                                                   class="fas fa-chevron-up"></i>
+                                                <i v-else class="fas fa-chevron-down"></i>
+                                            </button>
+                                            <button v-if="record.status === 'stopped'"
+                                                    class="btn btn-outline-success btn-sm"
+                                                    @click="startSwingMonitor(record.id)"
+                                                    :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i
+                                                        class="fas fa-play"></i></button>
+                                            <button v-if="record.status === 'monitoring'"
+                                                    class="btn btn-outline-danger btn-sm"
+                                                    @click="stopSwingMonitor(record.id)"
+                                                    :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i
+                                                        class="fas fa-stop"></i></button>
+                                            <button class="btn btn-outline-primary btn-sm"
+                                                    @click="editSwingRecord(record)"
+                                                    :disabled="record.status === 'monitoring'" title="编辑"><i
+                                                        class="fas fa-edit"></i></button>
+                                            <button class="btn btn-outline-info btn-sm"
+                                                    @click="viewLogs('swing', record.id)" title="查看日志"><i
+                                                        class="fas fa-history"></i></button>
+                                            <button class="btn btn-outline-danger btn-sm"
+                                                    @click="deleteSwingRecord(record.id)"
+                                                    :disabled="record.status === 'monitoring'" title="删除"><i
+                                                        class="fas fa-trash"></i></button>
                                         </div>
                                     </td>
                                 </tr>
+                                <!-- Token明细展开行 -->
+                                <tr v-if="record && record.id && swingWalletTokensExpanded[record.id]" class="bg-light">
+                                    <td colspan="14" class="p-0">
+                                        <div class="p-3">
+                                            <div v-if="swingWalletTokensLoading[record.id]" class="text-center py-3">
+                                                <div class="spinner-border text-primary" role="status"></div>
+                                                <p class="mt-2 text-muted">加载Token明细中...</p>
+                                            </div>
+                                            <div v-else-if="swingWalletTokensData[record.id] && swingWalletTokensData[record.id].tokens.length > 0">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0">
+                                                        <i class="fas fa-coins me-2 text-primary"></i>
+                                                        <span v-text="record.name || '未知'"></span> 钱包的Token明细
+                                                    </h6>
+                                                    <div class="text-muted d-flex align-items-center gap-2">
+                                                        总价值: <span class="text-success fw-bold"
+                                                                      v-text="'$' + swingWalletTokensData[record.id].total_usd.toFixed(2)"></span>
+                                                        <button class="btn btn-outline-primary btn-sm ms-2"
+                                                                :disabled="swingWalletTokensLoading[record.id]"
+                                                                @click="refreshSwingWalletTokens(record.id, record.private_key_id)">
+                                                            <span v-if="swingWalletTokensLoading[record.id]"
+                                                                  class="spinner-border spinner-border-sm me-1"></span>
+                                                            <i v-else class="fas fa-refresh me-1"></i>
+                                                            <span v-if="swingWalletTokensLoading[record.id]">刷新中...</span>
+                                                            <span v-else>刷新</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm mb-0">
+                                                        <thead>
+                                                        <tr>
+                                                            <th>Token</th>
+                                                            <th>符号</th>
+                                                            <th>持有量</th>
+                                                            <th>价格</th>
+                                                            <th>价值</th>
+                                                            <th>Token地址</th>
+                                                            <th>操作</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        <tr v-for="token in swingWalletTokensData[record.id].tokens"
+                                                            :key="token.address">
+                                                            <td>
+                                                                <div class="d-flex align-items-center">
+                                                                    <img v-if="token.logo_uri" :src="token.logo_uri"
+                                                                         alt="token logo" class="me-2 rounded-circle"
+                                                                         style="width: 20px; height: 20px;"
+                                                                         @error="$event.target.style.display='none'">
+                                                                    <a :href="'https://dexscreener.com/solana/' + token.address"
+                                                                       target="_blank"
+                                                                       class="text-decoration-none fw-bold text-primary"
+                                                                       :title="'在DexScreener上查看 ' + token.name"
+                                                                       v-text="token.name"></a>
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-secondary small"
+                                                                      v-text="token.symbol"></span>
+                                                            </td>
+                                                            <td v-text="formatAmount(token.amount)"></td>
+                                                            <td v-text="'$' + token.price_usd.toFixed(6)"></td>
+                                                            <td>
+                                                                <span class="text-success fw-bold"
+                                                                      v-text="'$' + token.value_usd.toFixed(2)"></span>
+                                                            </td>
+                                                            <td>
+                                                                <code class="small address-copy"
+                                                                      @click="copyToClipboard(token.address, 'Token地址')"
+                                                                      :title="token.address + ' (点击复制)'"
+                                                                      style="cursor: pointer; user-select: none;"
+                                                                      v-text="token.address.substring(0, 6) + '...' + token.address.substring(token.address.length - 6)">
+                                                                </code>
+                                                                <i class="fas fa-copy ms-1 text-muted"
+                                                                   style="font-size: 0.7em;"></i>
+                                                            </td>
+                                                            <td>
+                                                                <button class="btn btn-outline-success btn-sm"
+                                                                        @click="openConvertModal(getSwingWalletKey(record.private_key_id), token)">
+                                                                    <i class="fas fa-exchange-alt me-1"></i>兑换
+                                                                </button>
+                                                                <button class="btn btn-outline-warning btn-sm ms-1"
+                                                                        @click="openTransferModal(getSwingWalletKey(record.private_key_id), token)">
+                                                                    <i class="fas fa-paper-plane me-1"></i>转账
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                            <div v-else class="text-center py-3 text-muted">
+                                                <i class="fas fa-coins fa-2x mb-2"></i>
+                                                <p class="mb-0">该钱包暂无Token记录</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
                             </tbody>
                         </table>
                     </div>
@@ -281,73 +461,100 @@
                     <div v-else class="table-responsive">
                         <table class="table table-hover table-sm">
                             <thead>
-                                <tr>
-                                    <th style="min-width: 120px;">名称</th>
-                                    <th style="min-width: 100px;">代币地址</th>
-                                    <th style="min-width: 70px;">阈值</th>
-                                    <th style="min-width: 80px;">当前市值</th>
-                                    <th style="min-width: 90px;">距离阈值</th>
-                                    <th style="min-width: 60px;">购买%</th>
-                                    <th style="min-width: 60px;">执行</th>
-                                    <th style="min-width: 100px;">累计购买</th>
-                                    <th style="min-width: 50px;">间隔</th>
-                                    <th style="min-width: 60px;">状态</th>
-                                    <th style="min-width: 100px;">最后检查</th>
-                                    <th style="min-width: 140px;">操作</th>
-                                </tr>
+                            <tr>
+                                <th style="min-width: 120px;">名称</th>
+                                <th style="min-width: 100px;">代币地址</th>
+                                <th style="min-width: 70px;">阈值</th>
+                                <th style="min-width: 80px;">当前市值</th>
+                                <th style="min-width: 90px;">距离阈值</th>
+                                <th style="min-width: 60px;">购买%</th>
+                                <th style="min-width: 60px;">执行</th>
+                                <th style="min-width: 100px;">累计购买</th>
+                                <th style="min-width: 50px;">间隔</th>
+                                <th style="min-width: 60px;">状态</th>
+                                <th style="min-width: 100px;">最后检查</th>
+                                <th style="min-width: 140px;">操作</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="record in buyRecords" :key="record.id">
-                                    <td>
-                                        <div class="d-flex flex-column">
-                                            <span class="badge bg-primary mb-1" style="font-size: 0.65rem;">买入</span>
-                                            <strong class="small" v-text="record.name"></strong>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank" class="text-decoration-none" :title="record.token_address">
-                                            <code class="small text-primary">
-                                              <div v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></div>
-                                              <small v-if="record.token_symbol" class="text-muted">(<span v-text="record.token_symbol"></span>)</small>
-                                            </code>
-                                        </a>
-                                    </td>
-                                    <td><strong class="small" v-text="'$' + formatShortNumber(record.threshold)"></strong></td>
-                                    <td>
-                                        <span v-if="record.last_market_cap" class="fw-bold small" v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
-                                        <span v-else class="text-muted small">--</span>
-                                    </td>
-                                    <td>
+                            <tr v-for="record in buyRecords" :key="record.id">
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span class="badge bg-primary mb-1" style="font-size: 0.65rem;">买入</span>
+                                        <strong class="small" v-text="record.name"></strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank"
+                                       class="text-decoration-none" :title="record.token_address">
+                                        <code class="small text-primary">
+                                            <div v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></div>
+                                            <small v-if="record.token_symbol" class="text-muted">(<span
+                                                        v-text="record.token_symbol"></span>)</small>
+                                        </code>
+                                    </a>
+                                </td>
+                                <td><strong class="small" v-text="'$' + formatShortNumber(record.threshold)"></strong>
+                                </td>
+                                <td>
+                                    <span v-if="record.last_market_cap" class="fw-bold small"
+                                          v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
+                                    <span v-else class="text-muted small">--</span>
+                                </td>
+                                <td>
                                         <span v-if="record.last_market_cap && record.threshold && record.last_market_cap > record.threshold"
                                               class="fw-bold text-success small"
                                               v-text="'还需跌 $' + formatShortNumber(record.last_market_cap - record.threshold)"></span>
-                                        <span v-else-if="record.last_market_cap && record.threshold"
-                                              class="fw-bold text-danger small"
-                                              v-text="'已低于阈值'"></span>
-                                        <span v-else class="text-muted small">--</span>
-                                    </td>
-                                    <td><span class="badge bg-info" style="font-size: 0.7rem;" v-text="(record.sell_percentage * 100).toFixed(1) + '%'" /></td>
-                                    <td><span class="badge" :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'" style="font-size: 0.7rem;" v-text="record.execution_mode === 'single' ? '单次' : '多次'"/></td>
-                                    <td>
+                                    <span v-else-if="record.last_market_cap && record.threshold"
+                                          class="fw-bold text-danger small"
+                                          v-text="'已低于阈值'"></span>
+                                    <span v-else class="text-muted small">--</span>
+                                </td>
+                                <td><span class="badge bg-info" style="font-size: 0.7rem;"
+                                          v-text="(record.sell_percentage * 100).toFixed(1) + '%'"/></td>
+                                <td><span class="badge"
+                                          :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'"
+                                          style="font-size: 0.7rem;"
+                                          v-text="record.execution_mode === 'single' ? '单次' : '多次'"/></td>
+                                <td>
                                         <span v-if="record.max_buy_amount && record.max_buy_amount > 0" class="small">
                                             <div v-text="(typeof record.accumulated_buy_usd !== 'undefined' ? ('$' + formatShortNumber(record.accumulated_buy_usd)) : (record._accumulated_buy_usd ? ('$' + formatShortNumber(record._accumulated_buy_usd)) : '$0.00'))"></div>
-                                            <small class="text-muted">/ $<span v-text="formatShortNumber(record.max_buy_amount)"></span></small>
+                                            <small class="text-muted">/ $<span
+                                                        v-text="formatShortNumber(record.max_buy_amount)"></span></small>
                                         </span>
-                                        <span v-else class="text-muted small">--</span>
-                                    </td>
-                                    <td><span class="small" v-text="record.check_interval + 's'"></span></td>
-                                    <td><span class="badge" :class="getStatusClass(record.status)" style="font-size: 0.7rem;"><i class="fas" :class="getStatusIcon(record.status)"></i><span v-text="getStatusText(record.status)"></span></span></td>
-                                    <td><small v-if="record.last_check_at" class="text-muted" v-text="formatTime(record.last_check_at)"></small><span v-else class="text-muted small">--</span></td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm" style="gap: 4px;">
-                                            <button v-if="record.status === 'stopped'" class="btn btn-outline-success btn-sm" @click="startMonitor(record.id)" :disabled="operationLoading[record.id]" title="启动监控"><i class="fas fa-play"></i></button>
-                                            <button v-if="record.status === 'monitoring'" class="btn btn-outline-danger btn-sm" @click="stopMonitor(record.id)" :disabled="operationLoading[record.id]" title="停止监控"><i class="fas fa-stop"></i></button>
-                                            <button class="btn btn-outline-primary btn-sm" @click="editRecord(record)" :disabled="record.status === 'monitoring'" title="编辑"><i class="fas fa-edit"></i></button>
-                                            <button class="btn btn-outline-info btn-sm" @click="viewLogs('normal', record.id)" title="查看日志"><i class="fas fa-history"></i></button>
-                                            <button class="btn btn-outline-danger btn-sm" @click="deleteRecord(record.id)" :disabled="record.status === 'monitoring'" title="删除"><i class="fas fa-trash"></i></button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                    <span v-else class="text-muted small">--</span>
+                                </td>
+                                <td><span class="small" v-text="record.check_interval + 's'"></span></td>
+                                <td><span class="badge" :class="getStatusClass(record.status)"
+                                          style="font-size: 0.7rem;"><i class="fas"
+                                                                        :class="getStatusIcon(record.status)"></i><span
+                                                v-text="getStatusText(record.status)"></span></span></td>
+                                <td><small v-if="record.last_check_at" class="text-muted"
+                                           v-text="formatTime(record.last_check_at)"></small><span v-else
+                                                                                                   class="text-muted small">--</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" style="gap: 4px;">
+                                        <button v-if="record.status === 'stopped'"
+                                                class="btn btn-outline-success btn-sm" @click="startMonitor(record.id)"
+                                                :disabled="operationLoading[record.id]" title="启动监控"><i
+                                                    class="fas fa-play"></i></button>
+                                        <button v-if="record.status === 'monitoring'"
+                                                class="btn btn-outline-danger btn-sm" @click="stopMonitor(record.id)"
+                                                :disabled="operationLoading[record.id]" title="停止监控"><i
+                                                    class="fas fa-stop"></i></button>
+                                        <button class="btn btn-outline-primary btn-sm" @click="editRecord(record)"
+                                                :disabled="record.status === 'monitoring'" title="编辑"><i
+                                                    class="fas fa-edit"></i></button>
+                                        <button class="btn btn-outline-info btn-sm"
+                                                @click="viewLogs('normal', record.id)" title="查看日志"><i
+                                                    class="fas fa-history"></i></button>
+                                        <button class="btn btn-outline-danger btn-sm" @click="deleteRecord(record.id)"
+                                                :disabled="record.status === 'monitoring'" title="删除"><i
+                                                    class="fas fa-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
@@ -382,7 +589,8 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">检查间隔(秒) <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" v-model="recordForm.check_interval" min="1" required>
+                                    <input type="number" class="form-control" v-model="recordForm.check_interval"
+                                           min="1" required>
                                 </div>
                             </div>
                         </div>
@@ -398,7 +606,8 @@
                             <label class="form-label">选择钱包私钥 <span class="text-danger">*</span></label>
                             <select class="form-select" v-model="recordForm.private_key_id" required>
                                 <option value="">请选择钱包私钥</option>
-                                <option v-for="key in privateKeys" :key="key.id" :value="key.id" v-text="key.nickname + ' (' + key.public_key.substring(0,8) + '...' + key.public_key.substring(key.public_key.length-8) + ')'">
+                                <option v-for="key in privateKeys" :key="key.id" :value="key.id"
+                                        v-text="key.nickname + ' (' + key.public_key.substring(0,8) + '...' + key.public_key.substring(key.public_key.length-8) + ')'">
                                 </option>
                             </select>
                             <div class="form-text">
@@ -421,7 +630,8 @@
                                     <div class="spinner-border spinner-border-sm text-primary me-2"></div>
                                     <span class="text-muted">加载代币列表中...</span>
                                 </div>
-                                <div v-else-if="filteredTokenList.length === 0" class="dropdown-item text-center py-3 text-muted">
+                                <div v-else-if="filteredTokenList.length === 0"
+                                     class="dropdown-item text-center py-3 text-muted">
                                     <i class="fas fa-search me-2"></i>
                                     <span>未找到匹配的代币</span>
                                 </div>
@@ -455,16 +665,19 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">市值阈值(USD) <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" v-model="recordForm.threshold" step="0.01" min="0" required @input="onThresholdInput">
+                                    <input type="text" class="form-control" v-model="recordForm.threshold" step="0.01"
+                                           min="0" required @input="onThresholdInput">
                                     <div class="form-text" v-if="recordForm.type === 'sell'">市值高于此值时出售</div>
                                     <div class="form-text" v-else>市值低于此值时买入</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label" v-if="recordForm.type === 'sell'">出售比例 <span class="text-danger">*</span></label>
+                                    <label class="form-label" v-if="recordForm.type === 'sell'">出售比例 <span
+                                                class="text-danger">*</span></label>
                                     <label class="form-label" v-else>购买比例 <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" v-model="recordForm.sell_percentage" step="0.01" min="0" max="1" required>
+                                    <input type="number" class="form-control" v-model="recordForm.sell_percentage"
+                                           step="0.01" min="0" max="1" required>
                                     <div class="form-text">0.1 = 10%, 1 = 100%</div>
                                 </div>
                             </div>
@@ -481,8 +694,12 @@
                                         <option value="single">单次执行</option>
                                         <option value="multiple">多次执行</option>
                                     </select>
-                                    <div class="form-text" v-if="recordForm.type === 'sell'">单次执行：达到阈值后按比例出售并停止监控；多次执行：可部分出售并继续监控</div>
-                                    <div class="form-text" v-else>单次执行：低于阈值后按比例买入并停止监控；多次执行：可部分买入并继续监控</div>
+                                    <div class="form-text" v-if="recordForm.type === 'sell'">
+                                        单次执行：达到阈值后按比例出售并停止监控；多次执行：可部分出售并继续监控
+                                    </div>
+                                    <div class="form-text" v-else>
+                                        单次执行：低于阈值后按比例买入并停止监控；多次执行：可部分买入并继续监控
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -502,13 +719,15 @@
                         </div>
                         <div class="mb-3" v-if="recordForm.type === 'buy'">
                             <label class="form-label">累计购买上限(USD)</label>
-                            <input type="number" class="form-control" v-model="recordForm.max_buy_amount" step="0.01" min="0">
+                            <input type="number" class="form-control" v-model="recordForm.max_buy_amount" step="0.01"
+                                   min="0">
                             <div class="form-text">达到此金额后自动停止买入，0表示不限制</div>
                         </div>
                         <div class="mb-3" v-if="recordForm.type === 'sell'">
                             <label class="form-label">是否开启预抢购模式</label>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="preSniperMode" v-model="recordForm.pre_sniper_mode">
+                                <input class="form-check-input" type="checkbox" id="preSniperMode"
+                                       v-model="recordForm.pre_sniper_mode">
                                 <label class="form-check-label" for="preSniperMode">
                                     开启后，达到阈值但余额不足时不会停止监控，而是跳过本次，等待下次再判断余额（默认关闭）
                                 </label>
@@ -554,7 +773,8 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">检查间隔(秒) <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" v-model="swingForm.check_interval" min="1" required>
+                                    <input type="number" class="form-control" v-model="swingForm.check_interval" min="1"
+                                           required>
                                 </div>
                             </div>
                         </div>
@@ -563,7 +783,8 @@
                             <label class="form-label">选择钱包私钥 <span class="text-danger">*</span></label>
                             <select class="form-select" v-model="swingForm.private_key_id" required>
                                 <option value="">请选择钱包私钥</option>
-                                <option v-for="key in privateKeys" :key="key.id" :value="key.id" v-text="key.nickname + ' (' + key.public_key.substring(0,8) + '...' + key.public_key.substring(key.public_key.length-8) + ')'">
+                                <option v-for="key in privateKeys" :key="key.id" :value="key.id"
+                                        v-text="key.nickname + ' (' + key.public_key.substring(0,8) + '...' + key.public_key.substring(key.public_key.length-8) + ')'">
                                 </option>
                             </select>
                             <div class="form-text">
@@ -579,7 +800,8 @@
                                 <div class="mb-3 position-relative">
                                     <label class="form-label">监听代币地址 <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" v-model="swingForm.watch_token_address"
-                                           @input="onWatchTokenAddressInput" @focus="onWatchTokenAddressInput" @blur="onWatchTokenAddressBlur"
+                                           @input="onWatchTokenAddressInput" @focus="onWatchTokenAddressInput"
+                                           @blur="onWatchTokenAddressBlur"
                                            required placeholder="要监听价格的代币地址" autocomplete="off">
                                     <div v-if="showWatchTokenDropdown && (filteredWatchTokenList.length > 0 || tokensLoading)"
                                          class="dropdown-menu show w-100 mt-1"
@@ -588,14 +810,17 @@
                                             <div class="spinner-border spinner-border-sm text-primary me-2"></div>
                                             <span class="text-muted">加载代币列表中...</span>
                                         </div>
-                                        <div v-else-if="filteredWatchTokenList.length === 0" class="dropdown-item text-center py-3 text-muted">
+                                        <div v-else-if="filteredWatchTokenList.length === 0"
+                                             class="dropdown-item text-center py-3 text-muted">
                                             <i class="fas fa-search me-2"></i>
                                             <span>未找到匹配的代币</span>
                                         </div>
                                         <div v-else v-for="token in filteredWatchTokenList" :key="token.address"
-                                             class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;"
+                                             class="dropdown-item d-flex align-items-center gap-2"
+                                             style="cursor:pointer;"
                                              @mousedown.prevent="selectWatchToken(token)">
-                                            <img v-if="token.logo_uri" :src="token.logo_uri" style="width:20px;height:20px;"
+                                            <img v-if="token.logo_uri" :src="token.logo_uri"
+                                                 style="width:20px;height:20px;"
                                                  class="rounded-circle">
                                             <span class="fw-bold" v-text="token.name"></span>
                                             <span class="badge bg-secondary ms-2" v-text="token.symbol"></span>
@@ -605,12 +830,15 @@
                                     </div>
                                     <div v-if="selectedWatchTokenInfo" class="form-text mt-2">
                                         <div class="d-flex align-items-center">
-                                            <img v-if="selectedWatchTokenInfo.logo_uri" :src="selectedWatchTokenInfo.logo_uri"
+                                            <img v-if="selectedWatchTokenInfo.logo_uri"
+                                                 :src="selectedWatchTokenInfo.logo_uri"
                                                  alt="token logo" class="me-2 rounded-circle"
                                                  style="width: 24px; height: 24px;"
                                                  @error="$event.target.style.display='none'">
-                                            <span class="fw-bold me-2" v-text="selectedWatchTokenInfo.name || '未知'"></span>
-                                            <span class="badge bg-secondary" v-text="selectedWatchTokenInfo.symbol || 'N/A'"></span>
+                                            <span class="fw-bold me-2"
+                                                  v-text="selectedWatchTokenInfo.name || '未知'"></span>
+                                            <span class="badge bg-secondary"
+                                                  v-text="selectedWatchTokenInfo.symbol || 'N/A'"></span>
                                         </div>
                                     </div>
                                     <div class="form-text">系统将监听此代币的价格变化</div>
@@ -620,7 +848,8 @@
                                 <div class="mb-3 position-relative">
                                     <label class="form-label">交易代币地址 <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" v-model="swingForm.trade_token_address"
-                                           @input="onTradeTokenAddressInput" @focus="onTradeTokenAddressInput" @blur="onTradeTokenAddressBlur"
+                                           @input="onTradeTokenAddressInput" @focus="onTradeTokenAddressInput"
+                                           @blur="onTradeTokenAddressBlur"
                                            required placeholder="要进行交易的代币地址" autocomplete="off">
                                     <div v-if="showTradeTokenDropdown && (filteredTradeTokenList.length > 0 || tokensLoading)"
                                          class="dropdown-menu show w-100 mt-1"
@@ -629,14 +858,17 @@
                                             <div class="spinner-border spinner-border-sm text-primary me-2"></div>
                                             <span class="text-muted">加载代币列表中...</span>
                                         </div>
-                                        <div v-else-if="filteredTradeTokenList.length === 0" class="dropdown-item text-center py-3 text-muted">
+                                        <div v-else-if="filteredTradeTokenList.length === 0"
+                                             class="dropdown-item text-center py-3 text-muted">
                                             <i class="fas fa-search me-2"></i>
                                             <span>未找到匹配的代币</span>
                                         </div>
                                         <div v-else v-for="token in filteredTradeTokenList" :key="token.address"
-                                             class="dropdown-item d-flex align-items-center gap-2" style="cursor:pointer;"
+                                             class="dropdown-item d-flex align-items-center gap-2"
+                                             style="cursor:pointer;"
                                              @mousedown.prevent="selectTradeToken(token)">
-                                            <img v-if="token.logo_uri" :src="token.logo_uri" style="width:20px;height:20px;"
+                                            <img v-if="token.logo_uri" :src="token.logo_uri"
+                                                 style="width:20px;height:20px;"
                                                  class="rounded-circle">
                                             <span class="fw-bold" v-text="token.name"></span>
                                             <span class="badge bg-secondary ms-2" v-text="token.symbol"></span>
@@ -646,12 +878,15 @@
                                     </div>
                                     <div v-if="selectedTradeTokenInfo" class="form-text mt-2">
                                         <div class="d-flex align-items-center">
-                                            <img v-if="selectedTradeTokenInfo.logo_uri" :src="selectedTradeTokenInfo.logo_uri"
+                                            <img v-if="selectedTradeTokenInfo.logo_uri"
+                                                 :src="selectedTradeTokenInfo.logo_uri"
                                                  alt="token logo" class="me-2 rounded-circle"
                                                  style="width: 24px; height: 24px;"
                                                  @error="$event.target.style.display='none'">
-                                            <span class="fw-bold me-2" v-text="selectedTradeTokenInfo.name || '未知'"></span>
-                                            <span class="badge bg-secondary" v-text="selectedTradeTokenInfo.symbol || 'N/A'"></span>
+                                            <span class="fw-bold me-2"
+                                                  v-text="selectedTradeTokenInfo.name || '未知'"></span>
+                                            <span class="badge bg-secondary"
+                                                  v-text="selectedTradeTokenInfo.symbol || 'N/A'"></span>
                                         </div>
                                     </div>
                                     <div class="form-text">系统将在此代币和监听代币之间进行交易</div>
@@ -733,7 +968,8 @@
     </div>
 
     <!-- 日志查看模态框（原生渲染） -->
-    <div class="modal fade" :class="{ show: showLogsModal }" :style="{ display: showLogsModal ? 'block' : 'none' }" @click="closeLogsModal">
+    <div class="modal fade" :class="{ show: showLogsModal }" :style="{ display: showLogsModal ? 'block' : 'none' }"
+         @click="closeLogsModal">
         <div class="modal-dialog modal-xl" @click.stop>
             <div class="modal-content">
                 <div class="modal-header">
@@ -750,21 +986,21 @@
                             <div class="col-md-8">
                                 <label class="form-label mb-2">筛选操作类型</label>
                                 <div class="d-flex gap-1">
-                                    <button type="button" 
+                                    <button type="button"
                                             class="btn btn-sm px-2 py-1"
                                             style="font-size: 0.75rem;"
                                             :class="selectedActionTypes.includes('monitoring') ? 'btn-primary' : 'btn-outline-primary'"
                                             @click="toggleActionType('monitoring')">
                                         <i class="fas fa-eye me-1"></i>监控中
                                     </button>
-                                    <button type="button" 
+                                    <button type="button"
                                             class="btn btn-sm px-2 py-1"
                                             style="font-size: 0.75rem;"
                                             :class="selectedActionTypes.includes('sell') ? 'btn-warning' : 'btn-outline-warning'"
                                             @click="toggleActionType('sell')">
                                         <i class="fas fa-arrow-down me-1"></i>卖出
                                     </button>
-                                    <button type="button" 
+                                    <button type="button"
                                             class="btn btn-sm px-2 py-1"
                                             style="font-size: 0.75rem;"
                                             :class="selectedActionTypes.includes('buy') ? 'btn-success' : 'btn-outline-success'"
@@ -793,50 +1029,52 @@
                     <div v-else class="table-responsive">
                         <table class="table table-sm">
                             <thead>
-                                <tr>
-                                    <th>时间</th>
-                                    <th>价格</th>
-                                    <th>市值</th>
-                                    <th>交易金额</th>
-                                    <th>达到阈值</th>
-                                    <th>操作</th>
-                                    <th>交易哈希</th>
-                                </tr>
+                            <tr>
+                                <th>时间</th>
+                                <th>价格</th>
+                                <th>市值</th>
+                                <th>交易金额</th>
+                                <th>达到阈值</th>
+                                <th>操作</th>
+                                <th>交易哈希</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="log in logs" :key="log.id">
-                                    <td>
-                                        <small v-text="formatTime(log.timestamp)"></small>
-                                    </td>
-                                    <td>
-                                        <span v-if="log.price" v-text="'$' + log.price.toFixed(8)"></span>
-                                        <span v-else>--</span>
-                                    </td>
-                                    <td>
-                                        <span v-if="log.market_cap" v-text="'$' + log.market_cap.toLocaleString()"></span>
-                                        <span v-else>--</span>
-                                    </td>
-                                    <td>
-                                        <span v-if="log.transaction_usd" v-text="'$' + log.transaction_usd.toLocaleString()"></span>
-                                        <span v-else>--</span>
-                                    </td>
-                                    <td>
+                            <tr v-for="log in logs" :key="log.id">
+                                <td>
+                                    <small v-text="formatTime(log.timestamp)"></small>
+                                </td>
+                                <td>
+                                    <span v-if="log.price" v-text="'$' + log.price.toFixed(8)"></span>
+                                    <span v-else>--</span>
+                                </td>
+                                <td>
+                                    <span v-if="log.market_cap" v-text="'$' + log.market_cap.toLocaleString()"></span>
+                                    <span v-else>--</span>
+                                </td>
+                                <td>
+                                    <span v-if="log.transaction_usd"
+                                          v-text="'$' + log.transaction_usd.toLocaleString()"></span>
+                                    <span v-else>--</span>
+                                </td>
+                                <td>
                                         <span class="badge" :class="log.threshold_reached ? 'bg-danger' : 'bg-success'">
                                             <span v-if="log.threshold_reached">是</span>
                                             <span v-else>否</span>
                                         </span>
-                                    </td>
-                                    <td v-text="log.action_taken"></td>
-                                    <td>
+                                </td>
+                                <td v-text="log.action_taken"></td>
+                                <td>
                                         <span v-if="log.tx_hash">
-                                            <a :href="'https://solscan.io/tx/' + log.tx_hash" target="_blank" class="text-decoration-none">
+                                            <a :href="'https://solscan.io/tx/' + log.tx_hash" target="_blank"
+                                               class="text-decoration-none">
                                                 <code class="small" v-text="log.tx_hash.substring(0, 8) + '...'"></code>
                                                 <i class="fas fa-external-link-alt ms-1"></i>
                                             </a>
                                         </span>
-                                        <span v-else>--</span>
-                                    </td>
-                                </tr>
+                                    <span v-else>--</span>
+                                </td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
@@ -846,7 +1084,8 @@
     </div>
 
     <!-- 模态框背景 -->
-    <div v-if="showAddModal || showEditModal || showLogsModal || showAddSwingModal || showEditSwingModal" class="modal-backdrop fade show"></div>
+    <div v-if="showAddModal || showEditModal || showLogsModal || showAddSwingModal || showEditSwingModal"
+         class="modal-backdrop fade show"></div>
 
     <!-- 消息提示 -->
     <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
@@ -866,903 +1105,1052 @@
 
 {% block extra_js %}
 <script>
-const { createApp } = Vue;
+    const {createApp} = Vue;
 
-function formatShortNumber(num) {
-    if (num === null || num === undefined) return '--';
-    num = Math.abs(num);
-    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'm';
-    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'k';
-    return num.toLocaleString(undefined, {maximumFractionDigits: 2});
-}
+    function formatShortNumber(num) {
+        if (num === null || num === undefined) return '--';
+        num = Math.abs(num);
+        if (num >= 1e6) return (num / 1e6).toFixed(2) + 'm';
+        if (num >= 1e3) return (num / 1e3).toFixed(2) + 'k';
+        return num.toLocaleString(undefined, {maximumFractionDigits: 2});
+    }
 
-const defaultRecordForm = {
-    name: '',
-    private_key_id: '',
-    token_address: '',
-    threshold: 200000,
-    sell_percentage: 0.1,
-    webhook_url: '',
-    check_interval: 60,
-    execution_mode: 'single',
-    minimum_hold_value: 50.0,
-    pre_sniper_mode: false,
-    type: 'sell',
-    max_buy_amount: 0.0
-};
+    const defaultRecordForm = {
+        name: '',
+        private_key_id: '',
+        token_address: '',
+        threshold: 200000,
+        sell_percentage: 0.1,
+        webhook_url: '',
+        check_interval: 60,
+        execution_mode: 'single',
+        minimum_hold_value: 50.0,
+        pre_sniper_mode: false,
+        type: 'sell',
+        max_buy_amount: 0.0
+    };
 
-createApp({
-    data() {
-        return {
-            monitorRecords: [],
-            swingRecords: [],
-            privateKeys: [],
-            logs: [],
-            loading: true,
-            logsLoading: false,
-            saveLoading: false,
-            showAddModal: false,
-            showEditModal: false,
-            showLogsModal: false,
-            editingRecordId: null,
-            operationLoading: {},
-            swingOperationLoading: {},
-            tokenAddressError: '',
-            recordForm: { ...defaultRecordForm },
-            messages: [],
-            availableTokens: [], // 可用的代币列表
-            showTokenDropdown: false,
-            filteredTokenList: [],
-            tokensLoading: false,
-            selectedTokenInfo: null, // 选中的代币信息
-            showAddSwingModal: false,
-            showEditSwingModal: false,
-            swingForm: {
-                name: '',
-                private_key_id: '',
-                watch_token_address: '',
-                trade_token_address: '',
-                price_type: 'market_cap',
-                buy_threshold: 0,
-                sell_threshold: 0,
-                buy_percentage: 0.1,
-                sell_percentage: 0.1,
-                webhook_url: '',
-                check_interval: 60,
-                all_in_threshold: 0,
-                type: 'swing' // 区分普通监控和波段监控
+    createApp({
+        data() {
+            return {
+                monitorRecords: [],
+                swingRecords: [],
+                privateKeys: [],
+                logs: [],
+                loading: true,
+                logsLoading: false,
+                saveLoading: false,
+                showAddModal: false,
+                showEditModal: false,
+                showLogsModal: false,
+                editingRecordId: null,
+                operationLoading: {},
+                swingOperationLoading: {},
+                tokenAddressError: '',
+                recordForm: {...defaultRecordForm},
+                messages: [],
+                availableTokens: [], // 可用的代币列表
+                showTokenDropdown: false,
+                filteredTokenList: [],
+                tokensLoading: false,
+                selectedTokenInfo: null, // 选中的代币信息
+                showAddSwingModal: false,
+                showEditSwingModal: false,
+                swingForm: {
+                    name: '',
+                    private_key_id: '',
+                    watch_token_address: '',
+                    trade_token_address: '',
+                    price_type: 'market_cap',
+                    buy_threshold: 0,
+                    sell_threshold: 0,
+                    buy_percentage: 0.1,
+                    sell_percentage: 0.1,
+                    webhook_url: '',
+                    check_interval: 60,
+                    all_in_threshold: 0,
+                    type: 'swing' // 区分普通监控和波段监控
+                },
+                // 波段监控代币选择相关
+                showWatchTokenDropdown: false,
+                showTradeTokenDropdown: false,
+                filteredWatchTokenList: [],
+                filteredTradeTokenList: [],
+                selectedWatchTokenInfo: null,
+                selectedTradeTokenInfo: null,
+                logsType: '',
+                logsRecordId: null,
+                selectedActionTypes: [], // 选中的操作类型过滤
+                // 波段监控钱包Token相关
+                swingWalletTokensExpanded: {}, // 波段监控钱包Token明细展开状态
+                swingWalletTokensLoading: {}, // 波段监控钱包Token明细加载状态
+                swingWalletTokensData: {}, // 波段监控钱包Token明细数据
+            }
+        },
+        computed: {
+            sellRecords() {
+                return this.monitorRecords.filter(r => r.type === 'sell');
             },
-            // 波段监控代币选择相关
-            showWatchTokenDropdown: false,
-            showTradeTokenDropdown: false,
-            filteredWatchTokenList: [],
-            filteredTradeTokenList: [],
-            selectedWatchTokenInfo: null,
-            selectedTradeTokenInfo: null,
-            logsType: '',
-            logsRecordId: null,
-            selectedActionTypes: [], // 选中的操作类型过滤
-        }
-    },
-    computed: {
-        sellRecords() {
-            return this.monitorRecords.filter(r => r.type === 'sell');
+            buyRecords() {
+                return this.monitorRecords.filter(r => r.type === 'buy');
+            },
+            runningCount() {
+                return this.monitorRecords.filter(r => r.status === 'monitoring').length +
+                    this.swingRecords.filter(r => r.status === 'monitoring').length;
+            },
+            stoppedCount() {
+                return this.monitorRecords.filter(r => r.status === 'stopped').length +
+                    this.swingRecords.filter(r => r.status === 'stopped').length;
+            },
+            errorCount() {
+                return this.monitorRecords.filter(r => r.status === 'error').length +
+                    this.swingRecords.filter(r => r.status === 'error').length;
+            }
         },
-        buyRecords() {
-            return this.monitorRecords.filter(r => r.type === 'buy');
-        },
-        runningCount() {
-            return this.monitorRecords.filter(r => r.status === 'monitoring').length +
-                   this.swingRecords.filter(r => r.status === 'monitoring').length;
-        },
-        stoppedCount() {
-            return this.monitorRecords.filter(r => r.status === 'stopped').length +
-                   this.swingRecords.filter(r => r.status === 'stopped').length;
-        },
-        errorCount() {
-            return this.monitorRecords.filter(r => r.status === 'error').length +
-                   this.swingRecords.filter(r => r.status === 'error').length;
-        }
-    },
-    mounted() {
-        this.loadMonitorRecords();
-        this.loadSwingRecords();
-        this.loadPrivateKeys();
-        // 每30秒自动刷新
-        setInterval(() => {
+        mounted() {
             this.loadMonitorRecords();
             this.loadSwingRecords();
-        }, 30000);
-    },
-    methods: {
-        formatShortNumber(num) {
-            if (num === null || num === undefined) return '--';
-            num = Math.abs(num);
-            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'm';
-            if (num >= 1e3) return (num / 1e3).toFixed(2) + 'k';
-            return num.toLocaleString(undefined, {maximumFractionDigits: 2});
+            this.loadPrivateKeys();
+            // 每30秒自动刷新
+            setInterval(() => {
+                this.loadMonitorRecords();
+                this.loadSwingRecords();
+            }, 30000);
         },
-        async loadMonitorRecords() {
-            try {
-                const response = await ApiClient.get('/api/monitor/records');
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.monitorRecords = data;
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '加载监控记录失败');
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.loading = false;
-            }
-        },
-        async loadSwingRecords() {
-            try {
-                const response = await ApiClient.get('/api/swing/records');
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.swingRecords = data;
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '加载波段监控记录失败');
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.loading = false; // 确保loading状态正确
-            }
-        },
-        async loadPrivateKeys() {
-            try {
-                const response = await ApiClient.get('/api/keys');
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.privateKeys = data;
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '加载私钥列表失败');
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            }
-        },
-        async saveRecord() {
-            this.saveLoading = true;
-            this.tokenAddressError = ''; // 清空之前的错误
-            try {
-                const formData = new FormData();
-                // 确保threshold为数字
-                formData.append('threshold', parseFloat(this.recordForm.threshold) || 0);
-                Object.keys(this.recordForm).forEach(key => {
-                    if (key !== 'threshold') formData.append(key, this.recordForm[key]);
-                });
-
-                const url = this.showEditModal
-                    ? `/api/monitor/records/${this.editingRecordId}`
-                    : '/api/monitor/records';
-
-                const method = this.showEditModal ? 'PUT' : 'POST';
-
-                const response = await ApiClient[method.toLowerCase()](url, formData);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.showMessage('success', response.message || '保存成功');
-                        this.closeModal();
-                        this.loadMonitorRecords();
-                    },
-                    (error) => {
-                        // 检查是否是token相关错误
-                        if (error && (error.includes('Token') || error.includes('代币') || error.includes('token'))) {
-                            this.tokenAddressError = error;
-                        } else {
-                            this.showMessage('error', error || '保存失败');
+        methods: {
+            formatShortNumber(num) {
+                if (num === null || num === undefined) return '--';
+                num = Math.abs(num);
+                if (num >= 1e6) return (num / 1e6).toFixed(2) + 'm';
+                if (num >= 1e3) return (num / 1e3).toFixed(2) + 'k';
+                return num.toLocaleString(undefined, {maximumFractionDigits: 2});
+            },
+            async loadMonitorRecords() {
+                try {
+                    const response = await ApiClient.get('/api/monitor/records');
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.monitorRecords = data;
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '加载监控记录失败');
                         }
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.saveLoading = false;
-            }
-        },
-        async startMonitor(recordId) {
-            this.operationLoading[recordId] = true;
-            try {
-                const response = await ApiClient.post(`/api/monitor/start?record_id=${recordId}`);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.showMessage('success', response.message || '启动成功');
-                        this.loadMonitorRecords();
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '启动失败');
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.operationLoading[recordId] = false;
-            }
-        },
-        async stopMonitor(recordId) {
-            this.operationLoading[recordId] = true;
-            try {
-                const response = await ApiClient.post(`/api/monitor/stop?record_id=${recordId}`);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.showMessage('success', response.message || '停止成功');
-                        this.loadMonitorRecords();
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '停止失败');
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.operationLoading[recordId] = false;
-            }
-        },
-        async deleteRecord(recordId) {
-            if (!confirm('确定要删除这个监控记录吗？此操作不可恢复。')) {
-                return;
-            }
-
-            try {
-                const response = await ApiClient.delete(`/api/monitor/records/${recordId}`);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.showMessage('success', response.message || '删除成功');
-                        this.loadMonitorRecords();
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '删除失败');
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            }
-        },
-        async startSwingMonitor(recordId) {
-            this.swingOperationLoading[recordId] = true;
-            try {
-                const formData = new FormData();
-                formData.append('record_id', recordId);
-                const response = await ApiClient.post(`/api/swing/start`, formData);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.showMessage('success', response.message || '启动波段监控成功');
-                        this.loadSwingRecords();
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '启动波段监控失败');
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.swingOperationLoading[recordId] = false;
-            }
-        },
-        async stopSwingMonitor(recordId) {
-            this.swingOperationLoading[recordId] = true;
-            try {
-                const formData = new FormData();
-                formData.append('record_id', recordId);
-                const response = await ApiClient.post(`/api/swing/stop`, formData);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.showMessage('success', response.message || '停止波段监控成功');
-                        this.loadSwingRecords();
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '停止波段监控失败');
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.swingOperationLoading[recordId] = false;
-            }
-        },
-        async deleteSwingRecord(recordId) {
-            if (!confirm('确定要删除这个波段监控记录吗？此操作不可恢复。')) {
-                return;
-            }
-
-            try {
-                const response = await ApiClient.delete(`/api/swing/records/${recordId}`);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.showMessage('success', response.message || '删除波段监控成功');
-                        this.loadSwingRecords();
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '删除波段监控失败');
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            }
-        },
-        async editSwingRecord(record) {
-            this.swingForm = {
-                id: record.id,
-                name: record.name,
-                private_key_id: record.private_key_id,
-                watch_token_address: record.watch_token_address,
-                trade_token_address: record.trade_token_address,
-                price_type: record.price_type,
-                buy_threshold: record.buy_threshold,
-                sell_threshold: record.sell_threshold,
-                buy_percentage: record.buy_percentage,
-                sell_percentage: record.sell_percentage,
-                webhook_url: record.webhook_url,
-                check_interval: record.check_interval,
-                all_in_threshold: record.all_in_threshold || 0,
-                type: 'swing'
-            };
-
-            // 懒加载代币列表
-            if (this.availableTokens.length === 0) {
-                await this.loadAvailableTokens();
-            }
-
-            // 获取代币信息
-            if (this.swingForm.watch_token_address) {
-                await this.fetchWatchTokenInfo();
-            }
-            if (this.swingForm.trade_token_address) {
-                await this.fetchTradeTokenInfo();
-            }
-
-            this.showEditSwingModal = true;
-        },
-        async editRecord(record) {
-            this.editingRecordId = record.id;
-            this.tokenAddressError = '';
-            Object.keys(this.recordForm).forEach(key => {
-                this.recordForm[key] = record[key] !== undefined ? record[key] : defaultRecordForm[key];
-            });
-            this.showEditModal = true;
-            // 懒加载代币列表
-            if (this.availableTokens.length === 0) {
-                await this.loadAvailableTokens();
-            }
-            // 如果已有代币地址，获取代币信息
-            if (this.recordForm.token_address) {
-                await this.fetchTokenInfo();
-            }
-        },
-        async viewLogs(type, recordId) {
-            this.showLogsModal = true;
-            this.logsType = type;
-            this.logsRecordId = recordId;
-            this.selectedActionTypes = []; // 重置过滤器
-            this.loadModalLogs();
-        },
-        toggleActionType(type) {
-            const index = this.selectedActionTypes.indexOf(type);
-            if (index > -1) {
-                this.selectedActionTypes.splice(index, 1);
-            } else {
-                this.selectedActionTypes.push(type);
-            }
-            this.loadModalLogs();
-        },
-        async loadModalLogs() {
-            this.logsLoading = true;
-            try {
-                let url = `/api/logs?type=${this.logsType}&monitor_record_id=${this.logsRecordId}&per_page=50`;
-                if (this.selectedActionTypes.length > 0) {
-                    // 将数组转换为逗号分割的字符串
-                    url += `&action_types=${this.selectedActionTypes.join(',')}`;
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.loading = false;
                 }
-                const response = await ApiClient.get(url);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.logs = data.logs;
-                    },
-                    (error) => {
-                        this.logs = [];
-                    }
-                );
-            } catch (error) {
-                this.logs = [];
-            } finally {
-                this.logsLoading = false;
-            }
-        },
-        closeModal() {
-            this.showAddModal = false;
-            this.showEditModal = false;
-            this.editingRecordId = null;
-            this.tokenAddressError = '';
-            this.showTokenDropdown = false;
-            this.filteredTokenList = [];
-            this.selectedTokenInfo = null;
-            Object.keys(this.recordForm).forEach(key => {
-                this.recordForm[key] = defaultRecordForm[key];
-            });
-        },
-        closeSwingModal() {
-            this.showAddSwingModal = false;
-            this.showEditSwingModal = false;
-            // 重置代币选择相关状态
-            this.showWatchTokenDropdown = false;
-            this.showTradeTokenDropdown = false;
-            this.filteredWatchTokenList = [];
-            this.filteredTradeTokenList = [];
-            this.selectedWatchTokenInfo = null;
-            this.selectedTradeTokenInfo = null;
-            this.swingForm = {
-                name: '',
-                private_key_id: '',
-                watch_token_address: '',
-                trade_token_address: '',
-                price_type: 'market_cap',
-                buy_threshold: 0,
-                sell_threshold: 0,
-                buy_percentage: 0.1,
-                sell_percentage: 0.1,
-                webhook_url: '',
-                check_interval: 60,
-                all_in_threshold: 0,
-                type: 'swing'
-            };
-        },
-        closeLogsModal() {
-            this.showLogsModal = false;
-            this.logs = [];
-            this.logsType = '';
-            this.logsRecordId = null;
-            this.selectedActionTypes = [];
-        },
-        getStatusClass(status) {
-            const statusClasses = {
-                'monitoring': 'bg-success',
-                'stopped': 'bg-secondary',
-                'error': 'bg-danger',
-                'completed': 'bg-info'
-            };
-            return statusClasses[status] || 'bg-secondary';
-        },
-        getStatusIcon(status) {
-            const statusIcons = {
-                'monitoring': 'fa-play',
-                'stopped': 'fa-stop',
-                'error': 'fa-exclamation-triangle',
-                'completed': 'fa-check-circle'
-            };
-            return statusIcons[status] || 'fa-question';
-        },
-        getStatusText(status) {
-            const statusTexts = {
-                'monitoring': '监控中',
-                'stopped': '已停止',
-                'error': '错误',
-                'completed': '已完成'
-            };
-            return statusTexts[status] || '?未知';
-        },
-        formatTime(timestamp) {
-            if (!timestamp) return '--';
-            return new Date(timestamp).toLocaleString('zh-CN');
-        },
-        showMessage(type, text) {
-            const id = Date.now() + Math.random();
-            this.messages.push({ id, type, text });
-            setTimeout(() => {
-                this.removeMessage(id);
-            }, 5000);
-        },
-        removeMessage(id) {
-            this.messages = this.messages.filter(m => m.id !== id);
-        },
-        copyToClipboard(text, type) {
-            // 优先使用现代 Clipboard API
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(text).then(() => {
-                    this.showMessage('success', `${type}已复制到剪贴板`);
-                }).catch(err => {
-                    console.error('Clipboard API 失败:', err);
-                    this.fallbackCopyTextToClipboard(text, type);
-                });
-            } else {
-                // 使用备用方案
-                this.fallbackCopyTextToClipboard(text, type);
-            }
-        },
-        fallbackCopyTextToClipboard(text, type) {
-            // 创建临时文本区域
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-999999px';
-            textArea.style.top = '-999999px';
-            document.body.appendChild(textArea);
-
-            try {
-                textArea.focus();
-                textArea.select();
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    this.showMessage('success', `${type}已复制到剪贴板`);
-                } else {
-                    this.showMessage('error', '复制失败，请手动复制');
+            },
+            async loadSwingRecords() {
+                try {
+                    const response = await ApiClient.get('/api/swing/records');
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.swingRecords = data;
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '加载波段监控记录失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.loading = false; // 确保loading状态正确
                 }
-            } catch (err) {
-                console.error('备用复制方法失败:', err);
-                this.showMessage('error', '复制失败，请手动复制');
-            } finally {
-                document.body.removeChild(textArea);
-            }
-        },
-        getThresholdDiffHtml(record) {
-            if (!record.last_market_cap || !record.threshold) return '--';
-            if (record.last_market_cap < record.threshold) {
-                const diff = record.threshold - record.last_market_cap;
-                const percent = ((diff / record.last_market_cap) * 100).toFixed(2);
-                return `<div><span class='fw-bold text-danger'>还需涨 $${formatShortNumber(diff)}</span><div class='small text-secondary mt-1'>(${percent}%)</div></div>`;
-            } else {
-                const diff = record.last_market_cap - record.threshold;
-                const percent = ((diff / record.threshold) * 100).toFixed(2);
-                return `<div><span class='fw-bold text-success'>已超阈值 $${formatShortNumber(diff)}</span><div class='small text-secondary mt-1'>(${percent}%)</div></div>`;
-            }
-        },
-        onThresholdInput(e) {
-            // 只允许数字和小数点，防止输入异常变0
-            let val = e.target.value.replace(/[^\d.]/g, '');
-            if (val.split('.').length > 2) val = val.replace(/\.+$/, '');
-            this.recordForm.threshold = val;
-        },
-        async openAddModal(type) {
-            if (type === 'swing') {
-                this.showAddSwingModal = true;
+            },
+            async loadPrivateKeys() {
+                try {
+                    const response = await ApiClient.get('/api/keys');
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.privateKeys = data;
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '加载私钥列表失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                }
+            },
+            async saveRecord() {
+                this.saveLoading = true;
+                this.tokenAddressError = ''; // 清空之前的错误
+                try {
+                    const formData = new FormData();
+                    // 确保threshold为数字
+                    formData.append('threshold', parseFloat(this.recordForm.threshold) || 0);
+                    Object.keys(this.recordForm).forEach(key => {
+                        if (key !== 'threshold') formData.append(key, this.recordForm[key]);
+                    });
+
+                    const url = this.showEditModal
+                        ? `/api/monitor/records/${this.editingRecordId}`
+                        : '/api/monitor/records';
+
+                    const method = this.showEditModal ? 'PUT' : 'POST';
+
+                    const response = await ApiClient[method.toLowerCase()](url, formData);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.showMessage('success', response.message || '保存成功');
+                            this.closeModal();
+                            this.loadMonitorRecords();
+                        },
+                        (error) => {
+                            // 检查是否是token相关错误
+                            if (error && (error.includes('Token') || error.includes('代币') || error.includes('token'))) {
+                                this.tokenAddressError = error;
+                            } else {
+                                this.showMessage('error', error || '保存失败');
+                            }
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.saveLoading = false;
+                }
+            },
+            async startMonitor(recordId) {
+                this.operationLoading[recordId] = true;
+                try {
+                    const response = await ApiClient.post(`/api/monitor/start?record_id=${recordId}`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.showMessage('success', response.message || '启动成功');
+                            this.loadMonitorRecords();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '启动失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.operationLoading[recordId] = false;
+                }
+            },
+            async stopMonitor(recordId) {
+                this.operationLoading[recordId] = true;
+                try {
+                    const response = await ApiClient.post(`/api/monitor/stop?record_id=${recordId}`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.showMessage('success', response.message || '停止成功');
+                            this.loadMonitorRecords();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '停止失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.operationLoading[recordId] = false;
+                }
+            },
+            async deleteRecord(recordId) {
+                if (!confirm('确定要删除这个监控记录吗？此操作不可恢复。')) {
+                    return;
+                }
+
+                try {
+                    const response = await ApiClient.delete(`/api/monitor/records/${recordId}`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.showMessage('success', response.message || '删除成功');
+                            this.loadMonitorRecords();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '删除失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                }
+            },
+            async startSwingMonitor(recordId) {
+                this.swingOperationLoading[recordId] = true;
+                try {
+                    const formData = new FormData();
+                    formData.append('record_id', recordId);
+                    const response = await ApiClient.post(`/api/swing/start`, formData);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.showMessage('success', response.message || '启动波段监控成功');
+                            this.loadSwingRecords();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '启动波段监控失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.swingOperationLoading[recordId] = false;
+                }
+            },
+            async stopSwingMonitor(recordId) {
+                this.swingOperationLoading[recordId] = true;
+                try {
+                    const formData = new FormData();
+                    formData.append('record_id', recordId);
+                    const response = await ApiClient.post(`/api/swing/stop`, formData);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.showMessage('success', response.message || '停止波段监控成功');
+                            this.loadSwingRecords();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '停止波段监控失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.swingOperationLoading[recordId] = false;
+                }
+            },
+            async deleteSwingRecord(recordId) {
+                if (!confirm('确定要删除这个波段监控记录吗？此操作不可恢复。')) {
+                    return;
+                }
+
+                try {
+                    const response = await ApiClient.delete(`/api/swing/records/${recordId}`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.showMessage('success', response.message || '删除波段监控成功');
+                            this.loadSwingRecords();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '删除波段监控失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                }
+            },
+            async editSwingRecord(record) {
+                this.swingForm = {
+                    id: record.id,
+                    name: record.name,
+                    private_key_id: record.private_key_id,
+                    watch_token_address: record.watch_token_address,
+                    trade_token_address: record.trade_token_address,
+                    price_type: record.price_type,
+                    buy_threshold: record.buy_threshold,
+                    sell_threshold: record.sell_threshold,
+                    buy_percentage: record.buy_percentage,
+                    sell_percentage: record.sell_percentage,
+                    webhook_url: record.webhook_url,
+                    check_interval: record.check_interval,
+                    all_in_threshold: record.all_in_threshold || 0,
+                    type: 'swing'
+                };
+
                 // 懒加载代币列表
                 if (this.availableTokens.length === 0) {
                     await this.loadAvailableTokens();
                 }
-                return;
-            }
-            this.recordForm.type = type; // 设置监控类型
-            this.showAddModal = true;
-            // 懒加载代币列表
-            if (this.availableTokens.length === 0) {
-                await this.loadAvailableTokens();
-            }
-            // 如果已有代币地址，获取代币信息
-            if (this.recordForm.token_address) {
-                await this.fetchTokenInfo();
-            }
-        },
-        async loadAvailableTokens() {
-            if (this.tokensLoading) return;
-            this.tokensLoading = true;
-            try {
-                const response = await ApiClient.get('/api/keys/summary/tokens');
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.availableTokens = data.tokens || [];
-                        // 加载完成后重新触发过滤
-                        this.onTokenAddressInput();
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '加载代币列表失败');
-                        this.showTokenDropdown = false;
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-                this.showTokenDropdown = false;
-            } finally {
-                this.tokensLoading = false;
-            }
-        },
-        onTokenAddressInput() {
-            this.tokenAddressError = '';
-            const query = this.recordForm.token_address.trim().toLowerCase();
 
-            // 如果输入为空，重置代币信息
-            if (!query) {
-                this.selectedTokenInfo = null;
-            }
-
-            // 如果代币列表为空且不在加载中，显示加载状态
-            if (this.availableTokens.length === 0 && !this.tokensLoading) {
-                this.showTokenDropdown = true;
-                this.loadAvailableTokens();
-                return;
-            }
-
-            if (query) {
-                this.filteredTokenList = this.availableTokens.filter(token =>
-                    token.address.toLowerCase().includes(query) ||
-                    (token.name && token.name.toLowerCase().includes(query)) ||
-                    (token.symbol && token.symbol.toLowerCase().includes(query))
-                );
-            } else {
-                this.filteredTokenList = this.availableTokens;
-            }
-
-            this.showTokenDropdown = this.filteredTokenList.length > 0 || this.tokensLoading;
-        },
-        selectToken(token) {
-            this.recordForm.token_address = token.address;
-            this.showTokenDropdown = false;
-            this.tokenAddressError = '';
-            this.selectedTokenInfo = {
-                name: token.name,
-                symbol: token.symbol,
-                logo_uri: token.logo_uri
-            };
-        },
-        onTokenAddressBlur() {
-            setTimeout(() => {
-                this.showTokenDropdown = false;
-                // 如果用户手动输入了地址，尝试获取代币信息
-                if (this.recordForm.token_address && !this.selectedTokenInfo) {
-                    this.fetchTokenInfo();
+                // 获取代币信息
+                if (this.swingForm.watch_token_address) {
+                    await this.fetchWatchTokenInfo();
                 }
-            }, 200);
-        },
-        async fetchTokenInfo() {
-            if (!this.recordForm.token_address) {
-                this.selectedTokenInfo = null;
-                return;
-            }
+                if (this.swingForm.trade_token_address) {
+                    await this.fetchTradeTokenInfo();
+                }
 
-            // 首先检查是否在已有的代币列表中
-            const existingToken = this.availableTokens.find(token =>
-                token.address.toLowerCase() === this.recordForm.token_address.toLowerCase()
-            );
-
-            if (existingToken) {
-                this.selectedTokenInfo = {
-                    name: existingToken.name,
-                    symbol: existingToken.symbol,
-                    logo_uri: existingToken.logo_uri
-                };
-                return;
-            }
-
-            // 如果不在列表中，调用API获取
-            try {
-                const response = await ApiClient.get(`/api/token_info?address=${this.recordForm.token_address}`);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.selectedTokenInfo = {
-                            name: data.name,
-                            symbol: data.symbol,
-                            logo_uri: data.logo_uri
-                        };
-                    },
-                    (error) => {
-                        // 获取失败时不显示错误，只是不显示代币信息
-                        this.selectedTokenInfo = null;
+                this.showEditSwingModal = true;
+            },
+            async editRecord(record) {
+                this.editingRecordId = record.id;
+                this.tokenAddressError = '';
+                Object.keys(this.recordForm).forEach(key => {
+                    this.recordForm[key] = record[key] !== undefined ? record[key] : defaultRecordForm[key];
+                });
+                this.showEditModal = true;
+                // 懒加载代币列表
+                if (this.availableTokens.length === 0) {
+                    await this.loadAvailableTokens();
+                }
+                // 如果已有代币地址，获取代币信息
+                if (this.recordForm.token_address) {
+                    await this.fetchTokenInfo();
+                }
+            },
+            async viewLogs(type, recordId) {
+                this.showLogsModal = true;
+                this.logsType = type;
+                this.logsRecordId = recordId;
+                this.selectedActionTypes = []; // 重置过滤器
+                this.loadModalLogs();
+            },
+            toggleActionType(type) {
+                const index = this.selectedActionTypes.indexOf(type);
+                if (index > -1) {
+                    this.selectedActionTypes.splice(index, 1);
+                } else {
+                    this.selectedActionTypes.push(type);
+                }
+                this.loadModalLogs();
+            },
+            async loadModalLogs() {
+                this.logsLoading = true;
+                try {
+                    let url = `/api/logs?type=${this.logsType}&monitor_record_id=${this.logsRecordId}&per_page=50`;
+                    if (this.selectedActionTypes.length > 0) {
+                        // 将数组转换为逗号分割的字符串
+                        url += `&action_types=${this.selectedActionTypes.join(',')}`;
                     }
-                );
-            } catch (error) {
+                    const response = await ApiClient.get(url);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.logs = data.logs;
+                        },
+                        (error) => {
+                            this.logs = [];
+                        }
+                    );
+                } catch (error) {
+                    this.logs = [];
+                } finally {
+                    this.logsLoading = false;
+                }
+            },
+            closeModal() {
+                this.showAddModal = false;
+                this.showEditModal = false;
+                this.editingRecordId = null;
+                this.tokenAddressError = '';
+                this.showTokenDropdown = false;
+                this.filteredTokenList = [];
                 this.selectedTokenInfo = null;
-            }
-        },
-        async saveSwingRecord() {
-            this.saveLoading = true;
-            try {
-                const formData = new FormData();
-
-                // 添加所有必需的字段
-                formData.append('name', this.swingForm.name);
-                formData.append('private_key_id', this.swingForm.private_key_id);
-                formData.append('watch_token_address', this.swingForm.watch_token_address);
-                formData.append('trade_token_address', this.swingForm.trade_token_address);
-                formData.append('price_type', this.swingForm.price_type);
-                formData.append('buy_threshold', this.swingForm.buy_threshold);
-                formData.append('sell_threshold', this.swingForm.sell_threshold);
-                formData.append('buy_percentage', this.swingForm.buy_percentage);
-                formData.append('sell_percentage', this.swingForm.sell_percentage);
-                formData.append('webhook_url', this.swingForm.webhook_url);
-                formData.append('check_interval', this.swingForm.check_interval);
-                formData.append('all_in_threshold', this.swingForm.all_in_threshold || 50.0);
-
-                const url = this.showEditSwingModal
-                    ? `/api/swing/records/${this.swingForm.id}`
-                    : '/api/swing/records';
-
-                const method = this.showEditSwingModal ? 'PUT' : 'POST';
-
-                const response = await ApiClient[method.toLowerCase()](url, formData);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.showMessage('success', response.message || '保存成功');
-                        this.closeSwingModal();
-                        this.loadSwingRecords();
-                    },
-                    (error) => {
-                        this.showMessage('error', error || '保存失败');
-                    }
-                );
-            } catch (error) {
-                this.showMessage('error', '网络错误');
-            } finally {
-                this.saveLoading = false;
-            }
-        },
-        // 波段监控代币选择相关方法
-        onWatchTokenAddressInput() {
-            const query = this.swingForm.watch_token_address.trim().toLowerCase();
-
-            // 如果输入为空，重置代币信息
-            if (!query) {
-                this.selectedWatchTokenInfo = null;
-            }
-
-            // 如果代币列表为空且不在加载中，显示加载状态
-            if (this.availableTokens.length === 0 && !this.tokensLoading) {
-                this.showWatchTokenDropdown = true;
-                this.loadAvailableTokens();
-                return;
-            }
-
-            if (query) {
-                this.filteredWatchTokenList = this.availableTokens.filter(token =>
-                    token.address.toLowerCase().includes(query) ||
-                    (token.name && token.name.toLowerCase().includes(query)) ||
-                    (token.symbol && token.symbol.toLowerCase().includes(query))
-                );
-            } else {
-                this.filteredWatchTokenList = this.availableTokens;
-            }
-
-            this.showWatchTokenDropdown = this.filteredWatchTokenList.length > 0 || this.tokensLoading;
-        },
-        onWatchTokenAddressBlur() {
-            setTimeout(() => {
+                Object.keys(this.recordForm).forEach(key => {
+                    this.recordForm[key] = defaultRecordForm[key];
+                });
+            },
+            closeSwingModal() {
+                this.showAddSwingModal = false;
+                this.showEditSwingModal = false;
+                // 重置代币选择相关状态
                 this.showWatchTokenDropdown = false;
-                // 如果用户手动输入了地址，尝试获取代币信息
-                if (this.swingForm.watch_token_address && !this.selectedWatchTokenInfo) {
-                    this.fetchWatchTokenInfo();
-                }
-            }, 200);
-        },
-        selectWatchToken(token) {
-            this.swingForm.watch_token_address = token.address;
-            this.showWatchTokenDropdown = false;
-            this.selectedWatchTokenInfo = {
-                name: token.name,
-                symbol: token.symbol,
-                logo_uri: token.logo_uri
-            };
-        },
-        async fetchWatchTokenInfo() {
-            if (!this.swingForm.watch_token_address) {
-                this.selectedWatchTokenInfo = null;
-                return;
-            }
-
-            // 首先检查是否在已有的代币列表中
-            const existingToken = this.availableTokens.find(token =>
-                token.address.toLowerCase() === this.swingForm.watch_token_address.toLowerCase()
-            );
-
-            if (existingToken) {
-                this.selectedWatchTokenInfo = {
-                    name: existingToken.name,
-                    symbol: existingToken.symbol,
-                    logo_uri: existingToken.logo_uri
-                };
-                return;
-            }
-
-            // 如果不在列表中，调用API获取
-            try {
-                const response = await ApiClient.get(`/api/token_info?address=${this.swingForm.watch_token_address}`);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.selectedWatchTokenInfo = {
-                            name: data.name,
-                            symbol: data.symbol,
-                            logo_uri: data.logo_uri
-                        };
-                    },
-                    (error) => {
-                        this.selectedWatchTokenInfo = null;
-                    }
-                );
-            } catch (error) {
-                this.selectedWatchTokenInfo = null;
-            }
-        },
-        onTradeTokenAddressInput() {
-            const query = this.swingForm.trade_token_address.trim().toLowerCase();
-
-            // 如果输入为空，重置代币信息
-            if (!query) {
-                this.selectedTradeTokenInfo = null;
-            }
-
-            // 如果代币列表为空且不在加载中，显示加载状态
-            if (this.availableTokens.length === 0 && !this.tokensLoading) {
-                this.showTradeTokenDropdown = true;
-                this.loadAvailableTokens();
-                return;
-            }
-
-            if (query) {
-                this.filteredTradeTokenList = this.availableTokens.filter(token =>
-                    token.address.toLowerCase().includes(query) ||
-                    (token.name && token.name.toLowerCase().includes(query)) ||
-                    (token.symbol && token.symbol.toLowerCase().includes(query))
-                );
-            } else {
-                this.filteredTradeTokenList = this.availableTokens;
-            }
-
-            this.showTradeTokenDropdown = this.filteredTradeTokenList.length > 0 || this.tokensLoading;
-        },
-        onTradeTokenAddressBlur() {
-            setTimeout(() => {
                 this.showTradeTokenDropdown = false;
-                // 如果用户手动输入了地址，尝试获取代币信息
-                if (this.swingForm.trade_token_address && !this.selectedTradeTokenInfo) {
-                    this.fetchTradeTokenInfo();
-                }
-            }, 200);
-        },
-        selectTradeToken(token) {
-            this.swingForm.trade_token_address = token.address;
-            this.showTradeTokenDropdown = false;
-            this.selectedTradeTokenInfo = {
-                name: token.name,
-                symbol: token.symbol,
-                logo_uri: token.logo_uri
-            };
-        },
-        async fetchTradeTokenInfo() {
-            if (!this.swingForm.trade_token_address) {
+                this.filteredWatchTokenList = [];
+                this.filteredTradeTokenList = [];
+                this.selectedWatchTokenInfo = null;
                 this.selectedTradeTokenInfo = null;
-                return;
-            }
-
-            // 首先检查是否在已有的代币列表中
-            const existingToken = this.availableTokens.find(token =>
-                token.address.toLowerCase() === this.swingForm.trade_token_address.toLowerCase()
-            );
-
-            if (existingToken) {
-                this.selectedTradeTokenInfo = {
-                    name: existingToken.name,
-                    symbol: existingToken.symbol,
-                    logo_uri: existingToken.logo_uri
+                this.swingForm = {
+                    name: '',
+                    private_key_id: '',
+                    watch_token_address: '',
+                    trade_token_address: '',
+                    price_type: 'market_cap',
+                    buy_threshold: 0,
+                    sell_threshold: 0,
+                    buy_percentage: 0.1,
+                    sell_percentage: 0.1,
+                    webhook_url: '',
+                    check_interval: 60,
+                    all_in_threshold: 0,
+                    type: 'swing'
                 };
-                return;
-            }
+            },
+            closeLogsModal() {
+                this.showLogsModal = false;
+                this.logs = [];
+                this.logsType = '';
+                this.logsRecordId = null;
+                this.selectedActionTypes = [];
+            },
+            getStatusClass(status) {
+                const statusClasses = {
+                    'monitoring': 'bg-success',
+                    'stopped': 'bg-secondary',
+                    'error': 'bg-danger',
+                    'completed': 'bg-info'
+                };
+                return statusClasses[status] || 'bg-secondary';
+            },
+            getStatusIcon(status) {
+                const statusIcons = {
+                    'monitoring': 'fa-play',
+                    'stopped': 'fa-stop',
+                    'error': 'fa-exclamation-triangle',
+                    'completed': 'fa-check-circle'
+                };
+                return statusIcons[status] || 'fa-question';
+            },
+            getStatusText(status) {
+                const statusTexts = {
+                    'monitoring': '监控中',
+                    'stopped': '已停止',
+                    'error': '错误',
+                    'completed': '已完成'
+                };
+                return statusTexts[status] || '?未知';
+            },
+            formatTime(timestamp) {
+                if (!timestamp) return '--';
+                return new Date(timestamp).toLocaleString('zh-CN');
+            },
+            showMessage(type, text) {
+                const id = Date.now() + Math.random();
+                this.messages.push({id, type, text});
+                setTimeout(() => {
+                    this.removeMessage(id);
+                }, 5000);
+            },
+            removeMessage(id) {
+                this.messages = this.messages.filter(m => m.id !== id);
+            },
+            copyToClipboard(text, type) {
+                // 优先使用现代 Clipboard API
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        this.showMessage('success', `${type}已复制到剪贴板`);
+                    }).catch(err => {
+                        console.error('Clipboard API 失败:', err);
+                        this.fallbackCopyTextToClipboard(text, type);
+                    });
+                } else {
+                    // 使用备用方案
+                    this.fallbackCopyTextToClipboard(text, type);
+                }
+            },
+            fallbackCopyTextToClipboard(text, type) {
+                // 创建临时文本区域
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
 
-            // 如果不在列表中，调用API获取
-            try {
-                const response = await ApiClient.get(`/api/token_info?address=${this.swingForm.trade_token_address}`);
-                ApiResponse.handle(response,
-                    (data) => {
-                        this.selectedTradeTokenInfo = {
-                            name: data.name,
-                            symbol: data.symbol,
-                            logo_uri: data.logo_uri
-                        };
-                    },
-                    (error) => {
-                        this.selectedTradeTokenInfo = null;
+                try {
+                    textArea.focus();
+                    textArea.select();
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        this.showMessage('success', `${type}已复制到剪贴板`);
+                    } else {
+                        this.showMessage('error', '复制失败，请手动复制');
                     }
+                } catch (err) {
+                    console.error('备用复制方法失败:', err);
+                    this.showMessage('error', '复制失败，请手动复制');
+                } finally {
+                    document.body.removeChild(textArea);
+                }
+            },
+            getThresholdDiffHtml(record) {
+                if (!record.last_market_cap || !record.threshold) return '--';
+                if (record.last_market_cap < record.threshold) {
+                    const diff = record.threshold - record.last_market_cap;
+                    const percent = ((diff / record.last_market_cap) * 100).toFixed(2);
+                    return `<div><span class='fw-bold text-danger'>还需涨 $${formatShortNumber(diff)}</span><div class='small text-secondary mt-1'>(${percent}%)</div></div>`;
+                } else {
+                    const diff = record.last_market_cap - record.threshold;
+                    const percent = ((diff / record.threshold) * 100).toFixed(2);
+                    return `<div><span class='fw-bold text-success'>已超阈值 $${formatShortNumber(diff)}</span><div class='small text-secondary mt-1'>(${percent}%)</div></div>`;
+                }
+            },
+            onThresholdInput(e) {
+                // 只允许数字和小数点，防止输入异常变0
+                let val = e.target.value.replace(/[^\d.]/g, '');
+                if (val.split('.').length > 2) val = val.replace(/\.+$/, '');
+                this.recordForm.threshold = val;
+            },
+            async openAddModal(type) {
+                if (type === 'swing') {
+                    this.showAddSwingModal = true;
+                    // 懒加载代币列表
+                    if (this.availableTokens.length === 0) {
+                        await this.loadAvailableTokens();
+                    }
+                    return;
+                }
+                this.recordForm.type = type; // 设置监控类型
+                this.showAddModal = true;
+                // 懒加载代币列表
+                if (this.availableTokens.length === 0) {
+                    await this.loadAvailableTokens();
+                }
+                // 如果已有代币地址，获取代币信息
+                if (this.recordForm.token_address) {
+                    await this.fetchTokenInfo();
+                }
+            },
+            async loadAvailableTokens() {
+                if (this.tokensLoading) return;
+                this.tokensLoading = true;
+                try {
+                    const response = await ApiClient.get('/api/keys/summary/tokens');
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.availableTokens = data.tokens || [];
+                            // 加载完成后重新触发过滤
+                            this.onTokenAddressInput();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '加载代币列表失败');
+                            this.showTokenDropdown = false;
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                    this.showTokenDropdown = false;
+                } finally {
+                    this.tokensLoading = false;
+                }
+            },
+            onTokenAddressInput() {
+                this.tokenAddressError = '';
+                const query = this.recordForm.token_address.trim().toLowerCase();
+
+                // 如果输入为空，重置代币信息
+                if (!query) {
+                    this.selectedTokenInfo = null;
+                }
+
+                // 如果代币列表为空且不在加载中，显示加载状态
+                if (this.availableTokens.length === 0 && !this.tokensLoading) {
+                    this.showTokenDropdown = true;
+                    this.loadAvailableTokens();
+                    return;
+                }
+
+                if (query) {
+                    this.filteredTokenList = this.availableTokens.filter(token =>
+                        token.address.toLowerCase().includes(query) ||
+                        (token.name && token.name.toLowerCase().includes(query)) ||
+                        (token.symbol && token.symbol.toLowerCase().includes(query))
+                    );
+                } else {
+                    this.filteredTokenList = this.availableTokens;
+                }
+
+                this.showTokenDropdown = this.filteredTokenList.length > 0 || this.tokensLoading;
+            },
+            selectToken(token) {
+                this.recordForm.token_address = token.address;
+                this.showTokenDropdown = false;
+                this.tokenAddressError = '';
+                this.selectedTokenInfo = {
+                    name: token.name,
+                    symbol: token.symbol,
+                    logo_uri: token.logo_uri
+                };
+            },
+            onTokenAddressBlur() {
+                setTimeout(() => {
+                    this.showTokenDropdown = false;
+                    // 如果用户手动输入了地址，尝试获取代币信息
+                    if (this.recordForm.token_address && !this.selectedTokenInfo) {
+                        this.fetchTokenInfo();
+                    }
+                }, 200);
+            },
+            async fetchTokenInfo() {
+                if (!this.recordForm.token_address) {
+                    this.selectedTokenInfo = null;
+                    return;
+                }
+
+                // 首先检查是否在已有的代币列表中
+                const existingToken = this.availableTokens.find(token =>
+                    token.address.toLowerCase() === this.recordForm.token_address.toLowerCase()
                 );
-            } catch (error) {
-                this.selectedTradeTokenInfo = null;
+
+                if (existingToken) {
+                    this.selectedTokenInfo = {
+                        name: existingToken.name,
+                        symbol: existingToken.symbol,
+                        logo_uri: existingToken.logo_uri
+                    };
+                    return;
+                }
+
+                // 如果不在列表中，调用API获取
+                try {
+                    const response = await ApiClient.get(`/api/token_info?address=${this.recordForm.token_address}`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.selectedTokenInfo = {
+                                name: data.name,
+                                symbol: data.symbol,
+                                logo_uri: data.logo_uri
+                            };
+                        },
+                        (error) => {
+                            // 获取失败时不显示错误，只是不显示代币信息
+                            this.selectedTokenInfo = null;
+                        }
+                    );
+                } catch (error) {
+                    this.selectedTokenInfo = null;
+                }
+            },
+            async saveSwingRecord() {
+                this.saveLoading = true;
+                try {
+                    const formData = new FormData();
+
+                    // 添加所有必需的字段
+                    formData.append('name', this.swingForm.name);
+                    formData.append('private_key_id', this.swingForm.private_key_id);
+                    formData.append('watch_token_address', this.swingForm.watch_token_address);
+                    formData.append('trade_token_address', this.swingForm.trade_token_address);
+                    formData.append('price_type', this.swingForm.price_type);
+                    formData.append('buy_threshold', this.swingForm.buy_threshold);
+                    formData.append('sell_threshold', this.swingForm.sell_threshold);
+                    formData.append('buy_percentage', this.swingForm.buy_percentage);
+                    formData.append('sell_percentage', this.swingForm.sell_percentage);
+                    formData.append('webhook_url', this.swingForm.webhook_url);
+                    formData.append('check_interval', this.swingForm.check_interval);
+                    formData.append('all_in_threshold', this.swingForm.all_in_threshold || 50.0);
+
+                    const url = this.showEditSwingModal
+                        ? `/api/swing/records/${this.swingForm.id}`
+                        : '/api/swing/records';
+
+                    const method = this.showEditSwingModal ? 'PUT' : 'POST';
+
+                    const response = await ApiClient[method.toLowerCase()](url, formData);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.showMessage('success', response.message || '保存成功');
+                            this.closeSwingModal();
+                            this.loadSwingRecords();
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '保存失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.saveLoading = false;
+                }
+            },
+            // 波段监控代币选择相关方法
+            onWatchTokenAddressInput() {
+                const query = this.swingForm.watch_token_address.trim().toLowerCase();
+
+                // 如果输入为空，重置代币信息
+                if (!query) {
+                    this.selectedWatchTokenInfo = null;
+                }
+
+                // 如果代币列表为空且不在加载中，显示加载状态
+                if (this.availableTokens.length === 0 && !this.tokensLoading) {
+                    this.showWatchTokenDropdown = true;
+                    this.loadAvailableTokens();
+                    return;
+                }
+
+                if (query) {
+                    this.filteredWatchTokenList = this.availableTokens.filter(token =>
+                        token.address.toLowerCase().includes(query) ||
+                        (token.name && token.name.toLowerCase().includes(query)) ||
+                        (token.symbol && token.symbol.toLowerCase().includes(query))
+                    );
+                } else {
+                    this.filteredWatchTokenList = this.availableTokens;
+                }
+
+                this.showWatchTokenDropdown = this.filteredWatchTokenList.length > 0 || this.tokensLoading;
+            },
+            onWatchTokenAddressBlur() {
+                setTimeout(() => {
+                    this.showWatchTokenDropdown = false;
+                    // 如果用户手动输入了地址，尝试获取代币信息
+                    if (this.swingForm.watch_token_address && !this.selectedWatchTokenInfo) {
+                        this.fetchWatchTokenInfo();
+                    }
+                }, 200);
+            },
+            selectWatchToken(token) {
+                this.swingForm.watch_token_address = token.address;
+                this.showWatchTokenDropdown = false;
+                this.selectedWatchTokenInfo = {
+                    name: token.name,
+                    symbol: token.symbol,
+                    logo_uri: token.logo_uri
+                };
+            },
+            async fetchWatchTokenInfo() {
+                if (!this.swingForm.watch_token_address) {
+                    this.selectedWatchTokenInfo = null;
+                    return;
+                }
+
+                // 首先检查是否在已有的代币列表中
+                const existingToken = this.availableTokens.find(token =>
+                    token.address.toLowerCase() === this.swingForm.watch_token_address.toLowerCase()
+                );
+
+                if (existingToken) {
+                    this.selectedWatchTokenInfo = {
+                        name: existingToken.name,
+                        symbol: existingToken.symbol,
+                        logo_uri: existingToken.logo_uri
+                    };
+                    return;
+                }
+
+                // 如果不在列表中，调用API获取
+                try {
+                    const response = await ApiClient.get(`/api/token_info?address=${this.swingForm.watch_token_address}`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.selectedWatchTokenInfo = {
+                                name: data.name,
+                                symbol: data.symbol,
+                                logo_uri: data.logo_uri
+                            };
+                        },
+                        (error) => {
+                            this.selectedWatchTokenInfo = null;
+                        }
+                    );
+                } catch (error) {
+                    this.selectedWatchTokenInfo = null;
+                }
+            },
+            onTradeTokenAddressInput() {
+                const query = this.swingForm.trade_token_address.trim().toLowerCase();
+
+                // 如果输入为空，重置代币信息
+                if (!query) {
+                    this.selectedTradeTokenInfo = null;
+                }
+
+                // 如果代币列表为空且不在加载中，显示加载状态
+                if (this.availableTokens.length === 0 && !this.tokensLoading) {
+                    this.showTradeTokenDropdown = true;
+                    this.loadAvailableTokens();
+                    return;
+                }
+
+                if (query) {
+                    this.filteredTradeTokenList = this.availableTokens.filter(token =>
+                        token.address.toLowerCase().includes(query) ||
+                        (token.name && token.name.toLowerCase().includes(query)) ||
+                        (token.symbol && token.symbol.toLowerCase().includes(query))
+                    );
+                } else {
+                    this.filteredTradeTokenList = this.availableTokens;
+                }
+
+                this.showTradeTokenDropdown = this.filteredTradeTokenList.length > 0 || this.tokensLoading;
+            },
+            onTradeTokenAddressBlur() {
+                setTimeout(() => {
+                    this.showTradeTokenDropdown = false;
+                    // 如果用户手动输入了地址，尝试获取代币信息
+                    if (this.swingForm.trade_token_address && !this.selectedTradeTokenInfo) {
+                        this.fetchTradeTokenInfo();
+                    }
+                }, 200);
+            },
+            selectTradeToken(token) {
+                this.swingForm.trade_token_address = token.address;
+                this.showTradeTokenDropdown = false;
+                this.selectedTradeTokenInfo = {
+                    name: token.name,
+                    symbol: token.symbol,
+                    logo_uri: token.logo_uri
+                };
+            },
+            async fetchTradeTokenInfo() {
+                if (!this.swingForm.trade_token_address) {
+                    this.selectedTradeTokenInfo = null;
+                    return;
+                }
+
+                // 首先检查是否在已有的代币列表中
+                const existingToken = this.availableTokens.find(token =>
+                    token.address.toLowerCase() === this.swingForm.trade_token_address.toLowerCase()
+                );
+
+                if (existingToken) {
+                    this.selectedTradeTokenInfo = {
+                        name: existingToken.name,
+                        symbol: existingToken.symbol,
+                        logo_uri: existingToken.logo_uri
+                    };
+                    return;
+                }
+
+                // 如果不在列表中，调用API获取
+                try {
+                    const response = await ApiClient.get(`/api/token_info?address=${this.swingForm.trade_token_address}`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.selectedTradeTokenInfo = {
+                                name: data.name,
+                                symbol: data.symbol,
+                                logo_uri: data.logo_uri
+                            };
+                        },
+                        (error) => {
+                            this.selectedTradeTokenInfo = null;
+                        }
+                    );
+                } catch (error) {
+                    this.selectedTradeTokenInfo = null;
+                }
+            },
+            // 波段监控钱包Token相关方法
+            async toggleSwingWalletTokens(recordId, keyId) {
+                // 安全检查
+                if (!recordId || !keyId) {
+                    console.error('recordId 或 keyId 为空', {recordId, keyId});
+                    return;
+                }
+
+                // 如果已经展开，则收起
+                if (this.swingWalletTokensExpanded[recordId]) {
+                    this.swingWalletTokensExpanded = {...this.swingWalletTokensExpanded, [recordId]: false};
+                    return;
+                }
+
+                // 展开并加载数据
+                this.swingWalletTokensExpanded = {...this.swingWalletTokensExpanded, [recordId]: true};
+
+                // 如果已经有数据，直接返回
+                if (this.swingWalletTokensData[recordId]) {
+                    return;
+                }
+
+                // 加载数据
+                await this.loadSwingWalletTokens(recordId, keyId);
+            },
+            async loadSwingWalletTokens(recordId, keyId) {
+                if (!recordId || !keyId) {
+                    console.error('loadSwingWalletTokens: recordId 或 keyId 为空', {recordId, keyId});
+                    return;
+                }
+
+                this.swingWalletTokensLoading = {...this.swingWalletTokensLoading, [recordId]: true};
+                try {
+                    const response = await ApiClient.get(`/api/keys/${keyId}/tokens`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.swingWalletTokensData = {...this.swingWalletTokensData, [recordId]: data};
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '加载Token明细失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.swingWalletTokensLoading = {...this.swingWalletTokensLoading, [recordId]: false};
+                }
+            },
+            async refreshSwingWalletTokens(recordId, keyId) {
+                if (!recordId || !keyId) {
+                    console.error('refreshSwingWalletTokens: recordId 或 keyId 为空', {recordId, keyId});
+                    return;
+                }
+
+                // 刷新单个波段监控钱包Token明细
+                this.swingWalletTokensLoading = {...this.swingWalletTokensLoading, [recordId]: true};
+                try {
+                    const response = await ApiClient.get(`/api/keys/${keyId}/tokens`);
+                    ApiResponse.handle(response,
+                        (data) => {
+                            this.swingWalletTokensData = {...this.swingWalletTokensData, [recordId]: data};
+                            this.showMessage('success', 'Token明细已刷新');
+                        },
+                        (error) => {
+                            this.showMessage('error', error || '刷新Token明细失败');
+                        }
+                    );
+                } catch (error) {
+                    this.showMessage('error', '网络错误');
+                } finally {
+                    this.swingWalletTokensLoading = {...this.swingWalletTokensLoading, [recordId]: false};
+                }
+            },
+            getSwingWalletKey(keyId) {
+                // 根据keyId获取私钥信息，用于兑换和转账操作
+                if (!keyId) {
+                    console.error('getSwingWalletKey: keyId 为空');
+                    return null;
+                }
+                return this.privateKeys.find(key => key.id === keyId) || null;
+            },
+            formatAmount(amount) {
+                if (amount >= 1000000) {
+                    return (amount / 1000000).toFixed(2) + 'M';
+                } else if (amount >= 1000) {
+                    return (amount / 1000).toFixed(2) + 'K';
+                } else if (amount >= 1) {
+                    return amount.toFixed(2);
+                } else {
+                    return amount.toFixed(6);
+                }
+            },
+            copyToClipboard(text, type) {
+                // 优先使用现代 Clipboard API
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        this.showMessage('success', `${type}已复制到剪贴板`);
+                    }).catch(err => {
+                        console.error('Clipboard API 失败:', err);
+                        this.fallbackCopyTextToClipboard(text, type);
+                    });
+                } else {
+                    // 使用备用方案
+                    this.fallbackCopyTextToClipboard(text, type);
+                }
+            },
+            fallbackCopyTextToClipboard(text, type) {
+                // 创建临时文本区域
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+
+                try {
+                    textArea.focus();
+                    textArea.select();
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        this.showMessage('success', `${type}已复制到剪贴板`);
+                    } else {
+                        this.showMessage('error', '复制失败，请手动复制');
+                    }
+                } catch (err) {
+                    console.error('备用复制方法失败:', err);
+                    this.showMessage('error', '复制失败，请手动复制');
+                } finally {
+                    document.body.removeChild(textArea);
+                }
+            },
+            openConvertModal(key, token) {
+                // 跳转到keys页面进行兑换操作
+                this.showMessage('info', '正在跳转到私钥管理页面进行兑换操作...');
+                setTimeout(() => {
+                    window.open('/keys', '_blank');
+                }, 1000);
+            },
+            openTransferModal(key, token) {
+                // 跳转到keys页面进行转账操作
+                this.showMessage('info', '正在跳转到私钥管理页面进行转账操作...');
+                setTimeout(() => {
+                    window.open('/keys', '_blank');
+                }, 1000);
             }
         }
-    }
-}).mount('#app');
+    }).mount('#app');
 </script>
 {% endblock %}
