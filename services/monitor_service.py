@@ -234,6 +234,7 @@ class MonitorService:
                     "timestamp": log.timestamp.isoformat() if log.timestamp else None,
                     "price": log.price,
                     "market_cap": log.market_cap,
+                    "transaction_usd": log.transaction_usd,
                     "threshold_reached": log.threshold_reached,
                     "action_taken": log.action_taken,
                     "tx_hash": log.tx_hash
@@ -317,21 +318,21 @@ class MonitorService:
         db = SessionLocal()
         try:
             total_count = 0
-            
+
             # 清空普通监控日志
             normal_query = db.query(MonitorLog)
             if monitor_record_id:
                 normal_query = normal_query.filter(MonitorLog.monitor_record_id == monitor_record_id)
             normal_count = normal_query.count()
             normal_query.delete()
-            
+
             total_count = normal_count
-            
+
             if monitor_record_id:
                 message = f"成功清空监控记录 {monitor_record_id} 的 {normal_count} 条日志"
             else:
                 message = f"成功清空所有日志：{normal_count} 条普通监控日志"
-            
+
             db.commit()
             return True, message, total_count
         except Exception as e:

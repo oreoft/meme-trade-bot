@@ -310,6 +310,7 @@ class PriceMonitor:
                 price=price_info['price'],
                 market_cap=price_info['market_cap'],
                 threshold_reached=True,
+                transaction_usd=estimated_usd_value,
                 action_taken="自动买入",
                 tx_hash=str(tx_hash)
             )
@@ -360,6 +361,7 @@ class PriceMonitor:
                 market_cap=price_info['market_cap'],
                 threshold_reached=True,
                 action_taken="自动出售",
+                transaction_usd=estimated_usd_value,
                 tx_hash=str(tx_hash)
             )
             db.add(log)
@@ -532,8 +534,11 @@ class PriceMonitor:
 
     def _log_monitor_data(self, record_id: int, price_info: dict, threshold: float, *,
                          monitor_type: str = 'normal', price_type: str = None, current_value: float = None,
-                         sell_threshold: float = None, buy_threshold: float = None, action_type: str = None,
-                         action_taken: str = None, tx_hash: str = None, watch_token_address: str = None, trade_token_address: str = None):
+                          sell_threshold: float = None,
+                          transaction_usd: float = None,
+                          buy_threshold: float = None, action_type: str = None,
+                          action_taken: str = None, tx_hash: str = None, watch_token_address: str = None,
+                          trade_token_address: str = None):
         """记录监控数据，兼容普通和波段监控"""
         db = SessionLocal()
         try:
@@ -552,7 +557,8 @@ class PriceMonitor:
                 buy_threshold=buy_threshold,
                 action_type=action_type,
                 watch_token_address=watch_token_address,
-                trade_token_address=trade_token_address
+                trade_token_address=trade_token_address,
+                transaction_usd=transaction_usd,
             )
             db.add(log)
             db.commit()
@@ -887,8 +893,9 @@ class PriceMonitor:
                         sell_threshold=record.sell_threshold,
                         buy_threshold=record.buy_threshold,
                         action_type=action_type,
-                        action_taken=f"执行{action_name}交易成功",
+                        action_taken=f"波段{action_name}",
                         tx_hash=tx_hash,
+                        transaction_usd=estimated_usd_value,
                         watch_token_address=record.watch_token_address,
                         trade_token_address=record.trade_token_address
                     )

@@ -759,6 +759,7 @@
                                     <th>时间</th>
                                     <th>价格</th>
                                     <th>市值</th>
+                                    <th>交易金额</th>
                                     <th>达到阈值</th>
                                     <th>操作</th>
                                     <th>交易哈希</th>
@@ -775,6 +776,10 @@
                                     </td>
                                     <td>
                                         <span v-if="log.market_cap" v-text="'$' + log.market_cap.toLocaleString()"></span>
+                                        <span v-else>--</span>
+                                    </td>
+                                    <td>
+                                        <span v-if="log.transaction_usd" v-text="'$' + log.transaction_usd.toLocaleString()"></span>
                                         <span v-else>--</span>
                                     </td>
                                     <td>

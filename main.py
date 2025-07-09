@@ -20,6 +20,7 @@ from config.config_manager import ConfigManager
 # 导入日志配置模块
 from config.log_config import setup_logging
 from core.price_monitor import PriceMonitor
+from database import sync_table
 # 导入全局异常处理
 from utils.exception_handler import GlobalExceptionHandler, setup_exception_handlers
 
@@ -50,6 +51,7 @@ monitor = PriceMonitor()
 # 初始化配置
 ConfigManager.init_default_configs()
 
+
 # 静态文件
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -71,6 +73,7 @@ if __name__ == "__main__":
     logging.info("🚀 币价监控系统启动中...")
     logging.info("📝 访问 http://localhost:8000 打开管理界面")
     logging.info("📚 访问 http://localhost:8000/docs 查看API文档")
+    sync_table.sync_table()
 
     uvicorn.run(
         "main:app",
