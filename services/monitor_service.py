@@ -210,9 +210,11 @@ class MonitorService:
             db.close()
 
     @staticmethod
-    def get_logs(page: int = 1, per_page: int = 20, monitor_record_id: Optional[int] = None, type: str = None):
+    def get_logs(page: int = 1, per_page: int = 20, monitor_record_id: Optional[int] = None, type: str = None,
+                 action_types: Optional[List[str]] = None) -> Dict:
         """
         获取监控日志，支持 type=normal/swing
+        action_type: 动作类型列表，如果为空或None则不过滤
         """
         db = SessionLocal()
         try:
@@ -224,6 +226,8 @@ class MonitorService:
             # 兼容未传type时，查全部
             if monitor_record_id:
                 query = query.filter(MonitorLog.monitor_record_id == monitor_record_id)
+            if action_types and len(action_types) > 0:
+                query = query.filter(MonitorLog.action_type.in_(action_types))
             logs = query.order_by(MonitorLog.timestamp.desc()).all()
             log_list = []
             for log in logs:
@@ -237,6 +241,7 @@ class MonitorService:
                     "transaction_usd": log.transaction_usd,
                     "threshold_reached": log.threshold_reached,
                     "action_taken": log.action_taken,
+                    "action_type": log.action_type,
                     "tx_hash": log.tx_hash
                 })
             log_list.sort(key=lambda x: x['timestamp'] if x['timestamp'] else '', reverse=True)

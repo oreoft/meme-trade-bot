@@ -312,6 +312,7 @@ class PriceMonitor:
                 threshold_reached=True,
                 transaction_usd=estimated_usd_value,
                 action_taken="自动买入",
+                action_type="buy",
                 tx_hash=str(tx_hash)
             )
             db.add(log)
@@ -361,6 +362,7 @@ class PriceMonitor:
                 market_cap=price_info['market_cap'],
                 threshold_reached=True,
                 action_taken="自动出售",
+                action_type="sell",
                 transaction_usd=estimated_usd_value,
                 tx_hash=str(tx_hash)
             )
@@ -421,7 +423,8 @@ class PriceMonitor:
                     record.last_market_cap = price_info['market_cap']
                     db.commit()
 
-                    self._log_monitor_data(record_id, price_info, record.threshold)
+                    self._log_monitor_data(record_id=record_id, price_info=price_info, threshold=record.threshold,
+                                           action_type='monitoring')
 
                     is_buy = getattr(record, 'type', 'sell') == 'buy'
 
@@ -533,7 +536,7 @@ class PriceMonitor:
                 db.close()
 
     def _log_monitor_data(self, record_id: int, price_info: dict, threshold: float, *,
-                         monitor_type: str = 'normal', price_type: str = None, current_value: float = None,
+                          monitor_type: str = 'normal', price_type: str = None, current_value: float = None,
                           sell_threshold: float = None,
                           transaction_usd: float = None,
                           buy_threshold: float = None, action_type: str = None,
@@ -547,8 +550,12 @@ class PriceMonitor:
                 timestamp=datetime.utcnow(),
                 price=price_info.get('price'),
                 market_cap=price_info.get('market_cap'),
-                threshold_reached=(price_info.get('market_cap') >= threshold) if threshold is not None and price_info.get('market_cap') is not None else False,
-                action_taken=action_taken or ("监控中" if threshold is not None and price_info.get('market_cap') is not None and price_info.get('market_cap') < threshold else "阈值达到"),
+                threshold_reached=(
+                        price_info.get('market_cap') >= threshold) if threshold is not None and price_info.get(
+                    'market_cap') is not None else False,
+                action_taken=action_taken or (
+                    "监控中" if threshold is not None and price_info.get('market_cap') is not None and price_info.get(
+                        'market_cap') < threshold else "阈值达到"),
                 tx_hash=tx_hash,
                 monitor_type=monitor_type,
                 price_type=price_type,
@@ -644,7 +651,8 @@ class PriceMonitor:
 
             while self.swing_monitor_states.get(record_id, False):
                 try:
-                    logging.info(f"波段监控 {record.name} 开始新的循环迭代，时间: {datetime.utcnow().strftime('%H:%M:%S')}")
+                    logging.info(
+                        f"波段监控 {record.name} 开始新的循环迭代，时间: {datetime.utcnow().strftime('%H:%M:%S')}")
 
                     current_time = time.time()
                     if current_time - last_trade_time < 60:
@@ -676,7 +684,8 @@ class PriceMonitor:
                         value_name = "市值"
                         value_unit = "USD"
 
-                    logging.debug(f"波段监控 {record.name} 当前{value_name}: ${current_value:,.2f}, 卖出阈值: ${sell_threshold:,.2f}, 买入阈值: ${buy_threshold:,.2f}")
+                    logging.debug(
+                        f"波段监控 {record.name} 当前{value_name}: ${current_value:,.2f}, 卖出阈值: ${sell_threshold:,.2f}, 买入阈值: ${buy_threshold:,.2f}")
 
                     # 记录监控日志
                     self._log_monitor_data(
@@ -859,7 +868,8 @@ class PriceMonitor:
 
             trade_amount = from_balance * percentage
             from_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(from_token))
-            estimated_usd_value = trade_amount * from_price_info['price'] if from_price_info and from_price_info['price'] else 0
+            estimated_usd_value = trade_amount * from_price_info['price'] if from_price_info and from_price_info[
+                'price'] else 0
             from_decimals = trader.get_token_decimals(from_token)
             lamports = int(trade_amount * (10 ** from_decimals))
             quote = trader.get_quote(from_token, to_token, lamports)
@@ -882,7 +892,8 @@ class PriceMonitor:
                 # 记录交易日志
                 watch_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(record.watch_token_address))
                 if watch_price_info:
-                    current_value = watch_price_info['price'] if record.price_type == 'price' else watch_price_info['market_cap']
+                    current_value = watch_price_info['price'] if record.price_type == 'price' else watch_price_info[
+                        'market_cap']
                     self._log_monitor_data(
                         record_id=record.id,
                         price_info=watch_price_info,
