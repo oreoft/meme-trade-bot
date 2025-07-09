@@ -94,118 +94,6 @@
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-eye me-2"></i>出售监听列表
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div v-if="loading" class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status"></div>
-                        <p class="mt-2 text-muted">加载中...</p>
-                    </div>
-                    <div v-else-if="sellRecords.length === 0" class="text-center py-5">
-                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">暂无出售监听记录</h5>
-                    </div>
-                    <div v-else class="table-responsive">
-                        <table class="table table-hover table-sm">
-                            <thead>
-                            <tr>
-                                <th style="min-width: 120px;">名称</th>
-                                <th style="min-width: 100px;">代币地址</th>
-                                <th style="min-width: 70px;">阈值</th>
-                                <th style="min-width: 80px;">当前市值</th>
-                                <th style="min-width: 90px;">距离阈值</th>
-                                <th style="min-width: 60px;">出售%</th>
-                                <th style="min-width: 60px;">执行</th>
-                                <th style="min-width: 70px;">最低持仓</th>
-                                <th style="min-width: 50px;">间隔</th>
-                                <th style="min-width: 60px;">状态</th>
-                                <th style="min-width: 100px;">最后检查</th>
-                                <th style="min-width: 140px;">操作</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr v-for="record in sellRecords" :key="record.id">
-                                <td>
-                                    <div class="d-flex flex-column">
-                                        <span class="badge bg-warning mb-1" style="font-size: 0.65rem;">出售</span>
-                                        <strong class="small" v-text="record.name"></strong>
-                                    </div>
-                                </td>
-                                <td>
-                                    <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank"
-                                       class="text-decoration-none" :title="record.token_address">
-                                        <code class="small text-primary">
-                                            <div v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></div>
-                                            <small v-if="record.token_symbol" class="text-muted">(<span
-                                                        v-text="record.token_symbol"></span>)</small>
-                                        </code>
-                                    </a>
-                                </td>
-                                <td><strong class="small" v-text="'$' + formatShortNumber(record.threshold)"></strong>
-                                </td>
-                                <td>
-                                    <span v-if="record.last_market_cap" class="fw-bold small"
-                                          v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
-                                    <span v-else class="text-muted small">--</span>
-                                </td>
-                                <td>
-                                    <span v-if="record.last_market_cap && record.threshold"
-                                          v-html="getThresholdDiffHtml(record)"></span>
-                                    <span v-else class="text-muted small">--</span>
-                                </td>
-                                <td><span class="badge bg-info" style="font-size: 0.7rem;"
-                                          v-text="(record.sell_percentage * 100).toFixed(1) + '%'"/></td>
-                                <td><span class="badge"
-                                          :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'"
-                                          style="font-size: 0.7rem;"
-                                          v-text="record.execution_mode === 'single' ? '单次' : '多次'"></span></td>
-                                <td>
-                                    <span v-if="record.execution_mode === 'multiple'" class="small"
-                                          v-text="'$' + formatShortNumber(record.minimum_hold_value)"></span>
-                                    <span v-else class="text-muted small">--</span>
-                                </td>
-                                <td><span class="small" v-text="record.check_interval + 's'"></span></td>
-                                <td><span class="badge" :class="getStatusClass(record.status)"
-                                          style="font-size: 0.7rem;"><i class="fas"
-                                                                        :class="getStatusIcon(record.status)"></i><span
-                                                v-text="getStatusText(record.status)"></span></span></td>
-                                <td><small v-if="record.last_check_at" class="text-muted"
-                                           v-text="formatTime(record.last_check_at)"></small><span v-else
-                                                                                                   class="text-muted small">--</span>
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" style="gap: 4px;">
-                                        <button v-if="record.status === 'stopped'"
-                                                class="btn btn-outline-success btn-sm"
-                                                @click="startSwingMonitor(record.id)"
-                                                :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i
-                                                    class="fas fa-play"></i></button>
-                                        <button v-if="record.status === 'monitoring'"
-                                                class="btn btn-outline-danger btn-sm"
-                                                @click="stopSwingMonitor(record.id)"
-                                                :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i
-                                                    class="fas fa-stop"></i></button>
-                                        <button class="btn btn-outline-primary btn-sm" @click="editRecord(record)"
-                                                :disabled="record.status === 'monitoring'" title="编辑"><i
-                                                    class="fas fa-edit"></i></button>
-                                        <button class="btn btn-outline-info btn-sm"
-                                                @click="viewLogs('normal', record.id)" title="查看日志"><i
-                                                    class="fas fa-history"></i></button>
-                                        <button class="btn btn-outline-danger btn-sm" @click="deleteRecord(record.id)"
-                                                :disabled="record.status === 'monitoring'" title="删除"><i
-                                                    class="fas fa-trash"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
                         <i class="fas fa-exchange-alt me-2"></i>波段监控列表
                     </h5>
                 </div>
@@ -438,6 +326,118 @@
                                     </td>
                                 </tr>
                             </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>出售监听列表
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div v-if="loading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted">加载中...</p>
+                    </div>
+                    <div v-else-if="sellRecords.length === 0" class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无出售监听记录</h5>
+                    </div>
+                    <div v-else class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                            <tr>
+                                <th style="min-width: 120px;">名称</th>
+                                <th style="min-width: 100px;">代币地址</th>
+                                <th style="min-width: 70px;">阈值</th>
+                                <th style="min-width: 80px;">当前市值</th>
+                                <th style="min-width: 90px;">距离阈值</th>
+                                <th style="min-width: 60px;">出售%</th>
+                                <th style="min-width: 60px;">执行</th>
+                                <th style="min-width: 70px;">最低持仓</th>
+                                <th style="min-width: 50px;">间隔</th>
+                                <th style="min-width: 60px;">状态</th>
+                                <th style="min-width: 100px;">最后检查</th>
+                                <th style="min-width: 140px;">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="record in sellRecords" :key="record.id">
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span class="badge bg-warning mb-1" style="font-size: 0.65rem;">出售</span>
+                                        <strong class="small" v-text="record.name"></strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a :href="'https://dexscreener.com/solana/' + record.token_address" target="_blank"
+                                       class="text-decoration-none" :title="record.token_address">
+                                        <code class="small text-primary">
+                                            <div v-text="record.token_address.substring(0, 4) + '...' + record.token_address.substring(record.token_address.length - 4)"></div>
+                                            <small v-if="record.token_symbol" class="text-muted">(<span
+                                                        v-text="record.token_symbol"></span>)</small>
+                                        </code>
+                                    </a>
+                                </td>
+                                <td><strong class="small" v-text="'$' + formatShortNumber(record.threshold)"></strong>
+                                </td>
+                                <td>
+                                    <span v-if="record.last_market_cap" class="fw-bold small"
+                                          v-text="'$' + formatShortNumber(record.last_market_cap)"></span>
+                                    <span v-else class="text-muted small">--</span>
+                                </td>
+                                <td>
+                                    <span v-if="record.last_market_cap && record.threshold"
+                                          v-html="getThresholdDiffHtml(record)"></span>
+                                    <span v-else class="text-muted small">--</span>
+                                </td>
+                                <td><span class="badge bg-info" style="font-size: 0.7rem;"
+                                          v-text="(record.sell_percentage * 100).toFixed(1) + '%'"/></td>
+                                <td><span class="badge"
+                                          :class="record.execution_mode === 'single' ? 'bg-warning' : 'bg-success'"
+                                          style="font-size: 0.7rem;"
+                                          v-text="record.execution_mode === 'single' ? '单次' : '多次'"></span></td>
+                                <td>
+                                    <span v-if="record.execution_mode === 'multiple'" class="small"
+                                          v-text="'$' + formatShortNumber(record.minimum_hold_value)"></span>
+                                    <span v-else class="text-muted small">--</span>
+                                </td>
+                                <td><span class="small" v-text="record.check_interval + 's'"></span></td>
+                                <td><span class="badge" :class="getStatusClass(record.status)"
+                                          style="font-size: 0.7rem;"><i class="fas"
+                                                                        :class="getStatusIcon(record.status)"></i><span
+                                                v-text="getStatusText(record.status)"></span></span></td>
+                                <td><small v-if="record.last_check_at" class="text-muted"
+                                           v-text="formatTime(record.last_check_at)"></small><span v-else
+                                                                                                   class="text-muted small">--</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" style="gap: 4px;">
+                                        <button v-if="record.status === 'stopped'"
+                                                class="btn btn-outline-success btn-sm"
+                                                @click="startSwingMonitor(record.id)"
+                                                :disabled="swingOperationLoading[record.id]" title="启动波段监控"><i
+                                                    class="fas fa-play"></i></button>
+                                        <button v-if="record.status === 'monitoring'"
+                                                class="btn btn-outline-danger btn-sm"
+                                                @click="stopSwingMonitor(record.id)"
+                                                :disabled="swingOperationLoading[record.id]" title="停止波段监控"><i
+                                                    class="fas fa-stop"></i></button>
+                                        <button class="btn btn-outline-primary btn-sm" @click="editRecord(record)"
+                                                :disabled="record.status === 'monitoring'" title="编辑"><i
+                                                    class="fas fa-edit"></i></button>
+                                        <button class="btn btn-outline-info btn-sm"
+                                                @click="viewLogs('normal', record.id)" title="查看日志"><i
+                                                    class="fas fa-history"></i></button>
+                                        <button class="btn btn-outline-danger btn-sm" @click="deleteRecord(record.id)"
+                                                :disabled="record.status === 'monitoring'" title="删除"><i
+                                                    class="fas fa-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
