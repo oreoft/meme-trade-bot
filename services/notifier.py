@@ -27,6 +27,9 @@ class Notifier:
                 "msg_type": msg_type,
                 "content": {
                     msg_type: content
+                },
+                "at": {
+                    "is_at_all": True
                 }
             }
 
