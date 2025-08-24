@@ -26,7 +26,7 @@ class Notifier:
             payload = {
                 "msg_type": msg_type,
                 "content": {
-                    msg_type: content
+                    msg_type: content + "\n<at user_id=\"all\">all</at>"
                 },
                 "at": {
                     "is_at_all": True
