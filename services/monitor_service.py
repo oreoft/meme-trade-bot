@@ -228,7 +228,14 @@ class MonitorService:
                 query = query.filter(MonitorLog.monitor_record_id == monitor_record_id)
             if action_types and len(action_types) > 0:
                 query = query.filter(MonitorLog.action_type.in_(action_types))
-            logs = query.order_by(MonitorLog.timestamp.desc()).all()
+
+            # 先计算总数
+            total = query.count()
+
+            # 在数据库层面进行分页
+            offset = (page - 1) * per_page
+            logs = query.order_by(MonitorLog.timestamp.desc()).offset(offset).limit(per_page).all()
+
             log_list = []
             for log in logs:
                 log_list.append({
@@ -244,10 +251,7 @@ class MonitorService:
                     "action_type": log.action_type,
                     "tx_hash": log.tx_hash
                 })
-            log_list.sort(key=lambda x: x['timestamp'] if x['timestamp'] else '', reverse=True)
-            total = len(log_list)
-            offset = (page - 1) * per_page
-            log_list = log_list[offset:offset + per_page]
+
             return {
                 "logs": log_list,
                 "total": total,
