@@ -4,6 +4,7 @@ import time
 from typing import Dict, Optional
 
 import requests
+from cachetools import TTLCache, cached
 
 from config.config_manager import ConfigManager
 from database.models import TokenMetaData, SessionLocal
@@ -90,8 +91,9 @@ class BirdEyeAPI:
         finally:
             db.close()
 
+    @cached(cache=TTLCache(maxsize=1000, ttl=60))
     def get_market_data(self, address: str) -> Optional[Dict]:
-        """获取token市场数据
+        """获取token市场数据，带内存缓存（TTL 60秒）
 
         Args:
             address: token地址
