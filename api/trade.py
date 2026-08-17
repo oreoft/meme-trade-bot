@@ -47,9 +47,9 @@ async def quote(
         if amount_in_usd is not None:
             # 获取Token价格
             from_info = TokenAPI().get_market_data(from_)
-            if not from_info or "price_usd" not in from_info or not from_info["price_usd"]:
+            if not from_info or "price" not in from_info or not from_info["price"]:
                 return ApiResponse.error(message="无法获取Token价格")
-            amount = float(amount_in_usd) / float(from_info["price_usd"])
+            amount = float(amount_in_usd) / float(from_info["price"])
         if amount is None:
             return ApiResponse.error(message="兑换数量不能为空")
 
