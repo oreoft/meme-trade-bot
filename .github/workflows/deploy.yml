@@ -1,0 +1,129 @@
+name: Meme Trade Bot Build & Deploy via Docker
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+env:
+  # ========== Docker 镜像配置 ==========
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/meme-trade-bot
+  
+  # ========== Windows 宿主机 Docker 部署配置 ==========
+  SERVER_IP: ${{ secrets.SER_GW_HOST }}
+  SERVER_PORT: 2233
+  SERVER_USER: server
+  SERVER_DEPLOY_PATH: "C:\\Users\\server\\Desktop\\meme-trade-bot"
+  SERVER_SSH_KEY: ${{ secrets.SER_SSH_DOOR_KEY }}
+  
+  # ========== 通知配置 ==========
+  NOTIFY_PATH: ${{ secrets.TL_NOTIFY_PATH }}
+  NOTIFY_TOKEN: ${{ secrets.TL_NOTIFY_TOKEN }}
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  deploy:
+    name: Deploy to SER Windows Docker
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ env.SERVER_SSH_KEY }}
+
+      - name: Deploy via SSH
+        shell: bash
+        run: |
+          ssh -o StrictHostKeyChecking=no -p "${{ env.SERVER_PORT }}" "${{ env.SERVER_USER }}@${{ env.SERVER_IP }}" << 'EOF'
+            $ErrorActionPreference = "Stop"
+            Set-Location -Path "${{ env.SERVER_DEPLOY_PATH }}"
+
+            git pull --ff-only
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            docker compose pull
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            docker compose up -d
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            docker image prune -f
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            docker compose ps
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          EOF
+
+      - name: Notify - Success
+        if: success()
+        run: |
+          curl --location "${{ env.NOTIFY_PATH }}" \
+          --header 'Content-Type: application/json' \
+          --data "{
+            \"token\": \"${{ env.NOTIFY_TOKEN }}\",
+            \"sendReceiver\": \"master\",
+            \"atReceiver\": \"\",
+            \"content\": \"Meme Trade Bot(Docker)已经成功部署 🐳\"
+          }" || echo "通知发送失败，但部署成功"
+
+      - name: Notify - Failure
+        if: failure()
+        run: |
+          curl --location "${{ env.NOTIFY_PATH }}" \
+          --header 'Content-Type: application/json' \
+          --data "{
+            \"token\": \"${{ env.NOTIFY_TOKEN }}\",
+            \"sendReceiver\": \"master\",
+            \"atReceiver\": \"\",
+            \"content\": \"⚠️ Meme Trade Bot(Docker)部署失败，请检查\"
+          }" || echo "通知发送失败"

@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  meme-trade-bot:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-oreoft}/meme-trade-bot:latest
+    container_name: meme-trade-bot
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config.db:/app/config.db
+      - ./logs:/app/logs
+    environment:
+      - TZ=Asia/Shanghai
