@@ -1,4 +1,4 @@
-name: Meme Trade Bot Build & Deploy via Docker
+name: Deploy to SER
 
 on:
   workflow_dispatch:
