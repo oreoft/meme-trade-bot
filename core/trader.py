@@ -20,7 +20,7 @@ from spl.token.constants import WRAPPED_SOL_MINT
 from spl.token.instructions import create_idempotent_associated_token_account, \
     transfer, TransferParams as TokenTransferParams
 
-from services.birdeye_api import BirdEyeAPI
+from services.token_api import TokenAPI
 from utils import normalize_sol_address
 
 try:
@@ -291,7 +291,7 @@ class SolanaTrader:
                 return record.token_decimals
             else:
                 # 如果数据库中没有，默认使用9位小数（大多数Solana代币的标准）
-                api = BirdEyeAPI()
+                api = TokenAPI()
                 from utils import normalize_sol_address
                 token_meta_data = api.get_token_meta_data(normalize_sol_address(token_address))
                 token_decimals = token_meta_data.get('decimals')
@@ -529,7 +529,7 @@ class SolanaTrader:
     def _calculate_transfer_result(self, token_address: str, amount: float, fee: float, tx_hash: str = None) -> dict:
         """计算转账结果"""
         from utils import normalize_sol_address
-        price = BirdEyeAPI().get_market_data(normalize_sol_address(token_address)).get('price', 0)
+        price = TokenAPI().get_market_data(normalize_sol_address(token_address)).get('price', 0)
         amount_usd = amount * price
 
         if token_address == str(WRAPPED_SOL_MINT):

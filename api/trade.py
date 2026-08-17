@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, Body, Form
 
 from core.trader import SolanaTrader
-from services import BirdEyeAPI
+from services import TokenAPI
 from services.monitor_service import MonitorService
 from utils import normalize_sol_address
 from utils.response import ApiResponse
@@ -14,7 +14,7 @@ async def token_info(address: str = Query(...)):
     """根据token地址查询token基本信息（名称、symbol、logo等）"""
     try:
         address = normalize_sol_address(address)
-        info = BirdEyeAPI().get_token_info_combined(address)
+        info = TokenAPI().get_token_info_combined(address)
         if info:
             res = info.get('meta_data', {})
             res["price_usd"] = info.get('market_data', {}).get("price", 0)
@@ -46,7 +46,7 @@ async def quote(
         # 新增：支持按USD金额输入
         if amount_in_usd is not None:
             # 获取Token价格
-            from_info = BirdEyeAPI().get_market_data(from_)
+            from_info = TokenAPI().get_market_data(from_)
             if not from_info or "price_usd" not in from_info or not from_info["price_usd"]:
                 return ApiResponse.error(message="无法获取Token价格")
             amount = float(amount_in_usd) / float(from_info["price_usd"])
@@ -60,7 +60,7 @@ async def quote(
             if isinstance(quote, dict) and "error" in quote:
                 return ApiResponse.error(message=quote["error"])
             return ApiResponse.error(message="获取报价失败")
-        to_info = BirdEyeAPI().get_token_info_combined(to)
+        to_info = TokenAPI().get_token_info_combined(to)
         meta_data = to_info.get("meta_data", {})
         market_data = to_info.get("market_data", {})
         out_amount = float(quote["outAmount"]) / (

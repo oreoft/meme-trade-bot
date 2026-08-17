@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 from database.models import SwingMonitorRecord, PrivateKey, SessionLocal
-from services.birdeye_api import BirdEyeAPI
+from services.token_api import TokenAPI
 from utils import normalize_sol_address
 
 
@@ -89,7 +89,7 @@ class SwingMonitorService:
                 return False, "私钥不存在或已删除", None
 
             # 获取监听代币信息
-            api = BirdEyeAPI()
+            api = TokenAPI()
             watch_token_meta = api.get_token_meta_data(normalize_sol_address(watch_token_address))
             if not watch_token_meta:
                 return False, "无法获取监听代币信息，请检查代币地址是否正确", None
@@ -183,7 +183,7 @@ class SwingMonitorService:
             watch_token_changed = record.watch_token_address != watch_token_address
             trade_token_changed = record.trade_token_address != trade_token_address
 
-            api = BirdEyeAPI()
+            api = TokenAPI()
 
             # 更新监听代币信息
             if watch_token_changed:

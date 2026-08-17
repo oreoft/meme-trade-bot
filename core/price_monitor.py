@@ -6,7 +6,7 @@ from typing import Dict
 
 from core.trader import SolanaTrader
 from database.models import MonitorRecord, MonitorLog, SwingMonitorRecord, SessionLocal
-from services import BirdEyeAPI
+from services import TokenAPI
 from services.notifier import Notifier
 from utils import normalize_sol_address
 
@@ -282,7 +282,7 @@ class PriceMonitor:
         """处理买入监听逻辑"""
         # 获取SOL的美元价格
         sol_mint = "So11111111111111111111111111111111111111112"
-        sol_info = BirdEyeAPI().get_market_data(normalize_sol_address(sol_mint))
+        sol_info = TokenAPI().get_market_data(normalize_sol_address(sol_mint))
         sol_usd_price = sol_info['price'] if sol_info and sol_info['price'] else 0.0
         actual_buy_percentage = record.sell_percentage
         if record.execution_mode != "single":
@@ -413,7 +413,7 @@ class PriceMonitor:
 
             while self.monitor_states.get(record_id, False):
                 try:
-                    price_info = BirdEyeAPI().get_market_data(normalize_sol_address(record.token_address))
+                    price_info = TokenAPI().get_market_data(normalize_sol_address(record.token_address))
                     if not price_info:
                         time.sleep(record.check_interval)
                         continue
@@ -661,7 +661,7 @@ class PriceMonitor:
                         time.sleep(min(remaining_cooldown, record.check_interval))
                         continue
 
-                    watch_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(record.watch_token_address))
+                    watch_price_info = TokenAPI().get_market_data(normalize_sol_address(record.watch_token_address))
                     if not watch_price_info:
                         time.sleep(record.check_interval)
                         continue
@@ -782,7 +782,7 @@ class PriceMonitor:
 
                             # 检查是否需要全仓买入
                             if record.all_in_threshold > 0:
-                                trade_token_price_info = BirdEyeAPI().get_market_data(
+                                trade_token_price_info = TokenAPI().get_market_data(
                                     normalize_sol_address(record.trade_token_address))
                                 if trade_token_price_info and trade_token_price_info['price']:
                                     total_value = trade_token_balance * trade_token_price_info['price']
@@ -867,7 +867,7 @@ class PriceMonitor:
                 return False
 
             trade_amount = from_balance * percentage
-            from_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(from_token))
+            from_price_info = TokenAPI().get_market_data(normalize_sol_address(from_token))
             estimated_usd_value = trade_amount * from_price_info['price'] if from_price_info and from_price_info[
                 'price'] else 0
             from_decimals = trader.get_token_decimals(from_token)
@@ -890,7 +890,7 @@ class PriceMonitor:
                     record.name, f"{from_symbol}→{to_symbol}", action_type=action_type
                 )
                 # 记录交易日志
-                watch_price_info = BirdEyeAPI().get_market_data(normalize_sol_address(record.watch_token_address))
+                watch_price_info = TokenAPI().get_market_data(normalize_sol_address(record.watch_token_address))
                 if watch_price_info:
                     current_value = watch_price_info['price'] if record.price_type == 'price' else watch_price_info[
                         'market_cap']

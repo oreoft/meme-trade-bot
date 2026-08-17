@@ -2,7 +2,7 @@ import base58
 from fastapi import APIRouter, Form
 from solders.keypair import Keypair
 
-from services.birdeye_api import BirdEyeAPI
+from services.token_api import TokenAPI
 from services.monitor_service import MonitorService
 from utils.response import ApiResponse
 
@@ -159,7 +159,7 @@ async def get_private_keys_token_summary():
             )
         
         # 初始化BirdEye API
-        api = BirdEyeAPI()
+        api = TokenAPI()
         
         # 汇总数据
         total_usd = 0
@@ -249,7 +249,7 @@ async def get_private_key_tokens(key_id: int):
             return ApiResponse.error(message="公钥地址不存在")
         
         # 初始化BirdEye API
-        api = BirdEyeAPI()
+        api = TokenAPI()
         
         # 获取钱包token列表
         wallet_data = api.get_wallet_token_list(public_key)
