@@ -178,17 +178,33 @@ class TokenAPI:
                 
                 # 过滤掉余额为 0 的无效账本
                 if ui_amount > 0:
+                    # 我们需要给前端补充上名字和价格等字段，否则前端显示全是'未知'和'0.00'
+                    meta = self.get_token_meta_data(mint) or {}
+                    market = self.get_market_data(mint) or {}
+                    
+                    price_usd = market.get('price', 0.0)
+                    value_usd = ui_amount * price_usd
+                    
                     items.append({
                         "address": mint,
+                        "name": meta.get('name', '未知'),
+                        "symbol": meta.get('symbol', '未知'),
                         "uiAmount": ui_amount,
-                        "decimals": decimals
+                        "decimals": decimals,
+                        "priceUsd": price_usd,
+                        "valueUsd": value_usd,
+                        "logoURI": ""
                     })
+                    
+            # 顺便计算一下总价值，前端可能会用到
+            total_usd = sum(item["valueUsd"] for item in items)
 
             logging.info(f"成功通过RPC获取钱包代币列表: {wallet_address}, 共 {len(items)} 种有效资产")
             
             # 返回兼容旧版Birdeye的结构
             return {
                 "wallet": wallet_address,
+                "totalUsd": total_usd,
                 "items": items
             }
 
