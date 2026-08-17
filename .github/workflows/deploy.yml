@@ -15,7 +15,7 @@ env:
   SERVER_PORT: 2233
   SERVER_USER: server
   SERVER_DEPLOY_PATH: "C:\\Users\\server\\Desktop\\meme-trade-bot"
-  SERVER_SSH_KEY: ${{ secrets.SER_SSH_DOOR_KEY }}
+  SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
   
   # ========== 通知配置 ==========
   NOTIFY_PATH: ${{ secrets.TL_NOTIFY_PATH }}
