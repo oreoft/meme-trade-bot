@@ -9,6 +9,8 @@ services:
       - "8000:8000"
     volumes:
       - ./config.db:/app/config.db
-      - ./logs:/app/logs
     environment:
       - TZ=Asia/Shanghai
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

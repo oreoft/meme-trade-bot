@@ -16,6 +16,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # 设置 uv 环境变量
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
+# 日志直接打到 stdout，不经缓冲
+ENV PYTHONUNBUFFERED=1
 
 # 先复制依赖文件并执行安装（利用 Docker 缓存层）
 COPY pyproject.toml uv.lock ./
