@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制 uv 二进制文件到系统
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# 复制 uv 二进制文件到系统（固定版本，latest 一变依赖层就全部重装）
+COPY --from=ghcr.io/astral-sh/uv:0.10 /uv /uvx /bin/
 
 # 设置 uv 环境变量
 ENV UV_COMPILE_BYTECODE=1
