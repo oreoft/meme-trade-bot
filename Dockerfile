@@ -18,6 +18,8 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 # 日志直接打到 stdout，不经缓冲
 ENV PYTHONUNBUFFERED=1
+# 直接用构建时装好的 venv
+ENV PATH="/app/.venv/bin:$PATH"
 
 # 先复制依赖文件并执行安装（利用 Docker 缓存层）
 COPY pyproject.toml uv.lock ./
@@ -28,5 +30,5 @@ COPY . .
 
 EXPOSE 8000
 
-# 直接使用 uv 启动项目
-CMD ["uv", "run", "python", "main.py"]
+# 直接用 venv 里的 python 启动，不经 uv run（uv run 每次启动都会重新同步依赖）
+CMD ["python", "main.py"]
